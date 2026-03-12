@@ -1,0 +1,429 @@
+package com.example.timecard.ui.timesheet
+
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.timecard.data.model.DAYS
+import com.example.timecard.data.model.TimecardData
+import com.example.timecard.data.model.TimecardRow
+import com.example.timecard.data.repository.FileRepository
+import com.example.timecard.domain.DateUtils
+import com.example.timecard.domain.JobValidator
+import com.google.gson.Gson
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.Instant
+
+enum class SaveStatus { SAVED, SYNCING, ERROR }
+
+data class TimesheetUiState(
+    val employeeName: String = "",
+    val currentWeekDate: String = "",
+    val activeWeekDate: String = "",
+    val isViewingPrevious: Boolean = false,
+    val saveStatus: SaveStatus = SaveStatus.SAVED,
+    val hasPreviousWeek: Boolean = false,
+    val numRows: Int = 9,
+    val isLockedByAnotherUser: Boolean = false,
+    val triggerAutoLogout: Boolean = false,
+    val jobs: List<String> = List(9) { if (it == 0) "SHOP" else "" },
+    val hours: List<List<String>> = List(9) { List(DAYS.size) { "" } },
+    val fillingCell: Pair<Int, Int>? = null,
+    val fillingCellPrevValue: Double = 0.0,
+    val isAnimatingWeekSwitch: Boolean = false,
+    val previousHourValues: List<List<Double>> = emptyList(),
+    val previousNumRows: Int = 9,
+    val lastSavedData: TimecardData? = null,
+    val previousWeekData: TimecardData? = null
+)
+
+class TimesheetViewModel : ViewModel() {
+
+    companion object {
+        const val DEFAULT_ROW_COUNT = 9
+    }
+
+    private val _uiState = MutableStateFlow(TimesheetUiState())
+    val uiState: StateFlow<TimesheetUiState> = _uiState.asStateFlow()
+
+    val deviceId = java.util.UUID.randomUUID().toString()
+    private var lastInteractionTimeMillis = System.currentTimeMillis()
+    private var lockRenewJob: Job? = null
+
+    private var repository: FileRepository? = null
+    private var autosaveJob: Job? = null
+    private val gson = Gson()
+
+    fun refreshInteraction() {
+        lastInteractionTimeMillis = System.currentTimeMillis()
+    }
+
+    fun resetAutoLogout() {
+        _uiState.update { it.copy(triggerAutoLogout = false) }
+    }
+
+    /** Called when the app comes back to foreground — catches the case where
+     *  the inactivity timer was suspended while Android had the app backgrounded. */
+    fun checkInactivityOnResume() {
+        if (_uiState.value.employeeName.isEmpty()) return // not logged in
+        val inactiveMs = System.currentTimeMillis() - lastInteractionTimeMillis
+        if (inactiveMs > 300_000L) {
+            _uiState.update { it.copy(triggerAutoLogout = true) }
+        }
+    }
+
+
+    fun initialize(name: String, repo: FileRepository?) {
+        repository = repo
+        val startWeek = DateUtils.getWeekStartingMonday()
+        
+        _uiState.update { it.copy(
+            employeeName = name,
+            currentWeekDate = startWeek,
+            activeWeekDate = startWeek,
+            isViewingPrevious = false
+        ) }
+
+        loadWeekData(false)
+        checkPreviousWeek()
+    }
+
+    fun setJob(rowIndex: Int, value: String) {
+        _uiState.update { state ->
+            if (rowIndex < state.jobs.size) {
+                val newJobs = state.jobs.toMutableList()
+                newJobs[rowIndex] = value.uppercase()
+                scheduleAutosave()
+                state.copy(jobs = newJobs)
+            } else state
+        }
+    }
+
+    fun setHours(rowIndex: Int, dayIndex: Int, value: String) {
+        _uiState.update { state ->
+            if (rowIndex < state.hours.size && dayIndex < state.hours[rowIndex].size) {
+                val newHours = state.hours.map { it.toMutableList() }.toMutableList()
+                newHours[rowIndex][dayIndex] = value
+                scheduleAutosave()
+                state.copy(hours = newHours)
+            } else state
+        }
+    }
+
+    fun fillShopHours(dayIndex: Int) {
+        val target = when (dayIndex) {
+            in 0..3 -> 9.0   // Mon-Thu
+            4 -> 4.0          // Fri
+            else -> return    // Sat — no target
+        }
+        val dayTotal = _uiState.value.getDayTotal(dayIndex)
+        val remaining = Math.round((target - dayTotal) * 4.0) / 4.0
+        if (remaining <= 0) return
+
+        _uiState.update { state ->
+            var shopRow = state.jobs.indexOfFirst { it.uppercase() == "SHOP" }
+            val newJobs = state.jobs.toMutableList()
+            if (shopRow == -1) {
+                shopRow = newJobs.indexOfFirst { it.isBlank() }
+                if (shopRow == -1) return@update state
+                newJobs[shopRow] = "SHOP"
+            }
+
+            val newHours = state.hours.map { it.toMutableList() }.toMutableList()
+            val currentShop = newHours[shopRow][dayIndex].toDoubleOrNull() ?: 0.0
+            newHours[shopRow][dayIndex] = String.format("%.2f", currentShop + remaining)
+            
+            scheduleAutosave()
+            
+            state.copy(
+                jobs = newJobs,
+                hours = newHours,
+                fillingCellPrevValue = currentShop,
+                fillingCell = Pair(shopRow, dayIndex)
+            )
+        }
+
+        viewModelScope.launch {
+            delay(550)
+            _uiState.update { it.copy(fillingCell = null) }
+        }
+    }
+
+    fun snapHours(rowIndex: Int, dayIndex: Int) {
+        _uiState.update { state ->
+            if (rowIndex < state.hours.size && dayIndex < state.hours[rowIndex].size) {
+                val raw = state.hours[rowIndex][dayIndex]
+                if (raw.isNotBlank()) {
+                    val newHours = state.hours.map { it.toMutableList() }.toMutableList()
+                    newHours[rowIndex][dayIndex] = JobValidator.snapToQuarter(raw)
+                    state.copy(hours = newHours)
+                } else state
+            } else state
+        }
+    }
+
+    fun addRow() {
+        _uiState.update { state ->
+            val newJobs = state.jobs.toMutableList().apply { add("") }
+            val newHours = state.hours.map { it.toMutableList() }.toMutableList().apply { 
+                add(DAYS.map { "" }.toMutableList()) 
+            }
+            state.copy(
+                jobs = newJobs,
+                hours = newHours,
+                numRows = state.numRows + 1
+            )
+        }
+    }
+
+
+
+
+
+
+
+    fun togglePrevWeek() {
+        _uiState.update { state ->
+            val previousHourValues = state.hours.map { row ->
+                row.map { cell ->
+                    try { cell.toDouble() } catch (e: Exception) { 0.0 }
+                }
+            }
+            state.copy(
+                previousHourValues = previousHourValues,
+                previousNumRows = state.numRows,
+                isAnimatingWeekSwitch = true,
+                isViewingPrevious = !state.isViewingPrevious
+            )
+        }
+        
+        loadWeekData(_uiState.value.isViewingPrevious)
+
+        viewModelScope.launch {
+            delay(550)
+            _uiState.update { it.copy(isAnimatingWeekSwitch = false) }
+        }
+    }
+
+    fun saveData() {
+        autosaveJob?.cancel()
+        performSave()
+    }
+
+    fun collectTimecardData(): TimecardData {
+        val state = _uiState.value
+        val rows = (0 until state.numRows).map { i ->
+            val job = if (i < state.jobs.size) state.jobs[i] else ""
+            val dayValues = if (i < state.hours.size) state.hours[i] else DAYS.map { "" }
+            TimecardRow(
+                job = job,
+                delivery = JobValidator.isDeliveryJob(job),
+                mon = snapValue(dayValues.getOrElse(0) { "" }),
+                tue = snapValue(dayValues.getOrElse(1) { "" }),
+                wed = snapValue(dayValues.getOrElse(2) { "" }),
+                thu = snapValue(dayValues.getOrElse(3) { "" }),
+                fri = snapValue(dayValues.getOrElse(4) { "" }),
+                sat = snapValue(dayValues.getOrElse(5) { "" })
+            )
+        }
+        return TimecardData(
+            employeeName = state.employeeName,
+            weekStarting = state.activeWeekDate,
+            updatedAt = Instant.now().toString(),
+            rows = rows
+        )
+    }
+
+    fun loadFile(name: String, date: String): String? {
+        return repository?.loadFile(name, date)
+    }
+
+    fun logout() {
+        autosaveJob?.cancel()
+        lockRenewJob?.cancel()
+        val state = _uiState.value
+        if (state.employeeName.isNotEmpty() && state.activeWeekDate.isNotEmpty()) {
+            repository?.releaseLock(state.employeeName, state.activeWeekDate, deviceId)
+        }
+        
+        _uiState.update { 
+            TimesheetUiState() // Reset to defaults
+        }
+    }
+
+    private fun loadWeekData(usePrevious: Boolean) {
+        val state = _uiState.value
+        val loadDate = if (usePrevious) {
+            DateUtils.getPreviousMonday(state.currentWeekDate)
+        } else {
+            state.currentWeekDate
+        }
+
+        if (state.activeWeekDate.isNotEmpty() && state.employeeName.isNotEmpty()) {
+            repository?.releaseLock(state.employeeName, state.activeWeekDate, deviceId)
+            lockRenewJob?.cancel()
+        }
+
+        val lockAcquired = repository?.acquireLock(state.employeeName, loadDate, deviceId) ?: true
+        
+        _uiState.update { it.copy(
+            activeWeekDate = loadDate,
+            isLockedByAnotherUser = !lockAcquired
+        ) }
+
+        if (!lockAcquired) {
+            clearGrid()
+            return
+        }
+
+        lockRenewJob = viewModelScope.launch {
+            while (true) {
+                delay(60_000L)
+                val inactiveMs = System.currentTimeMillis() - lastInteractionTimeMillis
+                if (inactiveMs > 300_000L) {
+                    // Only set the flag — TimecardApp's LaunchedEffect owns the actual logout
+                    // so that the UI transition always runs, including on resume from background.
+                    _uiState.update { it.copy(triggerAutoLogout = true) }
+                    break
+                } else {
+                    repository?.renewLock(_uiState.value.employeeName, _uiState.value.activeWeekDate, deviceId)
+                }
+            }
+        }
+
+        val json = repository?.loadFile(_uiState.value.employeeName, loadDate)
+        if (json != null) {
+            try {
+                val data = gson.fromJson(json, TimecardData::class.java)
+                loadGrid(data)
+            } catch (e: Exception) {
+                Log.e("TimesheetVM", "Failed to parse timecard data", e)
+                clearGrid()
+            }
+        } else {
+            clearGrid()
+        }
+    }
+
+    private fun loadGrid(data: TimecardData) {
+        val rowCount = maxOf(data.rows.size, DEFAULT_ROW_COUNT)
+        
+        val newJobs = mutableListOf<String>()
+        val newHours = mutableListOf<List<String>>()
+
+        for (i in 0 until rowCount) {
+            val row = data.rows.getOrNull(i)
+            newJobs.add(row?.job ?: if (i == 0 && row == null) "SHOP" else "")
+            newHours.add(
+                DAYS.mapIndexed { _, day ->
+                    val raw = row?.getHours(day) ?: ""
+                    if (raw.isNotBlank()) {
+                        val num = raw.toDoubleOrNull()
+                        if (num != null && num > 0) String.format("%.2f", num) else raw
+                    } else raw
+                }
+            )
+        }
+        
+        _uiState.update { it.copy(
+            numRows = rowCount,
+            jobs = newJobs,
+            hours = newHours
+        ) }
+    }
+
+    private fun clearGrid() {
+        _uiState.update { it.copy(
+            numRows = DEFAULT_ROW_COUNT,
+            jobs = List(DEFAULT_ROW_COUNT) { if (it == 0) "SHOP" else "" },
+            hours = List(DEFAULT_ROW_COUNT) { List(DAYS.size) { "" } }
+        ) }
+    }
+
+    private fun checkPreviousWeek() {
+        val prevDate = DateUtils.getPreviousMonday(_uiState.value.currentWeekDate)
+        val prevJson = repository?.loadFile(_uiState.value.employeeName, prevDate)
+        val prevData = if (prevJson != null) {
+            try { gson.fromJson(prevJson, TimecardData::class.java) } catch (_: Exception) { null }
+        } else null
+        _uiState.update { it.copy(
+            hasPreviousWeek = prevJson != null,
+            previousWeekData = prevData
+        ) }
+    }
+
+    private fun scheduleAutosave() {
+        autosaveJob?.cancel()
+        _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
+        autosaveJob = viewModelScope.launch {
+            delay(2000)
+            performSave()
+        }
+    }
+
+    fun getAvailableDates(): List<String> = repository?.getAvailableDates(_uiState.value.employeeName) ?: emptyList()
+
+    private fun performSave() {
+        _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
+        viewModelScope.launch {
+            try {
+                val data = collectTimecardData()
+                val json = gson.toJson(data)
+                val result = repository?.saveJSON(json, data.employeeName, data.weekStarting)
+                if (result == "SUCCESS") {
+                    _uiState.update { it.copy(
+                        saveStatus = SaveStatus.SAVED,
+                        lastSavedData = data
+                    ) }
+                } else {
+                    _uiState.update { it.copy(saveStatus = SaveStatus.ERROR) }
+                }
+            } catch (e: Exception) {
+                Log.e("TimesheetVM", "Save failed", e)
+                _uiState.update { it.copy(saveStatus = SaveStatus.ERROR) }
+            }
+        }
+    }
+
+    private fun snapValue(value: String): String {
+        if (value.isBlank()) return ""
+        val num = try {
+            value.toDouble()
+        } catch (e: Exception) {
+            return ""
+        }
+        val snapped = Math.round(num * 4.0) / 4.0
+        return if (snapped > 0) String.format("%.2f", snapped) else ""
+    }
+}
+
+
+fun TimesheetUiState.getRowTotal(rowIndex: Int): Double {
+    if (rowIndex >= hours.size) return 0.0
+    return hours[rowIndex].sumOf { cell ->
+        val v = try { cell.toDouble() } catch (e: Exception) { 0.0 }
+        Math.round(v * 4.0) / 4.0
+    }
+}
+
+fun TimesheetUiState.getDayTotal(dayIndex: Int): Double {
+    return hours.sumOf { row ->
+        if (dayIndex < row.size) {
+            val v = try { row[dayIndex].toDouble() } catch (e: Exception) { 0.0 }
+            Math.round(v * 4.0) / 4.0
+        } else 0.0
+    }
+}
+
+fun TimesheetUiState.getGrandTotal(): Double {
+    return (0 until numRows).sumOf { getRowTotal(it) }
+}
+
+fun TimesheetUiState.getPreviousHourValue(row: Int, day: Int): Double {
+    return previousHourValues.getOrNull(row)?.getOrNull(day) ?: 0.0
+}

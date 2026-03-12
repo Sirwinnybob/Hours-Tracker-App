@@ -1,0 +1,8 @@
+R_DEF: Internal format may change without notice
+local
+font jetbrains_mono
+font outfit
+font vt323
+mipmap ic_launcher
+raw anim_splash
+xml file_provider_paths

@@ -1,0 +1,42 @@
+[
+    {
+        "merged": "com.example.timecard.app-release-4:/font_jetbrains_mono.ttf.flat",
+        "source": "com.example.timecard.app-main-5:/font/jetbrains_mono.ttf"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/font_outfit.ttf.flat",
+        "source": "com.example.timecard.app-main-5:/font/outfit.ttf"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.example.timecard.app-main-5:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/raw_anim_splash.mp4.flat",
+        "source": "com.example.timecard.app-main-5:/raw/anim_splash.mp4"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.example.timecard.app-main-5:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/xml_file_provider_paths.xml.flat",
+        "source": "com.example.timecard.app-main-5:/xml/file_provider_paths.xml"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.example.timecard.app-main-5:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/font_vt323.ttf.flat",
+        "source": "com.example.timecard.app-main-5:/font/vt323.ttf"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.example.timecard.app-main-5:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.example.timecard.app-release-4:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.example.timecard.app-main-5:/mipmap-xxxhdpi/ic_launcher.png"
+    }
+]
