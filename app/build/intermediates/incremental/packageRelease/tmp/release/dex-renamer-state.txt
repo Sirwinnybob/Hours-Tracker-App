@@ -1,7 +1,0 @@
-#Wed Mar 11 10:45:15 PDT 2026
-base.0=C\:\\Scripts\\Hours Tracker\\AndroidApp\\app\\build\\intermediates\\dex\\release\\minifyReleaseWithR8\\classes.dex
-base.1=C\:\\Scripts\\Hours Tracker\\AndroidApp\\app\\build\\intermediates\\desugar_lib_dex\\release\\l8DexDesugarLibRelease\\classes1000.dex
-path.0=classes.dex
-path.1=classes1000.dex
-renamed.0=classes.dex
-renamed.1=classes2.dex

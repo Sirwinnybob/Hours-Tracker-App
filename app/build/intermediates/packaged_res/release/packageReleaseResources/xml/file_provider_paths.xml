@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<paths>
-    <!-- Allow access to external storage root for update APKs -->
-    <external-path name="external_files" path="." />
-</paths>
