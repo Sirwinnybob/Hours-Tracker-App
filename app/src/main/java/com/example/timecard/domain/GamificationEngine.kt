@@ -15,7 +15,9 @@ data class GamificationResult(
     val pendingBadges: List<String>,
     val newRecordMessage: String?,
     val pendingConfetti: Boolean,
-    val coinsGainedThisSave: Int
+    val coinsGainedThisSave: Int,
+    val streakBonusCoins: Int = 0,
+    val appliedStreakMultiplier: Double = 1.0
 )
 
 object GamificationEngine {
@@ -32,6 +34,7 @@ object GamificationEngine {
         val weekKey = weekData.weekStarting
         val coinLog = current.coinLog.toMutableMap()
         var coinsGained = 0
+        var streakBonusCoins = 0
 
         // Per-week bonus tracking — prevents repeatable awards from firing on every save
         val weeklyBonusLog = current.weeklyBonusLog.toMutableMap()
@@ -71,11 +74,17 @@ object GamificationEngine {
             val totalMultiplier = baseMultiplier * streakMult
 
             if (existing == null) {
-                coinsGained += (dayTotal * totalMultiplier).toInt()
+                val baseCoin = (dayTotal * baseMultiplier).toInt()
+                val totalCoin = (dayTotal * totalMultiplier).toInt()
+                coinsGained += totalCoin
+                streakBonusCoins += (totalCoin - baseCoin)
                 coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal)
             } else if (dayTotal > existing.hoursLogged + 0.24) {
                 val delta = dayTotal - existing.hoursLogged
-                coinsGained += (delta * totalMultiplier).toInt()
+                val baseCoin = (delta * baseMultiplier).toInt()
+                val totalCoin = (delta * totalMultiplier).toInt()
+                coinsGained += totalCoin
+                streakBonusCoins += (totalCoin - baseCoin)
                 coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal)
             }
         }
@@ -211,7 +220,9 @@ object GamificationEngine {
             pendingBadges = newBadgeMap.flatMap { (id, count) -> List(count) { id } },
             newRecordMessage = recordMsg,
             pendingConfetti = isPerfect,
-            coinsGainedThisSave = coinsGained + badgeCoins
+            coinsGainedThisSave = coinsGained + badgeCoins,
+            streakBonusCoins = streakBonusCoins,
+            appliedStreakMultiplier = GamificationConfig.streakMultiplier(newStreaks.currentDaily)
         )
     }
 

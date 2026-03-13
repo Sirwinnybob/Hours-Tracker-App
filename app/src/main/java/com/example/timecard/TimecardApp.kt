@@ -247,6 +247,8 @@ fun TimecardApp(
             )
             CoinBanner(
                 coinsEarned = profileViewModel.recentCoinsEarned,
+                streakBonus = profileViewModel.recentStreakBonus,
+                streakMultiplier = profileViewModel.recentStreakMultiplier,
                 onDismiss = { profileViewModel.dismissCoinsEarned() }
             )
             RecordToast(
