@@ -39,6 +39,10 @@ class ProfileViewModel : ViewModel() {
         private set
     var recentCoinsEarned by mutableStateOf<Int?>(null)
         private set
+    var recentStreakBonus by mutableStateOf<Int>(0)
+        private set
+    var recentStreakMultiplier by mutableStateOf<Double>(1.0)
+        private set
     /** True while the one-time historical backfill is running. */
     var isBackfilling by mutableStateOf(false)
         private set
@@ -99,7 +103,11 @@ class ProfileViewModel : ViewModel() {
 
     fun dismissRecord() { newRecordMessage = null }
     fun dismissConfetti() { pendingConfetti = false }
-    fun dismissCoinsEarned() { recentCoinsEarned = null }
+    fun dismissCoinsEarned() {
+        recentCoinsEarned = null
+        recentStreakBonus = 0
+        recentStreakMultiplier = 1.0
+    }
 
     fun setDisplayName(name: String) {
         profile = profile.copy(displayName = name.trim().ifBlank { null })
@@ -205,7 +213,11 @@ class ProfileViewModel : ViewModel() {
         if (result.pendingBadges.isNotEmpty()) pendingBadges = result.pendingBadges
         result.newRecordMessage?.let { newRecordMessage = it }
         if (result.pendingConfetti) pendingConfetti = true
-        if (result.coinsGainedThisSave > 0) recentCoinsEarned = result.coinsGainedThisSave
+        if (result.coinsGainedThisSave > 0) {
+            recentCoinsEarned = result.coinsGainedThisSave
+            recentStreakBonus = result.streakBonusCoins
+            recentStreakMultiplier = result.appliedStreakMultiplier
+        }
 
         saveProfile()
     }
