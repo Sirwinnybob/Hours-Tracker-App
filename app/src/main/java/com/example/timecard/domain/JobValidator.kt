@@ -2,7 +2,7 @@ package com.example.timecard.domain
 
 object JobValidator {
 
-    private val ALLOWED_JOB_WORDS = listOf("SHOP", "DELIVERY", "VACATION", "HOLIDAY", "SICK", "PERSONAL")
+    private val ALLOWED_JOB_WORDS = listOf("SHOP", "DELIVERY", "VACATION", "HOLIDAY", "SICK", "PERSONAL", "PTO")
 
     fun isValidJobEntry(value: String): Boolean {
         if (value.isBlank()) return true
@@ -26,6 +26,6 @@ object JobValidator {
         if (value.isBlank()) return ""
         val num = value.toDoubleOrNull() ?: return ""
         val snapped = snapToQuarter(num)
-        return if (snapped > 0) String.format("%.2f", snapped) else ""
+        return if (snapped > 0) String.format(java.util.Locale.US, "%.2f", snapped) else ""
     }
 }

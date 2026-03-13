@@ -40,7 +40,7 @@ object GamificationEngine {
 
         // Calculate streaks upfront so we can use the daily streak as a coin multiplier multiplier
         val sortedWeeks = recentWeeks.sortedByDescending { it.weekStarting }
-        val newStreaks = computeStreaks(current.streaks, sortedWeeks)
+        val newStreaks = computeStreaks(current.streaks, sortedWeeks, current.coinLog)
 
         // --- 1. Coins: per-day timeliness & streaks ---
         val weekParts = weekData.weekStarting.split("-")
@@ -54,7 +54,7 @@ object GamificationEngine {
             val dayCal = Calendar.getInstance()
             dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
             dayCal.add(Calendar.DAY_OF_MONTH, dayIndex)
-            val dayDateStr = String.format(
+            val dayDateStr = String.format(java.util.Locale.US,
                 "%04d-%02d-%02d",
                 dayCal.get(Calendar.YEAR),
                 dayCal.get(Calendar.MONTH) + 1,
@@ -122,7 +122,7 @@ object GamificationEngine {
         var recordMsg: String? = null
         if (weekTotal > 0 && weekTotal > newRecords.bestWeekHours) {
             newRecords = newRecords.copy(bestWeekHours = weekTotal)
-            recordMsg = "New best week: ${String.format("%.2f", weekTotal)} hrs! \uD83C\uDFC5"
+            recordMsg = "New best week: ${String.format(java.util.Locale.US, "%.2f", weekTotal)} hrs! \uD83C\uDFC5"
             coinsGained += 25
         }
         if (busiestDay > newRecords.busiestDay) newRecords = newRecords.copy(busiestDay = busiestDay)
@@ -134,7 +134,7 @@ object GamificationEngine {
         }
         if (monthTotal > newRecords.bestMonthHours) {
             newRecords = newRecords.copy(bestMonthHours = monthTotal)
-            if (recordMsg == null) recordMsg = "New best month: ${String.format("%.2f", monthTotal)} hrs! \uD83D\uDDD3\uFE0F"
+            if (recordMsg == null) recordMsg = "New best month: ${String.format(java.util.Locale.US, "%.2f", monthTotal)} hrs! \uD83D\uDDD3\uFE0F"
         }
 
         // --- 5. Perfect Week Bonus ---
@@ -215,7 +215,11 @@ object GamificationEngine {
         )
     }
 
-    fun computeStreaks(currentStreaks: StreakData, sortedWeeks: List<TimecardData>): StreakData {
+    fun computeStreaks(
+        currentStreaks: StreakData,
+        sortedWeeks: List<TimecardData>,
+        coinLog: Map<String, CoinLogEntry> = emptyMap()
+    ): StreakData {
         if (sortedWeeks.isEmpty()) {
             return StreakData(0, currentStreaks.bestDaily, 0, currentStreaks.bestWeekly)
         }
@@ -235,8 +239,55 @@ object GamificationEngine {
             val week = weekMap[checkDate]
             if (week != null) {
                 val total = week.rows.sumOf { row -> row.getHours(DAYS[checkDayIdx]).toDoubleOrNull() ?: 0.0 }
+                val isExcused = week.rows.any { row ->
+                    val h = row.getHours(DAYS[checkDayIdx]).toDoubleOrNull() ?: 0.0
+                    h > 0 && row.job.uppercase() in setOf("HOLIDAY", "VACATION", "SICK", "PERSONAL", "PTO")
+                }
+
+                // Check if the day was logged late (backfilled)
+                val parts = checkDate.split("-")
+                val isBackfilled = if (parts.size == 3 && checkDayIdx <= 4) {
+                    val cal = Calendar.getInstance()
+                    cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+                    cal.add(Calendar.DAY_OF_MONTH, checkDayIdx)
+                    val dayDateStr = String.format(java.util.Locale.US,
+                        "%04d-%02d-%02d",
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH) + 1,
+                        cal.get(Calendar.DAY_OF_MONTH)
+                    )
+
+                    val entry = coinLog[dayDateStr]
+                    if (entry != null && entry.savedAt.isNotBlank()) {
+                        try {
+                            val savedInstant = Instant.parse(entry.savedAt)
+                            val savedDateStr = String.format(java.util.Locale.US,
+                                "%04d-%02d-%02d",
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).year,
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).monthValue,
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).dayOfMonth
+                            )
+                            // If the date it was saved is later than the date itself, it was backfilled
+                            savedDateStr > dayDateStr
+                        } catch (e: Exception) {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+
                 if (total >= GamificationConfig.STREAK_TARGETS[checkDayIdx]) {
-                    currentDaily++
+                    if (isBackfilled && !isExcused) {
+                        // Backfilled regular hours break the streak
+                        broken = true
+                    } else {
+                        currentDaily++
+                    }
+                } else if (isExcused) {
+                    // Excused absences (PTO/Holiday) preserve the streak, but don't add to it
                 } else if (checkDate == thisWeekStr && checkDayIdx == todayIdx) {
                     // Today's hours not entered yet — don't break the streak
                 } else if (checkDate == thisWeekStr && checkDayIdx > todayIdx) {
@@ -313,9 +364,53 @@ object GamificationEngine {
             
             for (i in 0..5) {
                 val total = week.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 }
+                val isExcused = week.rows.any { row ->
+                    val h = row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0
+                    h > 0 && row.job.uppercase() in setOf("HOLIDAY", "VACATION", "SICK", "PERSONAL", "PTO")
+                }
+
+                val parts = week.weekStarting.split("-")
+                val isBackfilled = if (parts.size == 3 && i <= 4) {
+                    val cal = Calendar.getInstance()
+                    cal.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+                    cal.add(Calendar.DAY_OF_MONTH, i)
+                    val dayDateStr = String.format(java.util.Locale.US,
+                        "%04d-%02d-%02d",
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH) + 1,
+                        cal.get(Calendar.DAY_OF_MONTH)
+                    )
+
+                    val entry = coinLog[dayDateStr]
+                    if (entry != null && entry.savedAt.isNotBlank()) {
+                        try {
+                            val savedInstant = Instant.parse(entry.savedAt)
+                            val savedDateStr = String.format(java.util.Locale.US,
+                                "%04d-%02d-%02d",
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).year,
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).monthValue,
+                                savedInstant.atZone(java.time.ZoneId.systemDefault()).dayOfMonth
+                            )
+                            savedDateStr > dayDateStr
+                        } catch (e: Exception) {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+
                 if (total >= GamificationConfig.STREAK_TARGETS[i]) {
-                    tempDaily++
-                    if (tempDaily > bestDaily) bestDaily = tempDaily
+                    if (isBackfilled && !isExcused) {
+                        tempDaily = 0 // Backfilled regular hours break historical streak too
+                    } else {
+                        tempDaily++
+                        if (tempDaily > bestDaily) bestDaily = tempDaily
+                    }
+                } else if (isExcused) {
+                    // Excused absence preserves tempDaily but doesn't increase it
                 } else if (i == 5) {
                     // Saturday is optional. Missing it doesn't break daily streak
                 } else {
@@ -362,7 +457,13 @@ object GamificationEngine {
         // Use computeStreaks (the same function as live saves) so that bestDaily/bestWeekly
         // are derived from the full historical record, not just set equal to currentDaily.
         val sortedDesc = allWeeks.sortedByDescending { it.weekStarting }
-        val newStreaks = computeStreaks(StreakData(), sortedDesc)
+        // Backfill runs before current coinLog is computed, we can just use emptyMap
+        // for historical streaks, or better yet, since it's just generating the initial
+        // state, we don't know when they were "saved". Backfilling historical entries
+        // doesn't penalize for "missed and then recorded" because backfill is just
+        // processing a legacy log. We will pass emptyMap() to let it use strict logic,
+        // or actually pass coinLog from currentProfile just in case it's an incremental backfill.
+        val newStreaks = computeStreaks(StreakData(), sortedDesc, currentProfile.coinLog)
 
         // Iterate oldest-to-newest so the streak organically builds
         val sortedAsc = allWeeks.sortedBy { it.weekStarting }
@@ -387,7 +488,7 @@ object GamificationEngine {
                 val dayCal = Calendar.getInstance()
                 dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
                 dayCal.add(Calendar.DAY_OF_MONTH, dayIndex)
-                val dayDateStr = String.format(
+                val dayDateStr = String.format(java.util.Locale.US,
                     "%04d-%02d-%02d",
                     dayCal.get(Calendar.YEAR),
                     dayCal.get(Calendar.MONTH) + 1,
@@ -515,8 +616,15 @@ object GamificationEngine {
             val maxDay = if (i == 0) minOf(todayIdx, 4) else 4
             for (dayIdx in maxDay downTo 0) {
                 val total = week.rows.sumOf { row -> row.getHours(DAYS[dayIdx]).toDoubleOrNull() ?: 0.0 }
+                val isExcused = week.rows.any { row ->
+                    val h = row.getHours(DAYS[dayIdx]).toDoubleOrNull() ?: 0.0
+                    h > 0 && row.job.uppercase() in setOf("HOLIDAY", "VACATION", "SICK", "PERSONAL", "PTO")
+                }
+
                 if (total >= GamificationConfig.DAY_TARGETS[dayIdx]) {
                     daily++
+                } else if (isExcused) {
+                    // Excused absence preserves streak
                 } else if (i == 0 && dayIdx == todayIdx) {
                     // Today's hours aren't entered yet — skip without breaking streak
                 } else {
