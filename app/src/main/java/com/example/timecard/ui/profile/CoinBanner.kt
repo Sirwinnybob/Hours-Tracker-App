@@ -27,6 +27,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun CoinBanner(
     coinsEarned: Int?,
+    streakBonus: Int = 0,
+    streakMultiplier: Double = 1.0,
     onDismiss: () -> Unit
 ) {
     val visible = coinsEarned != null
@@ -78,13 +80,26 @@ fun CoinBanner(
                         fontSize = 24.sp
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "+$coinsEarned COINS EARNED",
-                        fontFamily = JetBrainsMonoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = CoinAmber
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = "+$coinsEarned COINS EARNED",
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = CoinAmber
+                        )
+                        if (streakBonus > 0 && streakMultiplier > 1.0) {
+                            Text(
+                                text = "+$streakBonus coins from 🔥 Streak Multiplier ${streakMultiplier}x",
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp,
+                                color = CoinAmber.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                 }
             }
         }

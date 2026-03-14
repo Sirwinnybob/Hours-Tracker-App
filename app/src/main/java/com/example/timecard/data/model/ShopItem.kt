@@ -9,5 +9,8 @@ data class ShopItem(
     @SerializedName("price")       val price: Int = 0,
     @SerializedName("category")    val category: String = "",
     @SerializedName("icon")        val icon: String = "🛍️",
-    @SerializedName("inShop")      val inShop: Boolean = true
+    @SerializedName("inShop")      val inShop: Boolean? = null,  // null = shown (Gson sets false for missing boolean fields)
+    @SerializedName("imageFile")   val imageFile: String? = null,
+    @SerializedName("isSpecial")   val isSpecial: Boolean = false,
+    @SerializedName("quantity")    val quantity: Int? = null
 )

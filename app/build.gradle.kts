@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.timecard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 119
-        versionName = "3.1.3"
+        versionCode = 120
+        versionName = "3.5.0"
     }
 
     signingConfigs {
@@ -28,8 +28,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = false // Disabled for stability debugging
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

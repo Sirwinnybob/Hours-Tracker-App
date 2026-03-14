@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.timecard.data.model.PlayerProfile
+import com.example.timecard.data.model.PurchaseRecord
 import com.example.timecard.data.model.TimecardData
 import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.domain.BadgeDefinition
@@ -38,6 +39,10 @@ class ProfileViewModel : ViewModel() {
     var pendingConfetti by mutableStateOf(false)
         private set
     var recentCoinsEarned by mutableStateOf<Int?>(null)
+        private set
+    var recentStreakBonus by mutableStateOf<Int>(0)
+        private set
+    var recentStreakMultiplier by mutableStateOf<Double>(1.0)
         private set
     /** True while the one-time historical backfill is running. */
     var isBackfilling by mutableStateOf(false)
@@ -99,18 +104,37 @@ class ProfileViewModel : ViewModel() {
 
     fun dismissRecord() { newRecordMessage = null }
     fun dismissConfetti() { pendingConfetti = false }
-    fun dismissCoinsEarned() { recentCoinsEarned = null }
+    fun dismissCoinsEarned() {
+        recentCoinsEarned = null
+        recentStreakBonus = 0
+        recentStreakMultiplier = 1.0
+    }
 
     fun setDisplayName(name: String) {
         profile = profile.copy(displayName = name.trim().ifBlank { null })
         saveProfile()
     }
 
-    fun processPurchase(itemId: String, price: Int): Boolean {
+    fun markSpecialItemsSeen(ids: List<String>) {
+        val merged = (profile.seenSpecialItems + ids).distinct()
+        if (merged.size != profile.seenSpecialItems.size) {
+            profile = profile.copy(seenSpecialItems = merged)
+            saveProfile()
+        }
+    }
+
+    fun processPurchase(itemId: String, price: Int, itemTitle: String = ""): Boolean {
         if (profile.coins >= price && !profile.inventory.contains(itemId)) {
+            val record = PurchaseRecord(
+                itemId = itemId,
+                itemTitle = itemTitle,
+                price = price,
+                purchasedAt = java.time.Instant.now().toString()
+            )
             profile = profile.copy(
                 coins = profile.coins - price,
-                inventory = profile.inventory + itemId
+                inventory = profile.inventory + itemId,
+                purchaseHistory = (listOf(record) + profile.purchaseHistory).take(100)
             )
             saveProfile()
             return true
@@ -118,9 +142,18 @@ class ProfileViewModel : ViewModel() {
         return false
     }
 
-    fun spendCoins(price: Int): Boolean {
+    fun spendCoins(price: Int, itemId: String = "", itemTitle: String = ""): Boolean {
         if (profile.coins >= price) {
-            profile = profile.copy(coins = profile.coins - price)
+            val record = PurchaseRecord(
+                itemId = itemId,
+                itemTitle = itemTitle,
+                price = price,
+                purchasedAt = java.time.Instant.now().toString()
+            )
+            profile = profile.copy(
+                coins = profile.coins - price,
+                purchaseHistory = (listOf(record) + profile.purchaseHistory).take(100)
+            )
             saveProfile()
             return true
         }
@@ -205,7 +238,11 @@ class ProfileViewModel : ViewModel() {
         if (result.pendingBadges.isNotEmpty()) pendingBadges = result.pendingBadges
         result.newRecordMessage?.let { newRecordMessage = it }
         if (result.pendingConfetti) pendingConfetti = true
-        if (result.coinsGainedThisSave > 0) recentCoinsEarned = result.coinsGainedThisSave
+        if (result.coinsGainedThisSave > 0) {
+            recentCoinsEarned = result.coinsGainedThisSave
+            recentStreakBonus = result.streakBonusCoins
+            recentStreakMultiplier = result.appliedStreakMultiplier
+        }
 
         saveProfile()
     }

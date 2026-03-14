@@ -312,6 +312,15 @@ fun TimesheetScreen(
                         }
                     }
         
+                    // New-in-shop announcement banner
+                    if (shopViewModel != null && shopViewModel.newSpecialItems.isNotEmpty()) {
+                        com.example.timecard.ui.shop.ShopAnnouncementBanner(
+                            items = shopViewModel.newSpecialItems,
+                            onOpenShop = { navController.navigate("shop") },
+                            onDismiss = { shopViewModel.markSpecialItemsSeen() }
+                        )
+                    }
+
                     // Content
                     if (uiState.isLockedByAnotherUser) {
                         Box(
@@ -420,6 +429,8 @@ fun TimesheetScreen(
         
         dialog("shop") {
             if (shopViewModel != null && profileViewModel != null) {
+                // Reload catalog fresh every time the shop opens so new items always appear
+                LaunchedEffect(Unit) { shopViewModel.reloadCatalog() }
                 com.example.timecard.ui.shop.ShopModal(
                     onDismiss = { navController.popBackStack() },
                     shopViewModel = shopViewModel,
