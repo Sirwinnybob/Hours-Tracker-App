@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.data.model.ShopItem
 import com.example.timecard.ui.profile.ProfileViewModel
+import com.example.timecard.ui.theme.ACCENT_UNLOCKS
 import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.JetBrainsMonoFontFamily
 
@@ -50,14 +51,87 @@ fun ShopModal(
     val inventory = profileViewModel.profile.inventory
     val recipients = shopViewModel.recipients
     val itemImages = shopViewModel.itemImages
+    val triedThemes = profileViewModel.profile.triedThemes
+    val previewItemId = shopViewModel.previewItemId
+    val previewExpiresAtMs = shopViewModel.previewExpiresAtMs
 
     // Reload catalog from disk and mark all special items as seen when modal opens
     LaunchedEffect(Unit) {
         shopViewModel.reloadAndMarkSeen()
     }
 
+    // Countdown ticker — updates every 500ms while a preview is active
+    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(previewExpiresAtMs) {
+        while (previewExpiresAtMs != null && System.currentTimeMillis() < previewExpiresAtMs) {
+            kotlinx.coroutines.delay(500)
+            nowMs = System.currentTimeMillis()
+        }
+        nowMs = System.currentTimeMillis()
+    }
+    val previewSecondsLeft = (((previewExpiresAtMs ?: 0L) - nowMs) / 1000).coerceAtLeast(0).toInt()
+
+    // Purchase confirmation state
+    var pendingPurchase by remember { mutableStateOf<ShopItem?>(null) }
+
+    // Send-note dialog state
     var showSendNoteDialog by remember { mutableStateOf(false) }
     var isAnonymousMode by remember { mutableStateOf(false) }
+
+    // Confirmation dialog
+    pendingPurchase?.let { pending ->
+        val coinsAfter = userCoins - pending.price
+        AlertDialog(
+            onDismissRequest = { pendingPurchase = null },
+            title = { Text("Buy ${pending.title}?") },
+            text = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Cost: ", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "🪙 ${pending.price}",
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = CoinAmber
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Balance after: ", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "🪙 $coinsAfter",
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            color = if (coinsAfter >= 0) CoinAmber else Color.Red
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    pendingPurchase = null
+                    when (pending.id) {
+                        "consumable_send_note" -> {
+                            showSendNoteDialog = true
+                            isAnonymousMode = false
+                        }
+                        "consumable_send_anonymous_note" -> {
+                            showSendNoteDialog = true
+                            isAnonymousMode = true
+                        }
+                        else -> shopViewModel.purchaseItem(pending.id)
+                    }
+                }) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingPurchase = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showSendNoteDialog) {
         val sendNoteCost = if (isAnonymousMode) {
@@ -69,7 +143,7 @@ fun ShopModal(
             recipients = recipients,
             cost = sendNoteCost,
             isAnonymousMode = isAnonymousMode,
-            onDismiss = { 
+            onDismiss = {
                 showSendNoteDialog = false
                 isAnonymousMode = false
             },
@@ -116,10 +190,7 @@ fun ShopModal(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "🪙",
-                                fontSize = 24.sp
-                            )
+                            Text(text = "🪙", fontSize = 24.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = userCoins.toString(),
@@ -134,7 +205,7 @@ fun ShopModal(
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                
+
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
                 // Separate special/featured items from regular catalog
@@ -174,18 +245,21 @@ fun ShopModal(
                             val isConsumable = item.id.startsWith("consumable_")
                             val isOwned = if (isConsumable) false else inventory.contains(item.id)
                             val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
+                            val rawCat = item.category?.lowercase() ?: ""
+                            val isThemeCat = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
+                            val accentKeyForItem = if (isThemeCat) ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.first ?: "" else ""
                             ShopItemCard(
                                 item = item,
                                 isOwned = isOwned,
                                 missingCoins = missingCoins,
                                 imageBytes = itemImages[item.id],
-                                onPurchase = {
-                                    when (item.id) {
-                                        "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
-                                        "consumable_send_anonymous_note" -> { showSendNoteDialog = true; isAnonymousMode = true }
-                                        else -> shopViewModel.purchaseItem(item.id)
-                                    }
-                                }
+                                isTried = triedThemes.contains(item.id),
+                                isPreviewActive = previewItemId == item.id,
+                                previewSecondsLeft = previewSecondsLeft,
+                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
+                                    { shopViewModel.tryTheme(item.id, accentKeyForItem) }
+                                } else null,
+                                onPurchase = { pendingPurchase = item }
                             )
                         }
                     }
@@ -212,18 +286,21 @@ fun ShopModal(
                             val isConsumable = item.id.startsWith("consumable_")
                             val isOwned = if (isConsumable) false else inventory.contains(item.id)
                             val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
+                            val rawCat = item.category?.lowercase() ?: ""
+                            val isThemeCat = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
+                            val accentKeyForItem = if (isThemeCat) ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.first ?: "" else ""
                             ShopItemCard(
                                 item = item,
                                 isOwned = isOwned,
                                 missingCoins = missingCoins,
                                 imageBytes = itemImages[item.id],
-                                onPurchase = {
-                                    when (item.id) {
-                                        "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
-                                        "consumable_send_anonymous_note" -> { showSendNoteDialog = true; isAnonymousMode = true }
-                                        else -> shopViewModel.purchaseItem(item.id)
-                                    }
-                                }
+                                isTried = triedThemes.contains(item.id),
+                                isPreviewActive = previewItemId == item.id,
+                                previewSecondsLeft = previewSecondsLeft,
+                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
+                                    { shopViewModel.tryTheme(item.id, accentKeyForItem) }
+                                } else null,
+                                onPurchase = { pendingPurchase = item }
                             )
                         }
                     }
@@ -239,6 +316,10 @@ fun ShopItemCard(
     isOwned: Boolean,
     missingCoins: Int,
     imageBytes: ByteArray? = null,
+    isTried: Boolean = false,
+    isPreviewActive: Boolean = false,
+    previewSecondsLeft: Int = 0,
+    onTryTheme: (() -> Unit)? = null,
     onPurchase: () -> Unit
 ) {
     val canAfford = missingCoins == 0
@@ -247,13 +328,12 @@ fun ShopItemCard(
     val isTheme = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
 
     val themeColor = if (isTheme) {
-        com.example.timecard.ui.theme.ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.second
+        ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.second
     } else null
 
     val borderColor = themeColor?.copy(alpha = 0.5f) ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     val backgroundColor = themeColor?.copy(alpha = 0.1f) ?: MaterialTheme.colorScheme.surface
 
-    // Decode imageBytes outside the Row so the remember key is stable
     val imageBitmap = remember(imageBytes) {
         imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
     }
@@ -293,10 +373,7 @@ fun ShopItemCard(
                         .background(themeColor, RoundedCornerShape(4.dp))
                 )
             } else {
-                Text(
-                    text = item.icon,
-                    fontSize = 24.sp
-                )
+                Text(text = item.icon, fontSize = 24.sp)
             }
             Text(
                 text = "🪙 ${item.price}",
@@ -306,29 +383,29 @@ fun ShopItemCard(
                 fontSize = 14.sp
             )
         }
-        
-        Spacer(modifier = Modifier.height(4.dp)) // Tighter spacing
-        
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         Text(
             text = item.title,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1 // Limit title to 1 line
+            maxLines = 1
         )
-        
+
         Text(
             text = item.description,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-            maxLines = 2, // Allow a maximum of 2 lines but size-to-fit
-            minLines = 2 // Keeping minlines locks vertical rhythms within row
+            maxLines = 2,
+            minLines = 2
         )
-        
+
         Spacer(modifier = Modifier.height(2.dp))
-        
-        // Buy Button
+
+        // ── BUY button ───────────────────────────────────────────────────────
         val interactionSource = remember { MutableInteractionSource() }
         val isPressed by interactionSource.collectIsPressedAsState()
         val scale by animateFloatAsState(
@@ -336,7 +413,7 @@ fun ShopItemCard(
             animationSpec = tween(durationMillis = 80),
             label = "button_scale"
         )
-        
+
         val emerald = Color(0xFF34D399)
         val slate = Color(0xFF64748B)
 
@@ -354,7 +431,7 @@ fun ShopItemCard(
             isOwned || canAfford -> Color.Black
             else -> Color.White
         }
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -377,6 +454,58 @@ fun ShopItemCard(
                 fontFamily = JetBrainsMonoFontFamily
             )
         }
+
+        // ── TRY button (theme items only, one-time trial) ────────────────────
+        if (onTryTheme != null || isPreviewActive) {
+            Spacer(modifier = Modifier.height(5.dp))
+            if (isPreviewActive) {
+                // Active countdown pill
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF3F51B5).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🎨 Trying… ${previewSecondsLeft}s",
+                        color = Color(0xFF7986CB),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        fontFamily = JetBrainsMonoFontFamily
+                    )
+                }
+            } else if (onTryTheme != null) {
+                val tryInteraction = remember { MutableInteractionSource() }
+                val tryPressed by tryInteraction.collectIsPressedAsState()
+                val tryScale by animateFloatAsState(
+                    targetValue = if (tryPressed) 0.95f else 1f,
+                    animationSpec = tween(durationMillis = 80),
+                    label = "try_scale"
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .scale(tryScale)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                        .clickable(
+                            interactionSource = tryInteraction,
+                            indication = null,
+                            onClick = onTryTheme
+                        )
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🎨 Try (30s)",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.sp,
+                        fontFamily = JetBrainsMonoFontFamily
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -395,10 +524,10 @@ fun SendNoteDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { 
+        title = {
             Text(
                 if (isAnonymousMode) "\u2709\uFE0F Send Anonymous Note" else "\u2709\uFE0F Send a Note"
-            ) 
+            )
         },
         text = {
             Column {
@@ -412,7 +541,7 @@ fun SendNoteDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-                
+
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = it }
@@ -447,7 +576,7 @@ fun SendNoteDialog(
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = message,
@@ -467,14 +596,12 @@ fun SendNoteDialog(
             Button(
                 onClick = {
                     if (isAnonymousMode) {
-                        // For anonymous mode, we can send to a random recipient or require selection
-                        // For now, let's require selection but hide the sender
                         selectedRecipient?.let { onSend(it.folderName, message) }
                     } else {
                         selectedRecipient?.let { onSend(it.folderName, message) }
                     }
                 },
-                enabled = (!isAnonymousMode && selectedRecipient != null && message.isNotBlank()) || 
+                enabled = (!isAnonymousMode && selectedRecipient != null && message.isNotBlank()) ||
                           (isAnonymousMode && message.isNotBlank())
             ) {
                 Text(

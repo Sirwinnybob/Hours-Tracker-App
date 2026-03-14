@@ -66,8 +66,9 @@ fun TimecardApp(
     val shopViewModel: ShopViewModel = viewModel()
 
 
-    // Pass the raw accent string to activate immersive themes
-    val accentKey = profileViewModel.profile.accentColor
+    // Pass the raw accent string to activate immersive themes.
+    // If a theme trial is active in the shop, it temporarily overrides the stored accent.
+    val accentKey = shopViewModel.previewAccentKey ?: profileViewModel.profile.accentColor
 
     TimecardTheme(themeMode = themeState.mode, accentKey = accentKey) {
         val tsState by timesheetViewModel.uiState.collectAsStateWithLifecycle()

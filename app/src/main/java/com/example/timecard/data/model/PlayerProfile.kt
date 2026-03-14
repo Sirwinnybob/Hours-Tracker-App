@@ -56,5 +56,7 @@ data class PlayerProfile(
     /** IDs of special shop items this user has already seen (banner won't re-trigger). */
     @SerializedName("seenSpecialItems") val seenSpecialItems: List<String> = emptyList(),
     /** Full purchase history for this employee. */
-    @SerializedName("purchaseHistory") val purchaseHistory: List<PurchaseRecord> = emptyList()
+    @SerializedName("purchaseHistory") val purchaseHistory: List<PurchaseRecord> = emptyList(),
+    /** Theme item IDs this user has already used their one-time trial on. */
+    @SerializedName("triedThemes") val triedThemes: List<String> = emptyList()
 )

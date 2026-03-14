@@ -15,6 +15,7 @@ import com.google.gson.Gson
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -32,6 +33,18 @@ class ShopViewModel : ViewModel() {
 
     /** Image bytes for items that have an imageFile set: itemId → PNG/JPG bytes. */
     var itemImages by mutableStateOf<Map<String, ByteArray>>(emptyMap())
+        private set
+
+    /** Accent key being previewed (null = no active preview). Drives live theme override. */
+    var previewAccentKey: String? by mutableStateOf(null)
+        private set
+
+    /** Item ID whose trial is currently active. */
+    var previewItemId: String? by mutableStateOf(null)
+        private set
+
+    /** Wall-clock ms when the current preview expires (for countdown UI). */
+    var previewExpiresAtMs: Long? by mutableStateOf(null)
         private set
 
     var recipients by mutableStateOf<List<EmployeeRecipient>>(emptyList())
@@ -55,6 +68,25 @@ class ShopViewModel : ViewModel() {
      */
     fun reloadAndMarkSeen() {
         loadCatalog(markSeenOnLoad = true)
+    }
+
+    /**
+     * Starts a 30-second live theme preview for the given item.
+     * Marks the trial as used immediately (one-time only, persisted to profile.json).
+     * After 30s the preview is automatically cleared and the user's real theme restores.
+     */
+    fun tryTheme(itemId: String, accentKey: String) {
+        profileViewModel?.markThemeTried(itemId)
+        val expiresAt = System.currentTimeMillis() + 30_000L
+        previewAccentKey   = accentKey
+        previewItemId      = itemId
+        previewExpiresAtMs = expiresAt
+        viewModelScope.launch {
+            delay(30_000L)
+            previewAccentKey   = null
+            previewItemId      = null
+            previewExpiresAtMs = null
+        }
     }
 
     private fun loadCatalog(markSeenOnLoad: Boolean) {

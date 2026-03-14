@@ -133,6 +133,15 @@ class ProfileViewModel : ViewModel() {
         return false
     }
 
+    /** Record that the user consumed their one-time 30s trial for a theme item. */
+    fun markThemeTried(itemId: String) {
+        val current = profile.triedThemes.toMutableList()
+        if (current.contains(itemId)) return
+        current.add(itemId)
+        profile = profile.copy(triedThemes = current)
+        saveProfile()
+    }
+
     /** Mark special shop items as seen so the banner won't re-trigger for them. */
     fun markSpecialItemsSeen(ids: List<String>) {
         val current = profile.seenSpecialItems.toMutableList()
