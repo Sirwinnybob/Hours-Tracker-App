@@ -91,18 +91,6 @@ class SafFileRepository(
     }
 
     override fun loadShopCatalog(): List<com.example.timecard.data.model.ShopItem> {
-        // Diagnostic: log SAF tree URI and root contents
-        try {
-            val root = DocumentFile.fromTreeUri(context, treeUri)
-            Log.d("ShopCatalog", "SAF treeUri = $treeUri")
-            Log.d("ShopCatalog", "SAF root exists = ${root?.exists()}")
-            val rootFiles = root?.listFiles()?.joinToString { it.name ?: "<unnamed>" } ?: "null"
-            Log.d("ShopCatalog", "SAF root contents = $rootFiles")
-            Log.d("ShopCatalog", "shop_catalog.json in root = ${root?.findFile("shop_catalog.json") != null}")
-        } catch (e: Exception) {
-            Log.e("ShopCatalog", "SAF diagnostic error", e)
-        }
-
         val defaultItems = listOf(
             com.example.timecard.data.model.ShopItem("accent_sunrise", "Sunrise", "Warm orange and pink", 250, "theme", "🌅"),
             com.example.timecard.data.model.ShopItem("accent_twilight", "Twilight", "Deep purple and blue", 250, "theme", "🌃"),
@@ -120,22 +108,19 @@ class SafFileRepository(
             com.example.timecard.data.model.ShopItem("consumable_send_note", "Send a Note", "Send an alert note to another employee", 30, "consumable", "✉️")
         )
         
-        val json = loadGlobalFile("shop_catalog.json", useCache = false) ?: run {
-            Log.w("ShopCatalog", "SAF: shop_catalog.json returned null — using defaults")
-            return defaultItems
-        }
+        val json = loadGlobalFile("shop_catalog.json", useCache = false) ?: return defaultItems
         // Try wrapped {"items":[...]} format first
         try {
             val mapType = object : com.google.gson.reflect.TypeToken<Map<String, List<com.example.timecard.data.model.ShopItem>>>() {}.type
             val result: Map<String, List<com.example.timecard.data.model.ShopItem>> = com.google.gson.Gson().fromJson(json, mapType)
             val items = result["items"]
-            if (!items.isNullOrEmpty()) return items.filter { it.inShop != false }
+            if (!items.isNullOrEmpty()) return items.filter { it.inShop }
         } catch (e: Exception) { /* not wrapped format */ }
         // Fall back to bare [...] format
         return try {
             val listType = object : com.google.gson.reflect.TypeToken<List<com.example.timecard.data.model.ShopItem>>() {}.type
             val items: List<com.example.timecard.data.model.ShopItem>? = com.google.gson.Gson().fromJson(json, listType)
-            if (!items.isNullOrEmpty()) items.filter { it.inShop != false } else defaultItems
+            if (!items.isNullOrEmpty()) items.filter { it.inShop } else defaultItems
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error parsing shop catalog", e)
             defaultItems

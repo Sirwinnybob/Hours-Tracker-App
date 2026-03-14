@@ -31,13 +31,6 @@ data class RunningStats(
     @SerializedName("backfillComplete") val backfillComplete: Boolean = false
 )
 
-data class PurchaseRecord(
-    @SerializedName("itemId")      val itemId: String = "",
-    @SerializedName("itemTitle")   val itemTitle: String = "",
-    @SerializedName("price")       val price: Int = 0,
-    @SerializedName("purchasedAt") val purchasedAt: String = ""
-)
-
 data class PlayerProfile(
     @SerializedName("displayName") val displayName: String? = null,
     @SerializedName("coins") val coins: Int = 0,
@@ -52,8 +45,5 @@ data class PlayerProfile(
     @SerializedName("inventory") val inventory: List<String> = emptyList(),
     // Tracks which bonuses/badges were already awarded per week (weekStarting → bonusId → count).
     // Prevents repeatable awards from firing on every save while conditions remain met.
-    @SerializedName("weeklyBonusLog") val weeklyBonusLog: Map<String, Map<String, Int>> = emptyMap(),
-    @SerializedName("seenSpecialItems")  val seenSpecialItems: List<String> = emptyList(),
-    /** Most recent 100 shop purchases, newest first. */
-    @SerializedName("purchaseHistory")   val purchaseHistory: List<PurchaseRecord> = emptyList()
+    @SerializedName("weeklyBonusLog") val weeklyBonusLog: Map<String, Map<String, Int>> = emptyMap()
 )

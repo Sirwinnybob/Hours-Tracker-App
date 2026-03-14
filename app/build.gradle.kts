@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.timecard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 120
-        versionName = "3.5.0"
+        versionCode = 119
+        versionName = "3.1.3"
     }
 
     signingConfigs {
@@ -28,7 +28,7 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = false  // R8 breaks Compose recomposition — do not re-enable
             isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -80,6 +80,9 @@ fun TimesheetGrid(
     onFillShopHours: (Int) -> Unit,
     onSnapHours: (Int, Int) -> Unit,
     onAddRow: () -> Unit,
+    onDeliveryTag: (Int) -> Unit,
+    onJobTag: (Int, String) -> Unit,
+    onToggleNoLunch: (Int) -> Unit,
     chartsContent: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -157,7 +160,10 @@ fun TimesheetGrid(
                             focusedRow = -1
                             focusedDay = -1
                             focusManager.clearFocus()
-                        }
+                        },
+                        onDeliveryTag = onDeliveryTag,
+                        onJobTag = onJobTag,
+                        onToggleNoLunch = onToggleNoLunch
                     )
                 }
             }
@@ -289,13 +295,17 @@ private fun TimesheetRowItem(
     isFocused: Boolean,
     activeDay: Int,
     onFocusChange: (Int, Int) -> Unit,
-    onFocusClear: () -> Unit
+    onFocusClear: () -> Unit,
+    onDeliveryTag: (Int) -> Unit,
+    onJobTag: (Int, String) -> Unit,
+    onToggleNoLunch: (Int) -> Unit
 ) {
     val colors = LocalTimecardColors.current
     val focusManager = LocalFocusManager.current
     val job = uiState.jobs.getOrElse(rowIndex) { "" }
     val isDelivery = JobValidator.isDeliveryJob(job)
     val isInvalidJob = job.isNotBlank() && !JobValidator.isValidJobEntry(job)
+    val isShopRow = job.uppercase() == "SHOP"
 
     val targetColor = if (isFocused) {
         colors.accent.copy(alpha = 0.1f)
@@ -358,6 +368,18 @@ private fun TimesheetRowItem(
                             }
                         }
                 )
+                // Delivery label — top-left corner badge
+                if (isDelivery) {
+                    Text(
+                        text = "Delivery",
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDD6B20),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 2.dp, top = 1.dp)
+                    )
+                }
             }
 
             // Day cells with zebra columns
@@ -440,6 +462,21 @@ private fun TimesheetRowItem(
                             showZero = false
                         )
                     }
+                    // Lunch toggle — top-right corner of SHOP day cells
+                    if (isShopRow) {
+                        val lunchTaken = dayIndex !in uiState.noLunchDays
+                        Text(
+                            text = if (lunchTaken) "L" else "L̶",
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (lunchTaken) colors.accent.copy(alpha = 0.7f)
+                                    else colors.textSecondary.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(end = 2.dp, top = 1.dp)
+                                .clickable { onToggleNoLunch(dayIndex) }
+                        )
+                    }
                 }
             }
 
@@ -461,6 +498,60 @@ private fun TimesheetRowItem(
                     color = colors.textTotal,
                     textAlign = TextAlign.Center
                 )
+            }
+        }
+
+        // Job tag bar — appears when the job cell is focused (activeDay == -1)
+        AnimatedVisibility(
+            visible = isFocused && activeDay == -1,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(colors.accent.copy(alpha = 0.06f))
+                    .border(0.5.dp, colors.border)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                JobTagChip(
+                    label = "🚚 Delivery",
+                    active = isDelivery,
+                    activeColor = Color(0xFFDD6B20),
+                    colors = colors
+                ) { onDeliveryTag(rowIndex) }
+                JobTagChip(
+                    label = "🏖 PTO",
+                    active = job.uppercase() == "PTO",
+                    activeColor = colors.accent,
+                    colors = colors
+                ) { onJobTag(rowIndex, "PTO") }
+                JobTagChip(
+                    label = "🤒 Sick",
+                    active = job.uppercase() == "SICK",
+                    activeColor = Color(0xFFE53935),
+                    colors = colors
+                ) { onJobTag(rowIndex, "SICK") }
+                JobTagChip(
+                    label = "🎉 Holiday",
+                    active = job.uppercase() == "HOLIDAY",
+                    activeColor = Color(0xFF7B1FA2),
+                    colors = colors
+                ) { onJobTag(rowIndex, "HOLIDAY") }
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                // Close button
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(colors.hover)
+                        .clickable { /* just dismiss by tapping elsewhere */ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("✕", color = colors.textSecondary, fontSize = 12.sp)
+                }
             }
         }
 
@@ -542,6 +633,37 @@ private fun RowScope.HeaderCell(text: String, weight: Float) {
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun JobTagChip(
+    label: String,
+    active: Boolean,
+    activeColor: Color,
+    colors: com.example.timecard.ui.theme.TimecardColors,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (active) activeColor.copy(alpha = 0.18f) else colors.input
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (active) 1.5.dp else 1.dp,
+            color = if (active) activeColor else colors.border
+        ),
+        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
+        contentPadding = ButtonDefaults.ContentPadding,
+        modifier = Modifier.height(36.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (active) activeColor else colors.textSecondary,
+            fontSize = 13.sp,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+            fontFamily = androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily
         )
     }
 }

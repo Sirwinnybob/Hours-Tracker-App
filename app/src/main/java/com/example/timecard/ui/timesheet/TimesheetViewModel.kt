@@ -33,6 +33,8 @@ data class TimesheetUiState(
     val triggerAutoLogout: Boolean = false,
     val jobs: List<String> = List(9) { if (it == 0) "SHOP" else "" },
     val hours: List<List<String>> = List(9) { List(DAYS.size) { "" } },
+    /** Day indices (0=Mon…5=Sat) where the employee did NOT take lunch on the SHOP row. +0.5h added. */
+    val noLunchDays: Set<Int> = emptySet(),
     val fillingCell: Pair<Int, Int>? = null,
     val fillingCellPrevValue: Double = 0.0,
     val isAnimatingWeekSwitch: Boolean = false,
@@ -187,6 +189,46 @@ class TimesheetViewModel : ViewModel() {
 
 
 
+    /** Toggle the Delivery tag on a row — appends/removes the "D" suffix on the job text. */
+    fun toggleDeliveryTag(rowIndex: Int) {
+        _uiState.update { state ->
+            if (rowIndex >= state.jobs.size) return@update state
+            val job = state.jobs[rowIndex]
+            val newJob = if (JobValidator.isDeliveryJob(job)) {
+                job.trimEnd('D', 'd')   // remove D suffix
+            } else if (job.isNotBlank()) {
+                job.trimEnd('D', 'd') + "D"   // add D suffix
+            } else {
+                job
+            }
+            val newJobs = state.jobs.toMutableList().also { it[rowIndex] = newJob }
+            scheduleAutosave()
+            state.copy(jobs = newJobs)
+        }
+    }
+
+    /** Set PTO / SICK / HOLIDAY on a row — replaces job text, or clears if already active. */
+    fun setJobTag(rowIndex: Int, tag: String) {
+        _uiState.update { state ->
+            if (rowIndex >= state.jobs.size) return@update state
+            val job = state.jobs[rowIndex]
+            val newJob = if (job.uppercase() == tag.uppercase()) "" else tag.uppercase()
+            val newJobs = state.jobs.toMutableList().also { it[rowIndex] = newJob }
+            scheduleAutosave()
+            state.copy(jobs = newJobs)
+        }
+    }
+
+    /** Toggle the no-lunch flag for a day on the SHOP row (+0.5h when not taken). */
+    fun toggleNoLunch(dayIndex: Int) {
+        _uiState.update { state ->
+            val newSet = state.noLunchDays.toMutableSet()
+            if (dayIndex in newSet) newSet.remove(dayIndex) else newSet.add(dayIndex)
+            scheduleAutosave()
+            state.copy(noLunchDays = newSet)
+        }
+    }
+
     fun togglePrevWeek() {
         _uiState.update { state ->
             val previousHourValues = state.hours.map { row ->
@@ -217,18 +259,27 @@ class TimesheetViewModel : ViewModel() {
 
     fun collectTimecardData(): TimecardData {
         val state = _uiState.value
+        val shopRowIdx = state.jobs.indexOfFirst { it.uppercase() == "SHOP" }
         val rows = (0 until state.numRows).map { i ->
             val job = if (i < state.jobs.size) state.jobs[i] else ""
             val dayValues = if (i < state.hours.size) state.hours[i] else DAYS.map { "" }
+            // Add the 0.5h lunch bonus to the shop row for days marked no-lunch
+            fun dayVal(idx: Int): String {
+                val raw = snapValue(dayValues.getOrElse(idx) { "" })
+                return if (i == shopRowIdx && idx in state.noLunchDays) {
+                    val base = raw.toDoubleOrNull() ?: 0.0
+                    if (base > 0) String.format("%.2f", base + 0.5) else raw
+                } else raw
+            }
             TimecardRow(
                 job = job,
                 delivery = JobValidator.isDeliveryJob(job),
-                mon = snapValue(dayValues.getOrElse(0) { "" }),
-                tue = snapValue(dayValues.getOrElse(1) { "" }),
-                wed = snapValue(dayValues.getOrElse(2) { "" }),
-                thu = snapValue(dayValues.getOrElse(3) { "" }),
-                fri = snapValue(dayValues.getOrElse(4) { "" }),
-                sat = snapValue(dayValues.getOrElse(5) { "" })
+                mon = dayVal(0),
+                tue = dayVal(1),
+                wed = dayVal(2),
+                thu = dayVal(3),
+                fri = dayVal(4),
+                sat = dayVal(5)
             )
         }
         return TimecardData(
@@ -412,12 +463,21 @@ fun TimesheetUiState.getRowTotal(rowIndex: Int): Double {
 }
 
 fun TimesheetUiState.getDayTotal(dayIndex: Int): Double {
-    return hours.sumOf { row ->
+    var total = hours.sumOf { row ->
         if (dayIndex < row.size) {
             val v = try { row[dayIndex].toDouble() } catch (e: Exception) { 0.0 }
             Math.round(v * 4.0) / 4.0
         } else 0.0
     }
+    // Add 0.5h lunch bonus when the SHOP row has hours and no-lunch is flagged for this day
+    if (dayIndex in noLunchDays) {
+        val shopRowIdx = jobs.indexOfFirst { it.uppercase() == "SHOP" }
+        if (shopRowIdx >= 0) {
+            val shopHrs = hours.getOrNull(shopRowIdx)?.getOrElse(dayIndex) { "" }?.toDoubleOrNull() ?: 0.0
+            if (shopHrs > 0) total += 0.5
+        }
+    }
+    return total
 }
 
 fun TimesheetUiState.getGrandTotal(): Double {

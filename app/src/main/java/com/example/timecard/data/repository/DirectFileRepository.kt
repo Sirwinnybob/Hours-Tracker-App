@@ -15,11 +15,6 @@ import java.nio.charset.StandardCharsets
 class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun loadShopCatalog(): List<ShopItem> {
-        // Diagnostic: log exactly where we're looking
-        Log.d("ShopCatalog", "baseDir = ${baseDir.absolutePath}")
-        Log.d("ShopCatalog", "shop_catalog.json exists = ${File(baseDir, "shop_catalog.json").exists()}")
-        Log.d("ShopCatalog", "baseDir contents = ${baseDir.listFiles()?.joinToString { it.name } ?: "null (no permission?)"}")
-
         val json = loadGlobalFile("shop_catalog.json", useCache = false)
         if (json != null) {
             // Try wrapped {"items":[...]} format first
@@ -27,19 +22,18 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
                 val mapType = object : TypeToken<Map<String, List<ShopItem>>>() {}.type
                 val result: Map<String, List<ShopItem>> = Gson().fromJson(json, mapType)
                 val items = result["items"]
-                if (!items.isNullOrEmpty()) return items.filter { it.inShop != false }
+                if (!items.isNullOrEmpty()) return items.filter { it.inShop }
             } catch (e: Exception) { /* not wrapped format */ }
             // Fall back to bare [...] format
             try {
                 val type = object : TypeToken<List<ShopItem>>() {}.type
                 val items: List<ShopItem>? = Gson().fromJson(json, type)
-                if (!items.isNullOrEmpty()) return items.filter { it.inShop != false }
+                if (!items.isNullOrEmpty()) return items.filter { it.inShop }
             } catch (e: Exception) {
                 Log.e("DirectFileRepo", "Error parsing shop_catalog.json", e)
             }
         }
         // Fallback default catalog
-        Log.w("ShopCatalog", "Using hardcoded defaults — catalog not loaded from disk")
         return listOf(
             ShopItem("accent_sunrise", "Sunrise", "A warm morning gradient.", 250, "Accent", "🌅"),
             ShopItem("accent_twilight", "Twilight", "Evening purple hues.", 250, "Accent", "🌆"),
