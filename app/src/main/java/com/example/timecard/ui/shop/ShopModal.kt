@@ -338,173 +338,242 @@ fun ShopItemCard(
         imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
     }
 
-    Column(
+    // Shared button state — hoisted so both layout branches can use it
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && canAfford && !isOwned) 0.95f else 1f,
+        animationSpec = tween(durationMillis = 80),
+        label = "button_scale"
+    )
+    val emerald = Color(0xFF34D399)
+    val slate = Color(0xFF64748B)
+    val buttonColor = when {
+        isOwned -> emerald
+        !canAfford -> slate
+        else -> emerald
+    }
+    val buttonText = when {
+        isOwned -> "OWNED \u2705"
+        !canAfford -> "NEED ${missingCoins}c MORE"
+        else -> "BUY"
+    }
+    val buttonTextColor = if (isOwned || canAfford) Color.Black else Color.White
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .border(BorderStroke(1.dp, borderColor), RoundedCornerShape(8.dp))
             .background(backgroundColor)
             .padding(10.dp)
     ) {
-        // Image header — full-width when an imageFile is present
         if (imageBitmap != null) {
-            Image(
-                bitmap = imageBitmap,
-                contentDescription = item.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .clip(RoundedCornerShape(6.dp))
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-        }
+            // ── Side-by-side layout: text/buttons left, full image right ────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Left: text + buttons
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "🪙 ${item.price}",
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = CoinAmber,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2
+                    )
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                        maxLines = 3
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    // BUY button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .scale(scale)
+                            .background(buttonColor, RoundedCornerShape(4.dp))
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                enabled = canAfford && !isOwned,
+                                onClick = onPurchase
+                            )
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = buttonText,
+                            color = buttonTextColor,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontFamily = JetBrainsMonoFontFamily
+                        )
+                    }
+                    // TRY button
+                    if (onTryTheme != null || isPreviewActive) {
+                        Spacer(modifier = Modifier.height(5.dp))
+                        TryThemeButton(
+                            isPreviewActive = isPreviewActive,
+                            previewSecondsLeft = previewSecondsLeft,
+                            onTryTheme = onTryTheme
+                        )
+                    }
+                }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            if (imageBitmap != null) {
-                // Image already shown above — no duplicate icon needed
-            } else if (isTheme && themeColor != null) {
-                Box(
+                // Right: full image, never cropped
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = item.title,
+                    contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .size(24.dp)
-                        .background(themeColor, RoundedCornerShape(4.dp))
+                        .width(96.dp)
+                        .heightIn(min = 80.dp, max = 180.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .align(Alignment.CenterVertically)
                 )
-            } else {
-                Text(text = item.icon, fontSize = 24.sp)
             }
-            Text(
-                text = "🪙 ${item.price}",
-                fontFamily = JetBrainsMonoFontFamily,
-                fontWeight = FontWeight.Bold,
-                color = CoinAmber,
-                fontSize = 14.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1
-        )
-
-        Text(
-            text = item.description,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-            maxLines = 2,
-            minLines = 2
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        // ── BUY button ───────────────────────────────────────────────────────
-        val interactionSource = remember { MutableInteractionSource() }
-        val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(
-            targetValue = if (isPressed && canAfford && !isOwned) 0.95f else 1f,
-            animationSpec = tween(durationMillis = 80),
-            label = "button_scale"
-        )
-
-        val emerald = Color(0xFF34D399)
-        val slate = Color(0xFF64748B)
-
-        val buttonColor = when {
-            isOwned -> emerald
-            !canAfford -> slate
-            else -> emerald
-        }
-        val buttonText = when {
-            isOwned -> "OWNED \u2705"
-            !canAfford -> "NEED ${missingCoins}c MORE"
-            else -> "BUY"
-        }
-        val buttonTextColor = when {
-            isOwned || canAfford -> Color.Black
-            else -> Color.White
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .scale(scale)
-                .background(buttonColor, RoundedCornerShape(4.dp))
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    enabled = canAfford && !isOwned,
-                    onClick = onPurchase
+        } else {
+            // ── Standard layout: icon+price row, then text, then buttons ────
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    if (isTheme && themeColor != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(themeColor, RoundedCornerShape(4.dp))
+                        )
+                    } else {
+                        Text(text = item.icon, fontSize = 24.sp)
+                    }
+                    Text(
+                        text = "🪙 ${item.price}",
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = CoinAmber,
+                        fontSize = 14.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
                 )
-                .padding(vertical = 8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = buttonText,
-                color = buttonTextColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                fontFamily = JetBrainsMonoFontFamily
-            )
-        }
-
-        // ── TRY button (theme items only, one-time trial) ────────────────────
-        if (onTryTheme != null || isPreviewActive) {
-            Spacer(modifier = Modifier.height(5.dp))
-            if (isPreviewActive) {
-                // Active countdown pill
+                Text(
+                    text = item.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                    maxLines = 2,
+                    minLines = 2
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                // BUY button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF3F51B5).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
-                        .padding(vertical = 6.dp),
+                        .scale(scale)
+                        .background(buttonColor, RoundedCornerShape(4.dp))
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            enabled = canAfford && !isOwned,
+                            onClick = onPurchase
+                        )
+                        .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "🎨 Trying… ${previewSecondsLeft}s",
-                        color = Color(0xFF7986CB),
+                        text = buttonText,
+                        color = buttonTextColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         fontFamily = JetBrainsMonoFontFamily
                     )
                 }
-            } else if (onTryTheme != null) {
-                val tryInteraction = remember { MutableInteractionSource() }
-                val tryPressed by tryInteraction.collectIsPressedAsState()
-                val tryScale by animateFloatAsState(
-                    targetValue = if (tryPressed) 0.95f else 1f,
-                    animationSpec = tween(durationMillis = 80),
-                    label = "try_scale"
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .scale(tryScale)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
-                        .clickable(
-                            interactionSource = tryInteraction,
-                            indication = null,
-                            onClick = onTryTheme
-                        )
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "🎨 Try (30s)",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        fontFamily = JetBrainsMonoFontFamily
+                // TRY button
+                if (onTryTheme != null || isPreviewActive) {
+                    Spacer(modifier = Modifier.height(5.dp))
+                    TryThemeButton(
+                        isPreviewActive = isPreviewActive,
+                        previewSecondsLeft = previewSecondsLeft,
+                        onTryTheme = onTryTheme
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TryThemeButton(
+    isPreviewActive: Boolean,
+    previewSecondsLeft: Int,
+    onTryTheme: (() -> Unit)?
+) {
+    if (isPreviewActive) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF3F51B5).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                .padding(vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "🎨 Trying… ${previewSecondsLeft}s",
+                color = Color(0xFF7986CB),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                fontFamily = JetBrainsMonoFontFamily
+            )
+        }
+    } else if (onTryTheme != null) {
+        val tryInteraction = remember { MutableInteractionSource() }
+        val tryPressed by tryInteraction.collectIsPressedAsState()
+        val tryScale by animateFloatAsState(
+            targetValue = if (tryPressed) 0.95f else 1f,
+            animationSpec = tween(durationMillis = 80),
+            label = "try_scale"
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .scale(tryScale)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                .clickable(
+                    interactionSource = tryInteraction,
+                    indication = null,
+                    onClick = onTryTheme
+                )
+                .padding(vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "🎨 Try (30s)",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                fontFamily = JetBrainsMonoFontFamily
+            )
         }
     }
 }

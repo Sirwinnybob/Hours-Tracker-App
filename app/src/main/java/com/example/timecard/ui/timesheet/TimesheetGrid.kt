@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.timecard.data.model.DAY_LABELS
@@ -104,8 +106,45 @@ fun TimesheetGrid(
                 .height(ROW_HEIGHT)
         ) {
             HeaderCell("Job", JOB_WEIGHT)
-            DAYS.forEachIndexed { _, day ->
-                HeaderCell(DAY_LABELS[day] ?: day, DAY_WEIGHT)
+            DAYS.forEachIndexed { dayIndex, day ->
+                val lunchTaken = dayIndex !in uiState.noLunchDays
+                Column(
+                    modifier = Modifier
+                        .weight(DAY_WEIGHT)
+                        .height(ROW_HEIGHT),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = DAY_LABELS[day] ?: day,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = if (lunchTaken) Color.White.copy(alpha = 0.22f)
+                                        else Color.White.copy(alpha = 0.09f),
+                                shape = RoundedCornerShape(3.dp)
+                            )
+                            .clickable { onToggleNoLunch(dayIndex) }
+                            .padding(horizontal = 4.dp, vertical = 1.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "L",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (lunchTaken) Color.White.copy(alpha = 0.9f)
+                                    else Color.White.copy(alpha = 0.35f),
+                            textDecoration = if (!lunchTaken) TextDecoration.LineThrough
+                                             else TextDecoration.None
+                        )
+                    }
+                }
             }
             HeaderCell("Total", TOTAL_WEIGHT)
         }
@@ -460,21 +499,6 @@ private fun TimesheetRowItem(
                             color = colors.textPrimary,
                             textAlign = TextAlign.Center,
                             showZero = false
-                        )
-                    }
-                    // Lunch toggle — top-right corner of SHOP day cells
-                    if (isShopRow) {
-                        val lunchTaken = dayIndex !in uiState.noLunchDays
-                        Text(
-                            text = if (lunchTaken) "L" else "L̶",
-                            fontSize = 7.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (lunchTaken) colors.accent.copy(alpha = 0.7f)
-                                    else colors.textSecondary.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(end = 2.dp, top = 1.dp)
-                                .clickable { onToggleNoLunch(dayIndex) }
                         )
                     }
                 }
