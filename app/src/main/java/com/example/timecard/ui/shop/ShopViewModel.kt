@@ -30,6 +30,10 @@ class ShopViewModel : ViewModel() {
     var newSpecialItems by mutableStateOf<List<ShopItem>>(emptyList())
         private set
 
+    /** Image bytes for items that have an imageFile set: itemId → PNG/JPG bytes. */
+    var itemImages by mutableStateOf<Map<String, ByteArray>>(emptyMap())
+        private set
+
     var recipients by mutableStateOf<List<EmployeeRecipient>>(emptyList())
         private set
 
@@ -81,6 +85,22 @@ class ShopViewModel : ViewModel() {
                 }
             }
 
+            // Load images for items that have an imageFile path set
+            val loadedImages = withContext(Dispatchers.IO) {
+                val map = mutableMapOf<String, ByteArray>()
+                for (item in items) {
+                    val imagePath = item.imageFile ?: continue
+                    try {
+                        val bytes = repo.loadGlobalBinaryFile(imagePath)
+                        if (bytes != null) map[item.id] = bytes
+                    } catch (e: Exception) {
+                        Log.e("ShopVM", "Failed to load image for ${item.id} at $imagePath", e)
+                    }
+                }
+                map
+            }
+            itemImages = loadedImages
+
             val loadedRecipients = withContext(Dispatchers.IO) {
                 val list = mutableListOf<EmployeeRecipient>()
                 val gson = Gson()
@@ -130,7 +150,6 @@ class ShopViewModel : ViewModel() {
                         senderFolder = myName,
                         isAnonymous = false
                     )
-                    // Write to [recipient]/notes/[uuid].json — unique file per note, no conflicts
                     val result = repo.saveInDir(recipientFolder, "notes", "$noteId.json", gson.toJson(newNote))
                     Log.d("ShopVM", "Note saved to $recipientFolder/notes/$noteId.json: $result")
                 }
@@ -159,7 +178,6 @@ class ShopViewModel : ViewModel() {
                         senderFolder = myName,
                         isAnonymous = true
                     )
-                    // Write to [recipient]/notes/[uuid].json — unique file per note, no conflicts
                     val result = repo.saveInDir(recipientFolder, "notes", "$noteId.json", gson.toJson(newNote))
                     Log.d("ShopVM", "Anonymous note saved to $recipientFolder/notes/$noteId.json: $result")
                 }

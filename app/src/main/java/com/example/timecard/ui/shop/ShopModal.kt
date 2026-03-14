@@ -1,8 +1,10 @@
 package com.example.timecard.ui.shop
 
+import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,13 +19,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.material3.MenuAnchorType
-
-
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,6 +49,7 @@ fun ShopModal(
     val userCoins = shopViewModel.userCoins
     val inventory = profileViewModel.profile.inventory
     val recipients = shopViewModel.recipients
+    val itemImages = shopViewModel.itemImages
 
     // Reload catalog from disk and mark all special items as seen when modal opens
     LaunchedEffect(Unit) {
@@ -174,6 +178,7 @@ fun ShopModal(
                                 item = item,
                                 isOwned = isOwned,
                                 missingCoins = missingCoins,
+                                imageBytes = itemImages[item.id],
                                 onPurchase = {
                                     when (item.id) {
                                         "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
@@ -211,6 +216,7 @@ fun ShopModal(
                                 item = item,
                                 isOwned = isOwned,
                                 missingCoins = missingCoins,
+                                imageBytes = itemImages[item.id],
                                 onPurchase = {
                                     when (item.id) {
                                         "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
@@ -232,10 +238,11 @@ fun ShopItemCard(
     item: ShopItem,
     isOwned: Boolean,
     missingCoins: Int,
+    imageBytes: ByteArray? = null,
     onPurchase: () -> Unit
 ) {
     val canAfford = missingCoins == 0
-    
+
     val rawCat = item.category?.lowercase() ?: ""
     val isTheme = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
 
@@ -245,9 +252,12 @@ fun ShopItemCard(
 
     val borderColor = themeColor?.copy(alpha = 0.5f) ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     val backgroundColor = themeColor?.copy(alpha = 0.1f) ?: MaterialTheme.colorScheme.surface
-    
-    android.util.Log.d("ShopModal", "Item: ${item.id} | Cat: ${item.category} | isTheme: $isTheme | Color: $themeColor")
-    
+
+    // Decode imageBytes outside the Row so the remember key is stable
+    val imageBitmap = remember(imageBytes) {
+        imageBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -255,12 +265,28 @@ fun ShopItemCard(
             .background(backgroundColor)
             .padding(10.dp)
     ) {
+        // Image header — full-width when an imageFile is present
+        if (imageBitmap != null) {
+            Image(
+                bitmap = imageBitmap,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top
         ) {
-            if (isTheme && themeColor != null) {
+            if (imageBitmap != null) {
+                // Image already shown above — no duplicate icon needed
+            } else if (isTheme && themeColor != null) {
                 Box(
                     modifier = Modifier
                         .size(24.dp)
