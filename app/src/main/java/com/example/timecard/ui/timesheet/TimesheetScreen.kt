@@ -1,6 +1,11 @@
 package com.example.timecard.ui.timesheet
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -312,6 +317,44 @@ fun TimesheetScreen(
                         }
                     }
         
+                    // New shop items banner — shown when there are unseen special items
+                    val newShopItems = shopViewModel?.newSpecialItems ?: emptyList()
+                    AnimatedVisibility(
+                        visible = newShopItems.isNotEmpty(),
+                        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFD4AC0D))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .clickable { navController.navigate("shop") },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val bannerText = if (newShopItems.size == 1) {
+                                "✨ New in the Shop: ${newShopItems.first().title}"
+                            } else {
+                                "✨ ${newShopItems.size} new items in the Shop!"
+                            }
+                            Text(
+                                text = bannerText,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (isCompact) 11.sp else 13.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "Visit Shop →",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (isCompact) 11.sp else 13.sp,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+
                     // Content
                     if (uiState.isLockedByAnotherUser) {
                         Box(

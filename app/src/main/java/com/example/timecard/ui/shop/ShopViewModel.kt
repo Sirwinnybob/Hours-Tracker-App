@@ -26,6 +26,10 @@ class ShopViewModel : ViewModel() {
     var items by mutableStateOf<List<ShopItem>>(emptyList())
         private set
 
+    /** Special items the current user hasn't seen yet — drives the timesheet banner. */
+    var newSpecialItems by mutableStateOf<List<ShopItem>>(emptyList())
+        private set
+
     var recipients by mutableStateOf<List<EmployeeRecipient>>(emptyList())
         private set
 
@@ -38,18 +42,44 @@ class ShopViewModel : ViewModel() {
     fun initialize(repo: FileRepository?, profileVM: ProfileViewModel) {
         this.repository = repo
         this.profileViewModel = profileVM
-        loadCatalog()
+        loadCatalog(markSeenOnLoad = false)
     }
 
-    private fun loadCatalog() {
+    /**
+     * Reloads the catalog from disk (no cache) and marks all special items as seen.
+     * Called when the user opens the shop modal — they are now seeing the featured items.
+     */
+    fun reloadAndMarkSeen() {
+        loadCatalog(markSeenOnLoad = true)
+    }
+
+    private fun loadCatalog(markSeenOnLoad: Boolean) {
         val repo = repository ?: return
         val currentEmployee = profileViewModel?.employeeName ?: ""
-        
+
         viewModelScope.launch {
             val loadedItems = withContext(Dispatchers.IO) {
                 repo.loadShopCatalog()
             }
-            items = loadedItems
+
+            // Sort: special (featured) items first, then alphabetical within each group
+            items = loadedItems.sortedWith(
+                compareByDescending<ShopItem> { it.isSpecial }
+                    .thenBy { it.category }
+                    .thenBy { it.title }
+            )
+
+            // Compute which special items the user hasn't seen yet
+            val seenIds = profileViewModel?.profile?.seenSpecialItems ?: emptyList()
+            newSpecialItems = items.filter { it.isSpecial && !seenIds.contains(it.id) }
+
+            if (markSeenOnLoad) {
+                val specialIds = items.filter { it.isSpecial }.map { it.id }
+                if (specialIds.isNotEmpty()) {
+                    profileViewModel?.markSpecialItemsSeen(specialIds)
+                    newSpecialItems = emptyList()
+                }
+            }
 
             val loadedRecipients = withContext(Dispatchers.IO) {
                 val list = mutableListOf<EmployeeRecipient>()
@@ -57,7 +87,7 @@ class ShopViewModel : ViewModel() {
                 try {
                     for (folder in repo.listEmployeeFolders()) {
                         if (folder.equals(currentEmployee, ignoreCase = true)) continue
-                        
+
                         val profileJson = repo.loadGenericJSON(folder, "profile.json", useCache = true)
                         var dName: String? = null
                         if (profileJson != null) {
@@ -77,7 +107,7 @@ class ShopViewModel : ViewModel() {
 
     fun purchaseItem(id: String) {
         val item = items.find { it.id == id } ?: return
-        profileViewModel?.processPurchase(item.id, item.price)
+        profileViewModel?.processPurchase(item.id, item.title, item.price)
     }
 
     fun sendNote(recipientFolder: String, message: String, cost: Int) {
@@ -139,4 +169,3 @@ class ShopViewModel : ViewModel() {
         }
     }
 }
-

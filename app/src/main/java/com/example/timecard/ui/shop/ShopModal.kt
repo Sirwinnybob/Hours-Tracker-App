@@ -47,6 +47,11 @@ fun ShopModal(
     val inventory = profileViewModel.profile.inventory
     val recipients = shopViewModel.recipients
 
+    // Reload catalog from disk and mark all special items as seen when modal opens
+    LaunchedEffect(Unit) {
+        shopViewModel.reloadAndMarkSeen()
+    }
+
     var showSendNoteDialog by remember { mutableStateOf(false) }
     var isAnonymousMode by remember { mutableStateOf(false) }
 
@@ -128,7 +133,11 @@ fun ShopModal(
                 
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
-                val groupedItems = items.groupBy { 
+                // Separate special/featured items from regular catalog
+                val specialItems = items.filter { it.isSpecial }
+                val regularItems = items.filter { !it.isSpecial }
+
+                val groupedItems = regularItems.groupBy {
                     val cat = it.category?.lowercase() ?: ""
                     when {
                         cat == "accent" -> "theme"
@@ -146,6 +155,37 @@ fun ShopModal(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    // ── Featured section (special items first) ──────────────────
+                    if (specialItems.isNotEmpty()) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "🌟 Featured",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(specialItems) { item ->
+                            val isConsumable = item.id.startsWith("consumable_")
+                            val isOwned = if (isConsumable) false else inventory.contains(item.id)
+                            val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
+                            ShopItemCard(
+                                item = item,
+                                isOwned = isOwned,
+                                missingCoins = missingCoins,
+                                onPurchase = {
+                                    when (item.id) {
+                                        "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
+                                        "consumable_send_anonymous_note" -> { showSendNoteDialog = true; isAnonymousMode = true }
+                                        else -> shopViewModel.purchaseItem(item.id)
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // ── Regular sections ────────────────────────────────────────
                     groupedItems.forEach { (category, categoryItems) ->
                         item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                             val categoryName = when (category.lowercase()) {
@@ -167,27 +207,18 @@ fun ShopModal(
                             val isConsumable = item.id.startsWith("consumable_")
                             val isOwned = if (isConsumable) false else inventory.contains(item.id)
                             val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
-
-                                ShopItemCard(
-                                    item = item,
-                                    isOwned = isOwned,
-                                    missingCoins = missingCoins,
-                                    onPurchase = { 
-                                        when (item.id) {
-                                            "consumable_send_note" -> {
-                                                showSendNoteDialog = true
-                                                isAnonymousMode = false
-                                            }
-                                            "consumable_send_anonymous_note" -> {
-                                                showSendNoteDialog = true
-                                                isAnonymousMode = true
-                                            }
-                                            else -> {
-                                                shopViewModel.purchaseItem(item.id) 
-                                            }
-                                        }
+                            ShopItemCard(
+                                item = item,
+                                isOwned = isOwned,
+                                missingCoins = missingCoins,
+                                onPurchase = {
+                                    when (item.id) {
+                                        "consumable_send_note" -> { showSendNoteDialog = true; isAnonymousMode = false }
+                                        "consumable_send_anonymous_note" -> { showSendNoteDialog = true; isAnonymousMode = true }
+                                        else -> shopViewModel.purchaseItem(item.id)
                                     }
-                                )
+                                }
+                            )
                         }
                     }
                 }

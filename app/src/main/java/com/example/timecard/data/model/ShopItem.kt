@@ -9,5 +9,11 @@ data class ShopItem(
     @SerializedName("price")       val price: Int = 0,
     @SerializedName("category")    val category: String = "",
     @SerializedName("icon")        val icon: String = "🛍️",
-    @SerializedName("inShop")      val inShop: Boolean = true
+    @SerializedName("inShop")      val inShop: Boolean = true,
+    /** Special/featured item — shown in the Featured section and triggers the new-item banner. */
+    @SerializedName("isSpecial")   val isSpecial: Boolean = false,
+    /** Limited quantity remaining (null = unlimited). */
+    @SerializedName("quantity")    val quantity: Int? = null,
+    /** Relative path to an image file under the sync root (e.g. "shop_images/reward_nib.png"). */
+    @SerializedName("imageFile")   val imageFile: String? = null
 )

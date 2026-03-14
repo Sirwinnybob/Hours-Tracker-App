@@ -114,16 +114,33 @@ class ProfileViewModel : ViewModel() {
         saveProfile()
     }
 
-    fun processPurchase(itemId: String, price: Int): Boolean {
+    fun processPurchase(itemId: String, itemTitle: String = "", price: Int): Boolean {
         if (profile.coins >= price && !profile.inventory.contains(itemId)) {
+            val record = com.example.timecard.data.model.PurchaseRecord(
+                itemId = itemId,
+                itemTitle = itemTitle,
+                price = price,
+                purchasedAt = java.time.Instant.now().toString()
+            )
             profile = profile.copy(
                 coins = profile.coins - price,
-                inventory = profile.inventory + itemId
+                inventory = profile.inventory + itemId,
+                purchaseHistory = profile.purchaseHistory + record
             )
             saveProfile()
             return true
         }
         return false
+    }
+
+    /** Mark special shop items as seen so the banner won't re-trigger for them. */
+    fun markSpecialItemsSeen(ids: List<String>) {
+        val current = profile.seenSpecialItems.toMutableList()
+        val added = ids.filter { !current.contains(it) }
+        if (added.isEmpty()) return
+        current.addAll(added)
+        profile = profile.copy(seenSpecialItems = current)
+        saveProfile()
     }
 
     fun spendCoins(price: Int): Boolean {
