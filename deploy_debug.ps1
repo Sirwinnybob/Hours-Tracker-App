@@ -60,7 +60,7 @@ else {
 
 # 4. Clean up old APKs (only this app's APKs)
 Write-Host "Cleaning up old Timecard APKs in $updateDir..." -ForegroundColor Cyan
-Get-ChildItem -Path $updateDir -Filter "timecard-*.apk" | Remove-Item -Force
+Get-ChildItem -Path $updateDir -Filter "*.apk" | Where-Object { $_.Name -match "timecard|app-release|app-debug" } | Remove-Item -Force
 
 # 5. Copy APK
 $debugApk = "$projectPath\app\build\outputs\apk\debug\app-debug.apk"

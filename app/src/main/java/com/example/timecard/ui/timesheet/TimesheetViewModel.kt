@@ -60,6 +60,7 @@ class TimesheetViewModel : ViewModel() {
     private var repository: FileRepository? = null
     private var autosaveJob: Job? = null
     private val gson = Gson()
+    private var isLunchOnlySave = false
 
     fun refreshInteraction() {
         lastInteractionTimeMillis = System.currentTimeMillis()
@@ -224,6 +225,7 @@ class TimesheetViewModel : ViewModel() {
         _uiState.update { state ->
             val newSet = state.noLunchDays.toMutableSet()
             if (dayIndex in newSet) newSet.remove(dayIndex) else newSet.add(dayIndex)
+            isLunchOnlySave = true
             scheduleAutosave()
             state.copy(noLunchDays = newSet)
         }
@@ -421,6 +423,8 @@ class TimesheetViewModel : ViewModel() {
 
     private fun performSave() {
         _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
+        val lunchOnly = isLunchOnlySave
+        isLunchOnlySave = false
         viewModelScope.launch {
             try {
                 val data = collectTimecardData()
@@ -429,7 +433,7 @@ class TimesheetViewModel : ViewModel() {
                 if (result == "SUCCESS") {
                     _uiState.update { it.copy(
                         saveStatus = SaveStatus.SAVED,
-                        lastSavedData = data
+                        lastSavedData = if (lunchOnly) null else data
                     ) }
                 } else {
                     _uiState.update { it.copy(saveStatus = SaveStatus.ERROR) }

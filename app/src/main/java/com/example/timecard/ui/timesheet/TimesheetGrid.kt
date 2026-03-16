@@ -571,7 +571,7 @@ private fun TimesheetRowItem(
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(colors.hover)
-                        .clickable { /* just dismiss by tapping elsewhere */ },
+                        .clickable { onFocusClear() },
                     contentAlignment = Alignment.Center
                 ) {
                     Text("✕", color = colors.textSecondary, fontSize = 12.sp)

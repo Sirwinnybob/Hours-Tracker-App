@@ -8,7 +8,7 @@ $gradlew = "$projectPath\gradlew.bat"
 # 1. Build Release APK
 Write-Host "Building Release APK..." -ForegroundColor Cyan
 Set-Location $projectPath
-& $gradlew assembleRelease
+& $gradlew clean assembleRelease
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
@@ -60,7 +60,7 @@ else {
 
 # 4. Clean up old APKs (only this app's APKs)
 Write-Host "Cleaning up old Timecard APKs in $updateDir..." -ForegroundColor Cyan
-Get-ChildItem -Path $updateDir -Filter "timecard-*.apk" | Remove-Item -Force
+Get-ChildItem -Path $updateDir -Filter "*.apk" | Where-Object { $_.Name -match "timecard|app-release|app-debug" } | Remove-Item -Force
 
 # 5. Copy APK (Try signed first, fallback to unsigned)
 $releaseApk = "$projectPath\app\build\outputs\apk\release\app-release.apk"

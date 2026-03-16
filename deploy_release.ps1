@@ -2,14 +2,16 @@ $ErrorActionPreference = "Stop"
 
 # Paths
 $projectPath = "C:\Scripts\Hours Tracker\AndroidApp"
-$updateDir = "Y:\Ready Jobs\.Testing_Updates"
+$updateDir = "Y:\Ready Jobs\.Updates"
 $gradlew = "$projectPath\gradlew.bat"
 
 # 1. Build Release APK
 Write-Host "Building Release APK..." -ForegroundColor Cyan
 Set-Location $projectPath
 Write-Host "Running Clean Build..." -ForegroundColor Cyan
-& $gradlew clean assembleRelease --rerun-tasks
+Remove-Item -Recurse -Force "$projectPath\app\build\intermediates\lint-cache" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$env:USERPROFILE\.gradle\caches\build-cache" -ErrorAction SilentlyContinue
+& $gradlew clean assembleRelease --rerun-tasks --no-build-cache -x lintVitalRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
@@ -56,7 +58,7 @@ if (Test-Path $updateDir) {
 
 # 4. Clean up old APKs
 Write-Host "Cleaning up old Timecard APKs in $updateDir..." -ForegroundColor Cyan
-Get-ChildItem -Path $updateDir -Filter "timecard-*.apk" | Remove-Item -Force
+Get-ChildItem -Path $updateDir -Filter "*.apk" | Where-Object { $_.Name -match "timecard|app-release|app-debug" } | Remove-Item -Force
 
 # 5. Copy APK (Use Release APK)
 $releaseApk = "$projectPath\app\build\outputs\apk\release\app-release.apk"

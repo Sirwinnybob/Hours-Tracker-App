@@ -391,6 +391,23 @@ fun ShopItemCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2
                     )
+                    if (item.quantity != null) {
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFB45309).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "⚡ ${item.quantity} left",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFBBF24),
+                                fontFamily = JetBrainsMonoFontFamily
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(1.dp))
+                    }
                     Text(
                         text = item.description,
                         style = MaterialTheme.typography.bodySmall,
@@ -478,6 +495,23 @@ fun ShopItemCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
+                if (item.quantity != null) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFB45309).copy(alpha = 0.18f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "⚡ ${item.quantity} left",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFBBF24),
+                            fontFamily = JetBrainsMonoFontFamily
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(1.dp))
+                }
                 Text(
                     text = item.description,
                     style = MaterialTheme.typography.bodySmall,

@@ -8,7 +8,9 @@ $gradlew = "$projectPath\gradlew.bat"
 # 1. Build Debug APK (Testing Version)
 Write-Host "Building Debug/Testing APK..." -ForegroundColor Cyan
 Set-Location $projectPath
-& $gradlew assembleDebug
+Remove-Item -Recurse -Force "$projectPath\app\build\intermediates\lint-cache" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force "$env:USERPROFILE\.gradle\caches\build-cache" -ErrorAction SilentlyContinue
+& $gradlew assembleDebug --no-build-cache
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red
@@ -60,7 +62,7 @@ else {
 
 # 4. Clean up old APKs (only this app's APKs)
 Write-Host "Cleaning up old Timecard APKs in $updateDir..." -ForegroundColor Cyan
-Get-ChildItem -Path $updateDir -Filter "timecard-*.apk" | Remove-Item -Force
+Get-ChildItem -Path $updateDir -Filter "*.apk" | Where-Object { $_.Name -match "timecard|app-release|app-debug" } | Remove-Item -Force
 
 # 5. Copy APK (Use Debug APK)
 $debugApk = "$projectPath\app\build\outputs\apk\debug\app-debug.apk"
