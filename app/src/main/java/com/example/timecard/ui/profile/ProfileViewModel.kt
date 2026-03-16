@@ -278,6 +278,29 @@ class ProfileViewModel : ViewModel() {
         setAvatar(null)
     }
 
+    fun saveBadgeCustomImage(badgeId: String, bytes: ByteArray) {
+        viewModelScope.launch {
+            try {
+                repository?.saveEmployeeBinaryFile(employeeName, ".badge_${badgeId}.png", bytes)
+                badgeImages = badgeImages + (badgeId to bytes)
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileVM", "Error saving badge image for $badgeId", e)
+            }
+        }
+    }
+
+    fun clearBadgeCustomImage(badgeId: String) {
+        viewModelScope.launch {
+            try {
+                // Save empty file to signal removal
+                repository?.saveEmployeeBinaryFile(employeeName, ".badge_${badgeId}.png", ByteArray(0))
+                badgeImages = badgeImages - badgeId
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileVM", "Error clearing badge image for $badgeId", e)
+            }
+        }
+    }
+
     private suspend fun loadBadgesConfig(repo: FileRepository?) {
         if (repo == null) return
         try {
@@ -386,6 +409,18 @@ class ProfileViewModel : ViewModel() {
                     profile = profile.copy(avatar = "custom")
                     saveProfile()
                 }
+            }
+
+            // Load any per-employee custom badge images (overrides config imagePath images)
+            val customBadgeImages = mutableMapOf<String, ByteArray>()
+            BadgeEngine.ALL_BADGES.forEach { def ->
+                val bytes = repo?.loadEmployeeBinaryFile(employeeName, ".badge_${def.id}.png")
+                if (bytes != null && bytes.isNotEmpty()) {
+                    customBadgeImages[def.id] = bytes
+                }
+            }
+            if (customBadgeImages.isNotEmpty()) {
+                badgeImages = badgeImages + customBadgeImages
             }
 
             // Run one-time historical backfill if it hasn't been done yet.

@@ -25,7 +25,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             TimecardApp(
                 themeState = themeState,
-                onReinstallLatest = { updateManager.reinstallLatest() }
+                onReinstallLatest = { updateManager.reinstallLatest() },
+                pendingUpdate = updateManager.pendingUpdateApk,
+                onInstallUpdate = { updateManager.installPendingUpdate() }
             )
         }
     }

@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -46,6 +47,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import com.example.timecard.domain.BadgeDefinition
 import com.example.timecard.domain.BadgeEngine
@@ -73,6 +75,30 @@ fun SettingsModal(
         (profile.badges[def.id] ?: 0) > 0
     }
 
+    // Badge image picker launcher (used inside the detail dialog)
+    val badgeImageContext = LocalContext.current
+    val badgeImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val badgeId = selectedBadge?.id ?: return@rememberLauncherForActivityResult
+        if (uri != null) {
+            val bytes = badgeImageContext.contentResolver.openInputStream(uri)?.use { stream ->
+                val original = BitmapFactory.decodeStream(stream)
+                if (original != null) {
+                    val max = 256
+                    val scale = minOf(max.toFloat() / original.width, max.toFloat() / original.height, 1f)
+                    val scaled = if (scale < 1f) {
+                        Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true)
+                    } else original
+                    val out = java.io.ByteArrayOutputStream()
+                    scaled.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    out.toByteArray()
+                } else null
+            }
+            if (bytes != null) profileViewModel.saveBadgeCustomImage(badgeId, bytes)
+        }
+    }
+
     // Badge detail popup
     selectedBadge?.let { badge ->
         Dialog(onDismissRequest = { selectedBadge = null }) {
@@ -87,7 +113,8 @@ fun SettingsModal(
                     Image(
                         bitmap = remember(detailImgBytes) { BitmapFactory.decodeByteArray(detailImgBytes, 0, detailImgBytes.size).asImageBitmap() },
                         contentDescription = badge.name,
-                        modifier = Modifier.size(64.dp)
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.size(64.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)))
                     )
                 } else {
                     Text(badge.emoji, fontSize = 44.sp)
@@ -101,6 +128,36 @@ fun SettingsModal(
                 Spacer(Modifier.height(8.dp))
                 Text("+${badge.coinReward} Coins${if (badge.repeatable) " · Repeatable" else ""}", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
+                // Custom image controls
+                val hasCustomImage = profileViewModel.badgeImages[badge.id] != null
+                Button(
+                    onClick = {
+                        badgeImagePickerLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (hasCustomImage) "🖼️ Change Image" else "🖼️ Upload Custom Image",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
+                }
+                if (hasCustomImage) {
+                    Spacer(Modifier.height(6.dp))
+                    Button(
+                        onClick = { profileViewModel.clearBadgeCustomImage(badge.id) },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Use Emoji Instead", color = colors.textSecondary, fontSize = 13.sp)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
                 Button(
                     onClick = { selectedBadge = null },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
@@ -413,16 +470,17 @@ fun SettingsModal(
                         columns = GridCells.Fixed(4),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height((((earnedBadges.size + 3) / 4) * 78).dp.coerceAtLeast(78.dp)),
+                            .height((((earnedBadges.size + 3) / 4) * 90).dp.coerceAtLeast(90.dp)),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(earnedBadges) { def ->
                             val count = profile.badges[def.id] ?: 1
-                            Box {
+                            Box(modifier = Modifier.fillMaxWidth()) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
+                                        .fillMaxWidth()
                                         .background(colors.accent.copy(alpha = 0.12f), com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
                                         .clickable { selectedBadge = def }
                                         .padding(6.dp)
@@ -432,7 +490,8 @@ fun SettingsModal(
                                         Image(
                                             bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
                                             contentDescription = def.name,
-                                            modifier = Modifier.size(32.dp)
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.size(32.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)))
                                         )
                                     } else {
                                         Text(def.emoji, fontSize = 22.sp)
@@ -442,7 +501,9 @@ fun SettingsModal(
                                         fontSize = 9.sp,
                                         color = colors.accent,
                                         fontWeight = FontWeight.Bold,
-                                        maxLines = 2
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
                                     )
                                 }
                                 // Count badge for repeatable badges earned more than once

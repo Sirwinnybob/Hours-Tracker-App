@@ -8,6 +8,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,7 +57,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimecardApp(
     themeState: ThemeState,
-    onReinstallLatest: () -> Unit
+    onReinstallLatest: () -> Unit,
+    pendingUpdate: java.io.File? = null,
+    onInstallUpdate: () -> Unit = {}
 ) {
     // ViewModels must be instantiated before TimecardTheme so we can read
     // the profile's accent color and pass it into the theme.
@@ -291,6 +297,28 @@ fun TimecardApp(
             ) {
                 VideoSplash(onComplete = { showSplash = false })
             }
+        }
+
+        // Update dialog — shown when a newer APK is found on the network share
+        if (pendingUpdate != null) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Update Available") },
+                text = { Text("A new version of the app is available. Install now?") },
+                confirmButton = {
+                    Button(
+                        onClick = onInstallUpdate,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.accent
+                        )
+                    ) {
+                        Text("Install")
+                    }
+                },
+                containerColor = colors.surface,
+                titleContentColor = colors.textHeading,
+                textContentColor = colors.textPrimary
+            )
         }
     }
 }

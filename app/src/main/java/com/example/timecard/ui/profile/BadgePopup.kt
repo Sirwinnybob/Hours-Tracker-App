@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -86,7 +88,8 @@ fun BadgePopup(
                         Image(
                             bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
                             contentDescription = def.name,
-                            modifier = Modifier.size(44.dp)
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(44.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)))
                         )
                     } else {
                         Text(def.emoji, fontSize = 36.sp)

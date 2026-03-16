@@ -11,6 +11,9 @@ import android.text.InputType
 import android.util.Log
 import android.widget.EditText
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
 import java.io.File
 
@@ -25,6 +28,14 @@ class UpdateManager(private val activity: Activity) {
 
     var resolvedUpdatePath: String? = null
         private set
+
+    /** Non-null when an update APK is ready — observed by Compose to show the dialog. */
+    var pendingUpdateApk by mutableStateOf<File?>(null)
+        private set
+
+    fun installPendingUpdate() {
+        pendingUpdateApk?.let { installApk(it) }
+    }
 
     fun checkForUpdates(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -77,14 +88,17 @@ class UpdateManager(private val activity: Activity) {
 
         for (apk in apkFiles) {
             val apkVersion = getApkVersionCode(apk)
-            if (apkVersion > newestVersionCode) {
+            if (apkVersion > newestVersionCode ||
+                (apkVersion == newestVersionCode && apkVersion >= 0 &&
+                 (newestApk == null || apk.lastModified() > newestApk!!.lastModified()))) {
                 newestVersionCode = apkVersion
                 newestApk = apk
             }
         }
 
         if (newestApk != null) {
-            installApk(newestApk)
+            Log.d(TAG, "Reinstalling: ${newestApk!!.name} (v$newestVersionCode, modified ${newestApk!!.lastModified()})")
+            installApk(newestApk!!)
         } else {
             Toast.makeText(activity, "No valid APK found", Toast.LENGTH_SHORT).show()
         }
@@ -156,7 +170,10 @@ class UpdateManager(private val activity: Activity) {
 
         for (apk in apkFiles) {
             val apkVersion = getApkVersionCode(apk)
-            if (apkVersion > currentVersionCode && apkVersion > newestVersionCode) {
+            if (apkVersion > currentVersionCode &&
+                (apkVersion > newestVersionCode ||
+                 (apkVersion == newestVersionCode &&
+                  (newestApk == null || apk.lastModified() > newestApk!!.lastModified())))) {
                 newestVersionCode = apkVersion
                 newestApk = apk
             }
@@ -249,13 +266,7 @@ class UpdateManager(private val activity: Activity) {
     }
 
     private fun showUpdateDialog(apkFile: File) {
-        AlertDialog.Builder(activity)
-            .setTitle("Update Available")
-            .setMessage("A new version of the app is available. Install now?")
-            .setPositiveButton("Install") { _, _ -> installApk(apkFile) }
-            .setNegativeButton("Later", null)
-            .setCancelable(false)
-            .show()
+        pendingUpdateApk = apkFile
     }
 
     private fun installApk(apkFile: File) {
