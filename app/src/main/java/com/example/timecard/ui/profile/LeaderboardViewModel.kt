@@ -18,7 +18,8 @@ data class LeaderboardEntry(
     val displayName: String?,
     val weekHours: Double,
     val monthHours: Double,
-    val allTimeCoins: Int
+    val allTimeCoins: Int,
+    val currentStreak: Int
 )
 
 class LeaderboardViewModel : ViewModel() {
@@ -83,7 +84,8 @@ class LeaderboardViewModel : ViewModel() {
                                 displayName = profile.displayName,
                                 weekHours = weekHours,
                                 monthHours = monthHours,
-                                allTimeCoins = profile.coins
+                                allTimeCoins = profile.coins,
+                                currentStreak = profile.streaks.currentDaily
                             )
                         )
                     } catch (e: Exception) {

@@ -34,7 +34,7 @@ fun LeaderboardModal(
     onDismiss: () -> Unit
 ) {
     val colors = LocalTimecardColors.current
-    var tab by remember { mutableIntStateOf(0) } // 0=Week, 1=Month, 2=XP
+    var tab by remember { mutableIntStateOf(0) } // 0=Week, 1=Month, 2=Streak, 3=XP
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -68,7 +68,7 @@ fun LeaderboardModal(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf("This Week", "This Month", "🪙 All-Time Coins").forEachIndexed { index, label ->
+                    listOf("This Week", "This Month", "🔥 Streak", "🪙 All-Time Coins").forEachIndexed { index, label ->
                         val selected = tab == index
                         Box(
                             contentAlignment = Alignment.Center,
@@ -109,6 +109,7 @@ fun LeaderboardModal(
                     val sorted = when (tab) {
                         0 -> viewModel.entries.sortedByDescending { it.weekHours }
                         1 -> viewModel.entries.sortedByDescending { it.monthHours }
+                        2 -> viewModel.entries.sortedByDescending { it.currentStreak }
                         else -> viewModel.entries.sortedByDescending { it.allTimeCoins }
                     }
 
@@ -131,6 +132,7 @@ fun LeaderboardModal(
                             val valueText = when (tab) {
                                 0 -> "${String.format("%.2f", entry.weekHours)} hrs"
                                 1 -> "${String.format("%.2f", entry.monthHours)} hrs"
+                                2 -> "🔥 ${entry.currentStreak} days"
                                 else -> "🪙 ${entry.allTimeCoins}"
                             }
 
