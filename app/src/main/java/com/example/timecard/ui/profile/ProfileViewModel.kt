@@ -250,7 +250,8 @@ class ProfileViewModel : ViewModel() {
 
     private fun applyCoins(updated: PlayerProfile, coinsGain: Int) {
         val newCoins = updated.coins + coinsGain
-        profile = updated.copy(coins = newCoins)
+        val newAllTimeCoins = if (coinsGain > 0) updated.allTimeCoinsEarned + coinsGain else updated.allTimeCoinsEarned
+        profile = updated.copy(coins = newCoins, allTimeCoinsEarned = newAllTimeCoins)
         saveProfile()
     }
 
@@ -498,10 +499,12 @@ class ProfileViewModel : ViewModel() {
             }
 
             val newCoins = (profile.coins + netCoinDelta).coerceAtLeast(0)
+            val newAllTimeCoins = if (netCoinDelta > 0) profile.allTimeCoinsEarned + netCoinDelta else profile.allTimeCoinsEarned
             profile = profile.copy(
                 badges = updatedBadges,
                 grantedBadges = serverGrantedIds, // Update our known state
-                coins = newCoins
+                coins = newCoins,
+                allTimeCoinsEarned = newAllTimeCoins
             )
             saveProfile()
         } catch (e: Exception) {

@@ -84,7 +84,7 @@ class LeaderboardViewModel : ViewModel() {
                                 displayName = profile.displayName,
                                 weekHours = weekHours,
                                 monthHours = monthHours,
-                                allTimeCoins = profile.coins,
+                                allTimeCoins = profile.allTimeCoinsEarned,
                                 currentStreak = profile.streaks.currentDaily
                             )
                         )

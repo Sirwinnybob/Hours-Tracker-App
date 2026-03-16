@@ -41,6 +41,7 @@ data class PurchaseRecord(
 data class PlayerProfile(
     @SerializedName("displayName") val displayName: String? = null,
     @SerializedName("coins") val coins: Int = 0,
+    @SerializedName("allTimeCoinsEarned") val allTimeCoinsEarned: Int = 0,
     @SerializedName("accentColor") val accentColor: String? = null,
     @SerializedName("avatar") val avatar: String? = null,
     @SerializedName("badges") val badges: Map<String, Int> = emptyMap(),
