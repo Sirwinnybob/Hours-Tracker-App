@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.data.model.ShopItem
+import com.example.timecard.ui.common.CoinAmount
+import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.profile.ProfileViewModel
 import com.example.timecard.ui.theme.ACCENT_UNLOCKS
 import com.example.timecard.ui.theme.CoinAmber
@@ -54,10 +56,20 @@ fun ShopModal(
     val triedThemes = profileViewModel.profile.triedThemes
     val previewItemId = shopViewModel.previewItemId
     val previewExpiresAtMs = shopViewModel.previewExpiresAtMs
+    val pendingClaims = shopViewModel.pendingLimitedClaims
+    val claimResult = shopViewModel.limitedClaimResult
 
     // Reload catalog from disk and mark all special items as seen when modal opens
     LaunchedEffect(Unit) {
         shopViewModel.reloadAndMarkSeen()
+    }
+
+    // Auto-dismiss claim result after 4 seconds
+    LaunchedEffect(claimResult) {
+        if (claimResult != null) {
+            kotlinx.coroutines.delay(4000)
+            shopViewModel.dismissLimitedClaimResult()
+        }
     }
 
     // Countdown ticker — updates every 500ms while a preview is active
@@ -80,6 +92,7 @@ fun ShopModal(
 
     // Confirmation dialog
     pendingPurchase?.let { pending ->
+        val isLimited = pending.quantity != null
         val coinsAfter = userCoins - pending.price
         AlertDialog(
             onDismissRequest = { pendingPurchase = null },
@@ -88,21 +101,23 @@ fun ShopModal(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("Cost: ", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "🪙 ${pending.price}",
-                            fontFamily = JetBrainsMonoFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = CoinAmber
-                        )
+                        CoinAmount(amount = pending.price, fontSize = 14.sp)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Balance after: ", style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            "🪙 $coinsAfter",
-                            fontFamily = JetBrainsMonoFontFamily,
-                            fontWeight = FontWeight.Bold,
+                        Text("KK after: ", style = MaterialTheme.typography.bodyMedium)
+                        CoinAmount(
+                            amount = coinsAfter,
+                            fontSize = 14.sp,
                             color = if (coinsAfter >= 0) CoinAmber else Color.Red
+                        )
+                    }
+                    if (isLimited) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "This is a limited item. Your coins won't be taken until an admin approves your purchase.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFFBBF24)
                         )
                     }
                 }
@@ -110,19 +125,20 @@ fun ShopModal(
             confirmButton = {
                 Button(onClick = {
                     pendingPurchase = null
-                    when (pending.id) {
-                        "consumable_send_note" -> {
+                    when {
+                        pending.id == "consumable_send_note" -> {
                             showSendNoteDialog = true
                             isAnonymousMode = false
                         }
-                        "consumable_send_anonymous_note" -> {
+                        pending.id == "consumable_send_anonymous_note" -> {
                             showSendNoteDialog = true
                             isAnonymousMode = true
                         }
+                        isLimited -> shopViewModel.purchaseLimitedItem(pending.id)
                         else -> shopViewModel.purchaseItem(pending.id)
                     }
                 }) {
-                    Text("Confirm")
+                    Text(if (isLimited) "Submit Claim" else "Confirm")
                 }
             },
             dismissButton = {
@@ -189,17 +205,7 @@ fun ShopModal(
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🪙", fontSize = 24.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = userCoins.toString(),
-                                fontFamily = JetBrainsMonoFontFamily,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = CoinAmber
-                            )
-                        }
+                        CoinAmount(amount = userCoins, fontSize = 28.sp, iconSize = 32.dp)
                     }
                     IconButton(onClick = onDismiss) {
                         Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -207,6 +213,28 @@ fun ShopModal(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
+                // Claim result banner
+                if (claimResult != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                if (claimResult.startsWith("\u2705")) Color(0xFF065F46)
+                                else Color(0xFF991B1B)
+                            )
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = claimResult,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            fontFamily = JetBrainsMonoFontFamily
+                        )
+                    }
+                }
 
                 // Separate special/featured items from regular catalog
                 val specialItems = items.filter { it.isSpecial }
@@ -256,6 +284,8 @@ fun ShopModal(
                                 isTried = triedThemes.contains(item.id),
                                 isPreviewActive = previewItemId == item.id,
                                 previewSecondsLeft = previewSecondsLeft,
+                                isPendingClaim = pendingClaims.containsKey(item.id),
+                                isSoldOut = item.quantity != null && item.quantity <= 0,
                                 onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
                                     { shopViewModel.tryTheme(item.id, accentKeyForItem) }
                                 } else null,
@@ -297,6 +327,8 @@ fun ShopModal(
                                 isTried = triedThemes.contains(item.id),
                                 isPreviewActive = previewItemId == item.id,
                                 previewSecondsLeft = previewSecondsLeft,
+                                isPendingClaim = pendingClaims.containsKey(item.id),
+                                isSoldOut = item.quantity != null && item.quantity <= 0,
                                 onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
                                     { shopViewModel.tryTheme(item.id, accentKeyForItem) }
                                 } else null,
@@ -319,6 +351,8 @@ fun ShopItemCard(
     isTried: Boolean = false,
     isPreviewActive: Boolean = false,
     previewSecondsLeft: Int = 0,
+    isPendingClaim: Boolean = false,
+    isSoldOut: Boolean = false,
     onTryTheme: (() -> Unit)? = null,
     onPurchase: () -> Unit
 ) {
@@ -342,23 +376,33 @@ fun ShopItemCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && canAfford && !isOwned) 0.95f else 1f,
+        targetValue = if (isPressed && canAfford && !isOwned && !isPendingClaim && !isSoldOut) 0.95f else 1f,
         animationSpec = tween(durationMillis = 80),
         label = "button_scale"
     )
     val emerald = Color(0xFF34D399)
+    val amber = Color(0xFFF59E0B)
     val slate = Color(0xFF64748B)
     val buttonColor = when {
         isOwned -> emerald
+        isSoldOut -> Color(0xFF991B1B)
+        isPendingClaim -> amber
         !canAfford -> slate
         else -> emerald
     }
     val buttonText = when {
         isOwned -> "OWNED \u2705"
-        !canAfford -> "NEED ${missingCoins}c MORE"
+        isSoldOut -> "SOLD OUT"
+        isPendingClaim -> "PENDING APPROVAL \u23F3"
+        !canAfford -> "NEED ${missingCoins} MORE KK COINS"
         else -> "BUY"
     }
-    val buttonTextColor = if (isOwned || canAfford) Color.Black else Color.White
+    val buttonTextColor = when {
+        isSoldOut -> Color.White
+        isPendingClaim -> Color.Black
+        isOwned || canAfford -> Color.Black
+        else -> Color.White
+    }
 
     Box(
         modifier = Modifier
@@ -376,13 +420,7 @@ fun ShopItemCard(
             ) {
                 // Left: text + buttons
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "🪙 ${item.price}",
-                        fontFamily = JetBrainsMonoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = CoinAmber,
-                        fontSize = 14.sp
-                    )
+                    CoinAmount(amount = item.price, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = item.title,
@@ -399,10 +437,10 @@ fun ShopItemCard(
                                 .padding(horizontal = 5.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "⚡ ${item.quantity} left",
+                                text = if (item.quantity!! <= 0) "SOLD OUT" else "⚡ ${item.quantity} left",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFBBF24),
+                                color = if (item.quantity <= 0) Color(0xFFEF4444) else Color(0xFFFBBF24),
                                 fontFamily = JetBrainsMonoFontFamily
                             )
                         }
@@ -425,7 +463,7 @@ fun ShopItemCard(
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null,
-                                enabled = canAfford && !isOwned,
+                                enabled = canAfford && !isOwned && !isPendingClaim && !isSoldOut,
                                 onClick = onPurchase
                             )
                             .padding(vertical = 8.dp),
@@ -479,13 +517,7 @@ fun ShopItemCard(
                     } else {
                         Text(text = item.icon, fontSize = 24.sp)
                     }
-                    Text(
-                        text = "🪙 ${item.price}",
-                        fontFamily = JetBrainsMonoFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = CoinAmber,
-                        fontSize = 14.sp
-                    )
+                    CoinAmount(amount = item.price, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

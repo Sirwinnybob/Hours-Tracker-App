@@ -34,7 +34,7 @@ data class TimesheetUiState(
     val jobs: List<String> = List(9) { if (it == 0) "SHOP" else "" },
     val hours: List<List<String>> = List(9) { List(DAYS.size) { "" } },
     /** Day indices (0=Mon…5=Sat) where the employee did NOT take lunch on the SHOP row. +0.5h added. */
-    val noLunchDays: Set<Int> = emptySet(),
+    val noLunchDays: Set<Int> = setOf(4, 5), // Fri=4, Sat=5 default no-lunch
     val fillingCell: Pair<Int, Int>? = null,
     val fillingCellPrevValue: Double = 0.0,
     val isAnimatingWeekSwitch: Boolean = false,
@@ -386,7 +386,8 @@ class TimesheetViewModel : ViewModel() {
         _uiState.update { it.copy(
             numRows = rowCount,
             jobs = newJobs,
-            hours = newHours
+            hours = newHours,
+            noLunchDays = setOf(4, 5)
         ) }
     }
 
@@ -394,7 +395,8 @@ class TimesheetViewModel : ViewModel() {
         _uiState.update { it.copy(
             numRows = DEFAULT_ROW_COUNT,
             jobs = List(DEFAULT_ROW_COUNT) { if (it == 0) "SHOP" else "" },
-            hours = List(DEFAULT_ROW_COUNT) { List(DAYS.size) { "" } }
+            hours = List(DEFAULT_ROW_COUNT) { List(DAYS.size) { "" } },
+            noLunchDays = setOf(4, 5)
         ) }
     }
 

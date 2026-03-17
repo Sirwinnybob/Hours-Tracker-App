@@ -301,36 +301,6 @@ val OceanOledTimecardColors = TimecardColors(
     accent = OceanAccent, isRed = false, isDark = true, isOled = true, isTerminal = false
 )
 
-val RoyalTimecardColors = TimecardColors(
-    backgroundFrom = RoyalBackground, backgroundTo = RoyalBackgroundTo,
-    surface = RoyalSurface, input = RoyalInput, hover = RoyalInput,
-    textPrimary = RoyalTextPrimary, textHeading = RoyalTextHeading,
-    textSecondary = RoyalTextSecondary, textTotal = RoyalTextTotal,
-    textGreen = DarkTextGreen, textOrange = DarkTextOrange,
-    border = RoyalBorder,
-    landingGradientStart = RoyalLandingGradientStart,
-    landingGradientMid = RoyalLandingGradientMid,
-    landingGradientEnd = RoyalLandingGradientEnd,
-    tableHeader = RoyalInput,
-    chartColors = ChartColors,
-    accent = RoyalAccent, isRed = false, isDark = true, isOled = false, isTerminal = false
-)
-
-val RoyalOledTimecardColors = TimecardColors(
-    backgroundFrom = RoyalOledBackground, backgroundTo = RoyalOledBackground,
-    surface = RoyalOledSurface, input = RoyalOledInput, hover = RoyalOledInput,
-    textPrimary = RoyalTextPrimary, textHeading = RoyalTextHeading,
-    textSecondary = RoyalTextSecondary, textTotal = RoyalTextTotal,
-    textGreen = DarkTextGreen, textOrange = DarkTextOrange,
-    border = RoyalOledBorder,
-    landingGradientStart = Color.Black,
-    landingGradientMid = Color.Black,
-    landingGradientEnd = Color.Black,
-    tableHeader = RoyalOledInput,
-    chartColors = ChartColors,
-    accent = RoyalAccent, isRed = false, isDark = true, isOled = true, isTerminal = false
-)
-
 // --- HACKER THEME ---
 
 val HackerTimecardColors = TimecardColors(
@@ -488,14 +458,6 @@ private val OceanMaterialColors = darkColorScheme(
     onPrimary = Color.White
 )
 
-private val RoyalMaterialColors = darkColorScheme(
-    background = RoyalBackground,
-    surface = RoyalSurface,
-    onBackground = RoyalTextPrimary,
-    onSurface = RoyalTextHeading,
-    primary = RoyalAccent,
-    onPrimary = Color.White
-)
 
 private val HackerMaterialColors = darkColorScheme(
     background = HackerBackground,
@@ -546,7 +508,6 @@ fun accentColorFor(key: String?): Color? = when (key) {
     "sunset" -> Color(0xFFE91E63)
     "midnight" -> Color(0xFF3F51B5)
     "ocean" -> Color(0xFF00BCD4)
-    "royal" -> Color(0xFF673AB7)
     else     -> null
 
 }
@@ -562,7 +523,6 @@ val ACCENT_UNLOCKS = listOf(
     Triple("sunset", Color(0xFFE91E63), "accent_sunset"),   // Added missing
     Triple("midnight", Color(0xFF3F51B5), "accent_midnight"), // Added missing
     Triple("ocean",  Color(0xFF00BCD4), "accent_ocean"),    // Added missing
-    Triple("royal",  Color(0xFF673AB7), "accent_royal")     // Added missing
 )
 
 /**
@@ -589,9 +549,15 @@ fun TimecardTheme(
     val isLightBase = themeMode == ThemeMode.Light
 
     when (accentKey) {
-        "orange", "sunset" -> { 
-            timecardColors = if (isLightBase) SunriseTimecardColors else if (isOledBase) SunsetOledTimecardColors else SunsetTimecardColors
-            materialColors = if (isLightBase) SunriseMaterialColors else SunsetMaterialColors 
+        "orange" -> {
+            // Sunrise: always light mode
+            timecardColors = SunriseTimecardColors
+            materialColors = SunriseMaterialColors
+        }
+        "sunset" -> {
+            // Sunset: always dark mode
+            timecardColors = if (isOledBase) SunsetOledTimecardColors else SunsetTimecardColors
+            materialColors = SunsetMaterialColors
         }
         "purple", "midnight" -> { 
             timecardColors = if (isLightBase) TwilightTimecardColors else if (isOledBase) MidnightOledTimecardColors else MidnightTimecardColors
@@ -601,9 +567,9 @@ fun TimecardTheme(
             timecardColors = if (isLightBase) IsleTimecardColors else if (isOledBase) OceanOledTimecardColors else OceanTimecardColors
             materialColors = if (isLightBase) IsleMaterialColors else OceanMaterialColors
         }
-        "gold", "royal" -> { 
-            timecardColors = if (isLightBase) DaybreakTimecardColors else if (isOledBase) RoyalOledTimecardColors else RoyalTimecardColors
-            materialColors = if (isLightBase) DaybreakMaterialColors else RoyalMaterialColors
+        "gold" -> {
+            timecardColors = DaybreakTimecardColors
+            materialColors = DaybreakMaterialColors
         }
         "red" -> {
             timecardColors = if (isLightBase) LightRedTimecardColors else if (isOledBase) RedOledTimecardColors else RedTimecardColors

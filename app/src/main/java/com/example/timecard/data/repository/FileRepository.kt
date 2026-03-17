@@ -43,4 +43,12 @@ interface FileRepository {
     fun saveInDir(name: String, subdirectory: String, filename: String, json: String): String
     /** Reads [name]/[subdirectory]/[filename], or null if absent. Never uses FileCache. */
     fun loadFromDir(name: String, subdirectory: String, filename: String): String?
+
+    // Global subdirectory operations (root-level, not employee-scoped)
+    /** Writes [json] to [subdirectory]/[filename] atomically under the shared root. */
+    fun saveGlobalDir(subdirectory: String, filename: String, json: String): String
+    /** Reads [subdirectory]/[filename] from the shared root, or null if absent. */
+    fun loadGlobalDir(subdirectory: String, filename: String): String?
+    /** Lists filenames directly inside [subdirectory]/ under the shared root. */
+    fun listGlobalDir(subdirectory: String): List<String>
 }

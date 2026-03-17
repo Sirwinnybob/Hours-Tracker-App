@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,6 +27,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -107,13 +111,11 @@ fun TimesheetGrid(
         ) {
             HeaderCell("Job", JOB_WEIGHT)
             DAYS.forEachIndexed { dayIndex, day ->
-                val lunchTaken = dayIndex !in uiState.noLunchDays
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(DAY_WEIGHT)
                         .height(ROW_HEIGHT),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = DAY_LABELS[day] ?: day,
@@ -122,28 +124,6 @@ fun TimesheetGrid(
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = if (lunchTaken) Color.White.copy(alpha = 0.22f)
-                                        else Color.White.copy(alpha = 0.09f),
-                                shape = RoundedCornerShape(3.dp)
-                            )
-                            .clickable { onToggleNoLunch(dayIndex) }
-                            .padding(horizontal = 4.dp, vertical = 1.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "L",
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (lunchTaken) Color.White.copy(alpha = 0.9f)
-                                    else Color.White.copy(alpha = 0.35f),
-                            textDecoration = if (!lunchTaken) TextDecoration.LineThrough
-                                             else TextDecoration.None
-                        )
-                    }
                 }
             }
             HeaderCell("Total", TOTAL_WEIGHT)
@@ -310,6 +290,56 @@ fun TimesheetGrid(
                             color = colors.textTotal
                         )
                     }
+                }
+            }
+
+            // Lunch row
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(32.dp)
+                        .background(colors.surface)
+                        .border(0.5.dp, colors.border)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(JOB_WEIGHT)
+                            .fillMaxHeight()
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "Lunch",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textSecondary
+                        )
+                    }
+                    DAYS.forEachIndexed { dayIndex, _ ->
+                        val lunchTaken = dayIndex !in uiState.noLunchDays
+                        val zebraColor = if (dayIndex % 2 == 0) ZEBRA_EVEN else ZEBRA_ODD
+                        Box(
+                            modifier = Modifier
+                                .weight(DAY_WEIGHT)
+                                .fillMaxHeight()
+                                .border(0.5.dp, colors.border)
+                                .background(zebraColor)
+                                .clickable { onToggleNoLunch(dayIndex) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Checkbox(
+                                checked = lunchTaken,
+                                onCheckedChange = { onToggleNoLunch(dayIndex) },
+                                modifier = Modifier.scale(0.65f),
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = colors.accent,
+                                    uncheckedColor = colors.textSecondary
+                                )
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.weight(TOTAL_WEIGHT).fillMaxHeight())
                 }
             }
 

@@ -409,6 +409,48 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         }
     }
 
+    override fun saveGlobalDir(subdirectory: String, filename: String, json: String): String {
+        return try {
+            val subDir = File(baseDir, subdirectory)
+            if (!subDir.exists() && !subDir.mkdirs()) {
+                return "Error: Could not create directory $subdirectory"
+            }
+            val file = File(subDir, filename)
+            val tempFile = File(subDir, "$filename.tmp")
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(json.toByteArray(StandardCharsets.UTF_8))
+                fos.flush()
+                fos.fd.sync()
+            }
+            if (atomicRename(tempFile, file)) "SUCCESS"
+            else "Error: Could not rename temp file"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
+
+    override fun loadGlobalDir(subdirectory: String, filename: String): String? {
+        return try {
+            val file = File(File(baseDir, subdirectory), filename)
+            if (!file.exists()) return null
+            readFileContent(file)
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error loading $subdirectory/$filename", e)
+            null
+        }
+    }
+
+    override fun listGlobalDir(subdirectory: String): List<String> {
+        return try {
+            val subDir = File(baseDir, subdirectory)
+            if (!subDir.exists() || !subDir.isDirectory) return emptyList()
+            subDir.listFiles { f -> f.isFile }?.map { it.name } ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error listing files in $subdirectory", e)
+            emptyList()
+        }
+    }
+
     private fun atomicRename(from: File, to: File): Boolean {
         for (i in 0 until 3) {
             if (from.renameTo(to)) return true

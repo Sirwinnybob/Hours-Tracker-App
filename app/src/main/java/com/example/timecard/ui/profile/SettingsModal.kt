@@ -51,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import com.example.timecard.domain.BadgeDefinition
 import com.example.timecard.domain.BadgeEngine
+import com.example.timecard.ui.common.CoinAmount
 import com.example.timecard.ui.components.InitialsAvatar
 import com.example.timecard.ui.theme.ACCENT_UNLOCKS
 import com.example.timecard.ui.theme.LocalTimecardColors
@@ -73,30 +74,6 @@ fun SettingsModal(
     // Only show badges the employee has actually earned
     val earnedBadges = BadgeEngine.ALL_BADGES.filter { def ->
         (profile.badges[def.id] ?: 0) > 0
-    }
-
-    // Badge image picker launcher (used inside the detail dialog)
-    val badgeImageContext = LocalContext.current
-    val badgeImagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        val badgeId = selectedBadge?.id ?: return@rememberLauncherForActivityResult
-        if (uri != null) {
-            val bytes = badgeImageContext.contentResolver.openInputStream(uri)?.use { stream ->
-                val original = BitmapFactory.decodeStream(stream)
-                if (original != null) {
-                    val max = 256
-                    val scale = minOf(max.toFloat() / original.width, max.toFloat() / original.height, 1f)
-                    val scaled = if (scale < 1f) {
-                        Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true)
-                    } else original
-                    val out = java.io.ByteArrayOutputStream()
-                    scaled.compress(Bitmap.CompressFormat.PNG, 100, out)
-                    out.toByteArray()
-                } else null
-            }
-            if (bytes != null) profileViewModel.saveBadgeCustomImage(badgeId, bytes)
-        }
     }
 
     // Badge detail popup
@@ -126,38 +103,8 @@ fun SettingsModal(
                 Spacer(Modifier.height(4.dp))
                 Text("\"${badge.flavorText}\"", fontSize = 12.sp, color = colors.accent, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                Text("+${badge.coinReward} Coins${if (badge.repeatable) " · Repeatable" else ""}", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                Text("+${badge.coinReward} Kustom Kash${if (badge.repeatable) " · Repeatable" else ""}", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(16.dp))
-                // Custom image controls
-                val hasCustomImage = profileViewModel.badgeImages[badge.id] != null
-                Button(
-                    onClick = {
-                        badgeImagePickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        if (hasCustomImage) "🖼️ Change Image" else "🖼️ Upload Custom Image",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-                if (hasCustomImage) {
-                    Spacer(Modifier.height(6.dp))
-                    Button(
-                        onClick = { profileViewModel.clearBadgeCustomImage(badge.id) },
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Use Emoji Instead", color = colors.textSecondary, fontSize = 13.sp)
-                    }
-                }
-                Spacer(Modifier.height(6.dp))
                 Button(
                     onClick = { selectedBadge = null },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
@@ -271,7 +218,7 @@ fun SettingsModal(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "Loading your history… Coins are being calculated",
+                            "Loading your history… Kustom Kash is being calculated",
                             fontSize = 12.sp,
                             color = colors.accent
                         )
@@ -388,15 +335,13 @@ fun SettingsModal(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
-                            Text(
-                                "🪙 ${profile.coins}",
+                            CoinAmount(
+                                amount = profile.coins,
                                 fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = com.example.timecard.ui.theme.JetBrainsMonoFontFamily,
-                                color = com.example.timecard.ui.theme.CoinAmber
+                                iconSize = 28.dp
                             )
                             Text(
-                                "Total Coins",
+                                "Kustom Kash",
                                 fontSize = 12.sp,
                                 color = colors.textSecondary
                             )

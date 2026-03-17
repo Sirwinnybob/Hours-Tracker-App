@@ -1,20 +1,25 @@
 package com.example.timecard.ui.shop
 
+import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.timecard.data.model.Employee
+import com.example.timecard.data.model.LimitedPurchaseClaim
 import com.example.timecard.data.model.ShopItem
 import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.ui.profile.ProfileViewModel
 import com.example.timecard.data.model.PlayerProfile
 import com.example.timecard.data.model.Alert
 import com.google.gson.Gson
+import java.io.File
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,8 +55,17 @@ class ShopViewModel : ViewModel() {
     var recipients by mutableStateOf<List<EmployeeRecipient>>(emptyList())
         private set
 
+    /** Pending limited purchase claims: itemId → claim. */
+    var pendingLimitedClaims by mutableStateOf<Map<String, LimitedPurchaseClaim>>(emptyMap())
+        private set
+
+    /** Message shown when a limited claim is approved or denied. */
+    var limitedClaimResult by mutableStateOf<String?>(null)
+        private set
+
     private var profileViewModel: ProfileViewModel? = null
     private var repository: FileRepository? = null
+    private var claimPollJob: Job? = null
 
     val userCoins: Int
         get() = profileViewModel?.profile?.coins ?: 0
@@ -137,8 +151,19 @@ class ShopViewModel : ViewModel() {
                 val list = mutableListOf<EmployeeRecipient>()
                 val gson = Gson()
                 try {
+                    // Load valid employee folders from employees.json, filtering out excluded entries
+                    val employeeJson = repo.loadEmployeeList()
+                    val validFolders: Set<String> = if (employeeJson != null) {
+                        try {
+                            val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
+                            val employees: List<Employee> = gson.fromJson(employeeJson, type)
+                            employees.filter { !it.excluded || it.name.equals("Winston Ferguson", ignoreCase = true) }.map { it.name }.toSet()
+                        } catch (e: Exception) { emptySet() }
+                    } else emptySet()
+
                     for (folder in repo.listEmployeeFolders()) {
                         if (folder.equals(currentEmployee, ignoreCase = true)) continue
+                        if (validFolders.isNotEmpty() && !validFolders.any { it.equals(folder, ignoreCase = true) }) continue
 
                         val profileJson = repo.loadGenericJSON(folder, "profile.json", useCache = true)
                         var dName: String? = null
@@ -160,6 +185,99 @@ class ShopViewModel : ViewModel() {
     fun purchaseItem(id: String) {
         val item = items.find { it.id == id } ?: return
         profileViewModel?.processPurchase(item.id, item.title, item.price)
+    }
+
+    /**
+     * Submits a limited purchase claim without deducting coins.
+     * Writes a claim JSON to limited_purchases/ and sets file read-only.
+     * Coins are only deducted after admin approval.
+     */
+    fun purchaseLimitedItem(id: String) {
+        val item = items.find { it.id == id } ?: return
+        val vm = profileViewModel ?: return
+        val repo = repository ?: return
+        if (vm.profile.coins < item.price) return
+        if (vm.profile.inventory.contains(item.id)) return
+        if (pendingLimitedClaims.containsKey(item.id)) return
+
+        val claim = LimitedPurchaseClaim(
+            claimId = UUID.randomUUID().toString(),
+            itemId = item.id,
+            itemTitle = item.title,
+            price = item.price,
+            employeeName = vm.employeeName,
+            displayName = vm.profile.displayName,
+            claimedAt = Instant.now().toString(),
+            deviceId = "${Build.MANUFACTURER} ${Build.MODEL}"
+        )
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val filename = "${claim.claimId}.json"
+                val json = Gson().toJson(claim)
+                val result = repo.saveGlobalDir("limited_purchases", filename, json)
+                if (result == "SUCCESS") {
+                    Log.d("ShopVM", "Limited claim written: limited_purchases/$filename")
+                    withContext(Dispatchers.Main) {
+                        pendingLimitedClaims = pendingLimitedClaims + (item.id to claim)
+                    }
+                    // Start polling if not already running
+                    startClaimPolling()
+                } else {
+                    Log.e("ShopVM", "Failed to write limited claim: $result")
+                }
+            } catch (e: Exception) {
+                Log.e("ShopVM", "Error writing limited purchase claim", e)
+            }
+        }
+    }
+
+    fun dismissLimitedClaimResult() { limitedClaimResult = null }
+
+    /** Start polling for claim approvals/denials every 10 seconds. */
+    private fun startClaimPolling() {
+        if (claimPollJob?.isActive == true) return
+        claimPollJob = viewModelScope.launch {
+            while (pendingLimitedClaims.isNotEmpty()) {
+                delay(10_000L)
+                checkPendingClaims()
+            }
+            claimPollJob = null
+        }
+    }
+
+    private suspend fun checkPendingClaims() {
+        val repo = repository ?: return
+        val vm = profileViewModel ?: return
+        val current = pendingLimitedClaims.toMap()
+
+        for ((itemId, claim) in current) {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    repo.loadGlobalDir("limited_purchases", "${claim.claimId}.json")
+                } ?: continue
+
+                val updated = Gson().fromJson(json, LimitedPurchaseClaim::class.java)
+                when (updated.approved) {
+                    true -> {
+                        // Approved! Deduct coins and add to inventory
+                        vm.processPurchase(claim.itemId, claim.itemTitle, claim.price)
+                        pendingLimitedClaims = pendingLimitedClaims - itemId
+                        limitedClaimResult = "✅ Purchase approved: ${claim.itemTitle}"
+                        Log.d("ShopVM", "Limited claim approved: ${claim.claimId}")
+                    }
+                    false -> {
+                        // Denied — no coins lost
+                        pendingLimitedClaims = pendingLimitedClaims - itemId
+                        limitedClaimResult = "❌ Purchase denied: ${claim.itemTitle}"
+                        Log.d("ShopVM", "Limited claim denied: ${claim.claimId}")
+                    }
+                    null -> { /* Still pending, no action */ }
+                }
+            } catch (e: Exception) {
+                Log.e("ShopVM", "Error checking claim ${claim.claimId}", e)
+            }
+        }
     }
 
     fun sendNote(recipientFolder: String, message: String, cost: Int) {

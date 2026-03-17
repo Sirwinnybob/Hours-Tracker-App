@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.JetBrainsMonoFontFamily
 import kotlinx.coroutines.delay
@@ -75,16 +76,13 @@ fun CoinBanner(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "🪙",
-                        fontSize = 24.sp
-                    )
+                    CoinIcon(size = 28.dp)
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(
                         horizontalAlignment = Alignment.Start
                     ) {
                         Text(
-                            text = "+$coinsEarned COINS EARNED",
+                            text = "+$coinsEarned KUSTOM KASH",
                             fontFamily = JetBrainsMonoFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
@@ -92,7 +90,7 @@ fun CoinBanner(
                         )
                         if (streakBonus > 0 && streakMultiplier > 1.0) {
                             Text(
-                                text = "+$streakBonus coins from 🔥 Streak Multiplier ${streakMultiplier}x",
+                                text = "+$streakBonus KK from 🔥 Streak Multiplier ${streakMultiplier}x",
                                 fontFamily = JetBrainsMonoFontFamily,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp,

@@ -442,6 +442,57 @@ class SafFileRepository(
         }
     }
 
+    override fun saveGlobalDir(subdirectory: String, filename: String, json: String): String {
+        return try {
+            val root = DocumentFile.fromTreeUri(context, treeUri)
+                ?: return "Error: Access to folder lost"
+            var subDir = root.findFile(subdirectory)
+            if (subDir == null) subDir = root.createDirectory(subdirectory)
+            if (subDir == null) return "Error: Could not create directory $subdirectory"
+
+            val tempFilename = "$filename.tmp"
+            var tempFile = subDir.findFile(tempFilename)
+            if (tempFile != null) tempFile.delete()
+            tempFile = subDir.createFile("application/json", tempFilename)
+                ?: return "Error: Could not create temp file"
+
+            context.contentResolver.openOutputStream(tempFile.uri)?.use { os ->
+                os.write(json.toByteArray(StandardCharsets.UTF_8))
+                os.flush()
+            }
+
+            val finalFile = subDir.findFile(filename)
+            if (finalFile != null) finalFile.delete()
+
+            if (tempFile.renameTo(filename)) "SUCCESS" else "Error: SAF Rename Failed"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
+
+    override fun loadGlobalDir(subdirectory: String, filename: String): String? {
+        return try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
+            val subDir = root.findFile(subdirectory) ?: return null
+            val file = subDir.findFile(filename) ?: return null
+            readDocumentContent(file)
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error loading $subdirectory/$filename", e)
+            null
+        }
+    }
+
+    override fun listGlobalDir(subdirectory: String): List<String> {
+        return try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+            val subDir = root.findFile(subdirectory) ?: return emptyList()
+            subDir.listFiles().filter { it.isFile }.mapNotNull { it.name }
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error listing files in $subdirectory", e)
+            emptyList()
+        }
+    }
+
     override fun loadChallenges(): List<com.example.timecard.data.model.Challenge> {
         val json = loadGlobalFile("challenges.json", useCache = false) ?: return emptyList()
         return try {

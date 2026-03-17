@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.timecard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 131
-        versionName = "3.3.0"
+        versionCode = 132
+        versionName = "3.8.0"
     }
 
     signingConfigs {
