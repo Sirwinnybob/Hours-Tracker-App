@@ -5,9 +5,15 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -20,6 +26,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.Modifier
 import com.example.timecard.ui.login.HeaderMetrics
 import androidx.compose.ui.graphics.graphicsLayer
@@ -29,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.zIndex
 import com.example.timecard.data.model.Employee
+import com.example.timecard.ui.challenges.ChallengesViewModel
 import com.example.timecard.ui.components.VideoSplash
 import com.example.timecard.ui.alerts.AlertsViewModel
 import com.example.timecard.ui.login.LoginViewModel
@@ -69,6 +80,7 @@ fun TimecardApp(
     val statsViewModel: StatsViewModel = viewModel()
     val profileViewModel: ProfileViewModel = viewModel()
     val leaderboardViewModel: LeaderboardViewModel = viewModel()
+    val challengesViewModel: ChallengesViewModel = viewModel()
     val shopViewModel: ShopViewModel = viewModel()
 
 
@@ -215,6 +227,7 @@ fun TimecardApp(
                         statsViewModel = statsViewModel,
                         profileViewModel = profileViewModel,
                         leaderboardViewModel = leaderboardViewModel,
+                        challengesViewModel = challengesViewModel,
                         shopViewModel = shopViewModel,
                         employees = loginViewModel.employees,
                         onLogout = {
@@ -243,6 +256,47 @@ fun TimecardApp(
             )
 
             // Layer 3b: Gamification overlays
+
+            // Streak-at-risk banner — shown on login when active streak but today not yet logged
+            var streakBannerVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(profileViewModel.streakAtRisk) {
+                if (profileViewModel.streakAtRisk) {
+                    streakBannerVisible = true
+                    kotlinx.coroutines.delay(8_000L)
+                    streakBannerVisible = false
+                    profileViewModel.dismissStreakWarning()
+                }
+            }
+            AnimatedVisibility(
+                visible = streakBannerVisible,
+                enter = slideInVertically(initialOffsetY = { -it }),
+                exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                modifier = androidx.compose.ui.Modifier.align(Alignment.TopCenter).fillMaxWidth().zIndex(50f)
+            ) {
+                Box(
+                    modifier = androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .background(
+                            colors.accent.copy(alpha = 0.92f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            streakBannerVisible = false
+                            profileViewModel.dismissStreakWarning()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "🔥 Your ${profileViewModel.profile.streaks.currentDaily}-day streak is at risk! Log hours today to keep it.",
+                        color = androidx.compose.ui.graphics.Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             ConfettiBurst(
                 trigger = profileViewModel.pendingConfetti,
                 onDone = { profileViewModel.dismissConfetti() }

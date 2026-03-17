@@ -82,6 +82,7 @@ fun TimesheetScreen(
     statsViewModel: StatsViewModel,
     profileViewModel: com.example.timecard.ui.profile.ProfileViewModel? = null,
     leaderboardViewModel: com.example.timecard.ui.profile.LeaderboardViewModel? = null,
+    challengesViewModel: com.example.timecard.ui.challenges.ChallengesViewModel? = null,
     shopViewModel: com.example.timecard.ui.shop.ShopViewModel? = null,
     employees: List<com.example.timecard.data.model.Employee> = emptyList(),
     onLogout: () -> Unit,
@@ -262,6 +263,19 @@ fun TimesheetScreen(
                                     contentPadding = PaddingValues(horizontal = btnPaddingH)
                                 ) {
                                     Text("🏆", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // Challenges button
+                            if (challengesViewModel != null) {
+                                Button(
+                                    onClick = { navController.navigate("challenges") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                                    modifier = Modifier.height(btnHeight),
+                                    contentPadding = PaddingValues(horizontal = btnPaddingH)
+                                ) {
+                                    Text("🎯", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
                                 }
                             }
         
@@ -479,9 +493,32 @@ fun TimesheetScreen(
         
         dialog("leaderboard") {
             if (leaderboardViewModel != null) {
+                val feedNames = remember(employees) {
+                    employees.filter { !it.excluded }.map { it.name }
+                }
                 com.example.timecard.ui.profile.LeaderboardModal(
                     viewModel = leaderboardViewModel,
                     myName = employeeName,
+                    badgeImages = profileViewModel?.badgeImages ?: emptyMap(),
+                    feedEmployeeNames = feedNames,
+                    onFeedTabSelected = { leaderboardViewModel.loadFeed(feedNames, repository) },
+                    onDismiss = { navController.popBackStack() }
+                )
+            }
+        }
+
+        dialog("challenges") {
+            if (challengesViewModel != null && profileViewModel != null) {
+                com.example.timecard.ui.challenges.ChallengesModal(
+                    viewModel = challengesViewModel,
+                    onLoad = {
+                        challengesViewModel.load(
+                            employeeName = employeeName,
+                            weekDate = uiState.activeWeekDate,
+                            profile = profileViewModel.profile,
+                            repository = repository
+                        )
+                    },
                     onDismiss = { navController.popBackStack() }
                 )
             }

@@ -1,5 +1,6 @@
 package com.example.timecard.domain
 
+import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.data.model.DAYS
 import com.example.timecard.data.model.CoinLogEntry
 import com.example.timecard.data.model.PlayerProfile
@@ -17,13 +18,15 @@ data class GamificationResult(
     val pendingConfetti: Boolean,
     val coinsGainedThisSave: Int,
     val streakBonusCoins: Int = 0,
-    val appliedStreakMultiplier: Double = 1.0
+    val appliedStreakMultiplier: Double = 1.0,
+    val newEvents: List<ActivityEvent> = emptyList()
 )
 
 object GamificationEngine {
 
     fun processTimecardSave(
         current: PlayerProfile,
+        employeeName: String,
         weekData: TimecardData,
         monthWeeks: List<TimecardData>,
         recentWeeks: List<TimecardData>,
@@ -215,6 +218,63 @@ object GamificationEngine {
             weeklyBonusLog = weeklyBonusLog
         )
 
+        // --- Build activity events ---
+        val displayName = current.displayName?.takeIf { it.isNotBlank() } ?: employeeName
+        val activityEvents = mutableListOf<ActivityEvent>()
+
+        // Badges earned
+        newBadgeMap.forEach { (id, count) ->
+            val def = BadgeEngine.getDefinition(id)
+            if (def != null) {
+                repeat(count) {
+                    activityEvents += ActivityEvent(
+                        type = "badge_earned",
+                        employeeName = employeeName,
+                        displayName = displayName,
+                        detail = def.name,
+                        detailIcon = def.emoji,
+                        timestamp = now
+                    )
+                }
+            }
+        }
+        // Streak milestone (multiples of 5)
+        val prevStreak = current.streaks.currentDaily
+        val newStreak = newStreaks.currentDaily
+        if (newStreak > prevStreak && newStreak > 0 && newStreak % 5 == 0) {
+            activityEvents += ActivityEvent(
+                type = "streak_milestone",
+                employeeName = employeeName,
+                displayName = displayName,
+                detail = "$newStreak days",
+                detailIcon = "🔥",
+                timestamp = now
+            )
+        }
+        // Record broken (best week)
+        if (weekTotal > 0 && weekTotal > current.records.bestWeekHours) {
+            activityEvents += ActivityEvent(
+                type = "record_broken",
+                employeeName = employeeName,
+                displayName = displayName,
+                detail = String.format(java.util.Locale.US, "%.2f hrs", weekTotal),
+                detailIcon = "📈",
+                timestamp = now
+            )
+        }
+        // Big coin haul (≥ 100 coins this save)
+        val totalCoinsThisSave = coinsGained + badgeCoins
+        if (totalCoinsThisSave >= 100) {
+            activityEvents += ActivityEvent(
+                type = "coins_earned",
+                employeeName = employeeName,
+                displayName = displayName,
+                detail = "$totalCoinsThisSave KK Coins",
+                detailIcon = "🪙",
+                timestamp = now
+            )
+        }
+
         return GamificationResult(
             profile = updatedProfile,
             pendingBadges = newBadgeMap.flatMap { (id, count) -> List(count) { id } },
@@ -222,7 +282,8 @@ object GamificationEngine {
             pendingConfetti = isPerfect,
             coinsGainedThisSave = coinsGained + badgeCoins,
             streakBonusCoins = streakBonusCoins,
-            appliedStreakMultiplier = GamificationConfig.streakMultiplier(newStreaks.currentDaily)
+            appliedStreakMultiplier = GamificationConfig.streakMultiplier(newStreaks.currentDaily),
+            newEvents = activityEvents
         )
     }
 

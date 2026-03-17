@@ -59,5 +59,7 @@ data class PlayerProfile(
     /** Full purchase history for this employee. */
     @SerializedName("purchaseHistory") val purchaseHistory: List<PurchaseRecord> = emptyList(),
     /** Theme item IDs this user has already used their one-time trial on. */
-    @SerializedName("triedThemes") val triedThemes: List<String> = emptyList()
+    @SerializedName("triedThemes") val triedThemes: List<String> = emptyList(),
+    /** Completed challenge log: key = "challengeId_YYYY-MM-DD" (week start), value = ISO timestamp. */
+    @SerializedName("challengeLog") val challengeLog: Map<String, String> = emptyMap()
 )

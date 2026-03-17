@@ -6,8 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.data.model.DAYS
 import com.example.timecard.data.model.PlayerProfile
+import com.example.timecard.data.model.PurchaseRecord
 import com.example.timecard.data.model.TimecardData
 import com.example.timecard.data.repository.FileRepository
 import com.google.gson.Gson
@@ -19,7 +21,17 @@ data class LeaderboardEntry(
     val weekHours: Double,
     val monthHours: Double,
     val allTimeCoins: Int,
-    val currentStreak: Int
+    val currentStreak: Int,
+    val avatarBytes: ByteArray?,
+    val bestDailyStreak: Int,
+    val currentWeeklyStreak: Int,
+    val bestWeeklyStreak: Int,
+    val bestWeekHours: Double,
+    val bestDayHours: Double,
+    val badges: Map<String, Int>,
+    val inventory: List<String>,
+    val purchaseHistory: List<PurchaseRecord>,
+    val coins: Int
 )
 
 class LeaderboardViewModel : ViewModel() {
@@ -30,6 +42,29 @@ class LeaderboardViewModel : ViewModel() {
         private set
     var lastLoadedWeek by mutableStateOf("")
         private set
+
+    var feedEvents by mutableStateOf<List<ActivityEvent>>(emptyList())
+        private set
+    var isFeedLoading by mutableStateOf(false)
+        private set
+
+    fun loadFeed(employeeNames: List<String>, repository: FileRepository?) {
+        if (repository == null || isFeedLoading) return
+        viewModelScope.launch {
+            isFeedLoading = true
+            try {
+                val allEvents = mutableListOf<ActivityEvent>()
+                for (empName in employeeNames) {
+                    try {
+                        allEvents += repository.loadEmployeeActivityEvents(empName)
+                    } catch (_: Exception) {}
+                }
+                feedEvents = allEvents.sortedByDescending { it.timestamp }.take(100)
+            } finally {
+                isFeedLoading = false
+            }
+        }
+    }
 
     private val gson = Gson()
 
@@ -53,6 +88,11 @@ class LeaderboardViewModel : ViewModel() {
                             try { gson.fromJson(profileJson, PlayerProfile::class.java) ?: PlayerProfile() }
                             catch (_: Exception) { PlayerProfile() }
                         } else PlayerProfile()
+
+                        // Load avatar (try wildcard first, then explicit extensions)
+                        val avatarBytes = repository.loadEmployeeBinaryFile(empName, ".avatar.jpg")
+                            ?: repository.loadEmployeeBinaryFile(empName, ".avatar.png")
+                            ?: repository.loadEmployeeBinaryFile(empName, ".avatar.jpeg")
 
                         // Current week hours
                         val weekJson = repository.loadFile(empName, currentWeekDate)
@@ -85,7 +125,17 @@ class LeaderboardViewModel : ViewModel() {
                                 weekHours = weekHours,
                                 monthHours = monthHours,
                                 allTimeCoins = profile.allTimeCoinsEarned,
-                                currentStreak = profile.streaks.currentDaily
+                                currentStreak = profile.streaks.currentDaily,
+                                avatarBytes = avatarBytes,
+                                bestDailyStreak = profile.streaks.bestDaily,
+                                currentWeeklyStreak = profile.streaks.currentWeekly,
+                                bestWeeklyStreak = profile.streaks.bestWeekly,
+                                bestWeekHours = profile.records.bestWeekHours,
+                                bestDayHours = profile.records.busiestDay,
+                                badges = profile.badges,
+                                inventory = profile.inventory,
+                                purchaseHistory = profile.purchaseHistory,
+                                coins = profile.coins
                             )
                         )
                     } catch (e: Exception) {

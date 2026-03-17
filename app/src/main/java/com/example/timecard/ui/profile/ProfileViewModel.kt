@@ -11,6 +11,7 @@ import com.example.timecard.data.model.TimecardData
 import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.domain.BadgeDefinition
 import com.example.timecard.domain.BadgeEngine
+import com.example.timecard.domain.ChallengeEngine
 import com.example.timecard.domain.GamificationEngine
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -45,6 +46,10 @@ class ProfileViewModel : ViewModel() {
         private set
     /** True while the one-time historical backfill is running. */
     var isBackfilling by mutableStateOf(false)
+        private set
+
+    /** True when the logged-in employee has an active streak but hasn't logged hours today. */
+    var streakAtRisk by mutableStateOf(false)
         private set
 
     val deviceId = java.util.UUID.randomUUID().toString()
@@ -96,6 +101,7 @@ class ProfileViewModel : ViewModel() {
 
     fun resetAutoLogout() { triggerAutoLogout = false }
     fun resetLockError() { isLockedByAnotherUser = false }
+    fun dismissStreakWarning() { streakAtRisk = false }
 
     fun dismissNextBadge() {
         if (pendingBadges.isNotEmpty()) pendingBadges = pendingBadges.drop(1)
@@ -227,6 +233,7 @@ class ProfileViewModel : ViewModel() {
         // Delegate all gamification logic to the engine
         val result = GamificationEngine.processTimecardSave(
             current = current,
+            employeeName = employeeName,
             weekData = weekData,
             monthWeeks = monthWeeks,
             recentWeeks = recentWeeks,
@@ -244,6 +251,48 @@ class ProfileViewModel : ViewModel() {
             recentStreakBonus = result.streakBonusCoins
             recentStreakMultiplier = result.appliedStreakMultiplier
         }
+
+        // Write activity events for this save
+        if (result.newEvents.isNotEmpty()) {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val repo = repository ?: return@launch
+                    val existing = repo.loadEmployeeActivityEvents(employeeName)
+                    val merged = (result.newEvents + existing).take(50)
+                    repo.saveEmployeeActivityEvents(employeeName, merged)
+                } catch (_: Exception) {}
+            }
+        }
+
+        // Detect weekly challenge completions and award coins
+        try {
+            val repo = repository
+            if (repo != null) {
+                val challenges = repo.loadChallenges()
+                if (challenges.isNotEmpty()) {
+                    val completed = ChallengeEngine.detectCompletions(challenges, weekData, profile)
+                    if (completed.isNotEmpty()) {
+                        val now = java.time.Instant.now().toString()
+                        val newLog = profile.challengeLog.toMutableMap()
+                        var bonusCoins = 0
+                        for (ch in completed) {
+                            newLog["${ch.id}_${weekData.weekStarting}"] = now
+                            bonusCoins += ch.reward
+                        }
+                        val newCoins = profile.coins + bonusCoins
+                        val newAllTime = profile.allTimeCoinsEarned + bonusCoins
+                        profile = profile.copy(
+                            challengeLog = newLog,
+                            coins = newCoins,
+                            allTimeCoinsEarned = newAllTime
+                        )
+                        if (bonusCoins > 0 && recentCoinsEarned == null) {
+                            recentCoinsEarned = bonusCoins
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
 
         saveProfile()
     }
@@ -383,6 +432,34 @@ class ProfileViewModel : ViewModel() {
             } else PlayerProfile()
 
             profile = loaded
+
+            // Check if today's streak is at risk (active streak but no hours logged yet today)
+            streakAtRisk = false
+            if (loaded.streaks.currentDaily > 0) {
+                try {
+                    val today = java.time.LocalDate.now()
+                    val dayOfWeek = today.dayOfWeek
+                    val weekStart = today.minusDays((dayOfWeek.value - 1).toLong())
+                    val dayKey = when (dayOfWeek) {
+                        java.time.DayOfWeek.MONDAY    -> "mon"
+                        java.time.DayOfWeek.TUESDAY   -> "tue"
+                        java.time.DayOfWeek.WEDNESDAY -> "wed"
+                        java.time.DayOfWeek.THURSDAY  -> "thu"
+                        java.time.DayOfWeek.FRIDAY    -> "fri"
+                        java.time.DayOfWeek.SATURDAY  -> "sat"
+                        else -> null  // Sunday — no work expected
+                    }
+                    if (dayKey != null) {
+                        val weekJson = repository?.loadFile(employeeName, weekStart.toString())
+                        val weekData = weekJson?.let {
+                            try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
+                        }
+                        val todayHours = weekData?.rows
+                            ?.sumOf { row -> row.getHours(dayKey).toDoubleOrNull() ?: 0.0 } ?: 0.0
+                        streakAtRisk = todayHours == 0.0
+                    }
+                } catch (_: Exception) {}
+            }
 
             // Adopt any dashboard-uploaded avatar staged as avatar_pending.jpg.
             // The backend writes avatar_pending.jpg instead of .avatar.jpg directly,

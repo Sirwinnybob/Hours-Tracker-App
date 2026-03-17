@@ -2,6 +2,10 @@ package com.example.timecard.data.repository
 
 import android.util.Log
 import com.example.timecard.data.cache.FileCache
+import com.example.timecard.data.model.ActivityEvent
+import com.example.timecard.data.model.ActivityFeed
+import com.example.timecard.data.model.Challenge
+import com.example.timecard.data.model.ChallengeCatalog
 import com.example.timecard.data.model.ShopItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -33,24 +37,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
                 Log.e("DirectFileRepo", "Error parsing shop_catalog.json", e)
             }
         }
-        // Fallback default catalog
-        return listOf(
-            ShopItem("accent_sunrise", "Sunrise", "A warm morning gradient.", 250, "Accent", "🌅"),
-            ShopItem("accent_twilight", "Twilight", "Evening purple hues.", 250, "Accent", "🌆"),
-            ShopItem("accent_isle", "Isle", "Tropical island colors.", 250, "Accent", "🏝️"),
-            ShopItem("accent_daybreak", "Daybreak", "Early bright sky.", 250, "Accent", "🌤️"),
-            ShopItem("accent_red", "Red Alert", "High visibility red.", 750, "Accent", "🚨"),
-            ShopItem("accent_sunset", "Sunset", "Vibrant evening sun.", 750, "Accent", "🌇"),
-            ShopItem("accent_midnight", "Midnight", "Deep dark blues.", 1000, "Accent", "🌌"),
-            ShopItem("accent_ocean", "Ocean", "Deep sea vibes.", 1000, "Accent", "🌊"),
-            ShopItem("accent_royal", "Royal", "Premium purple.", 1500, "Accent", "👑"),
-            ShopItem("accent_hacker", "Hacker", "Terminal green.", 1500, "Accent", "💻"),
-
-            ShopItem("feature_custom_avatar", "Custom Avatar", "Upload your own photo as an avatar.", 2000, "Feature", "🖼️"),
-            ShopItem("feature_display_name", "Custom Name", "Set a custom display name.", 2500, "Feature", "✏️"),
-            ShopItem("consumable_send_note", "Send a Note", "Send an alert note to another employee.", 30, "Consumable", "✉️"),
-            ShopItem("consumable_send_anonymous_note", "Send Anonymous Note", "Send a note without revealing your identity.", 60, "Consumable", "👻")
-        )
+        return emptyList()
     }
 
     override fun loadFile(name: String, date: String): String? {
@@ -379,6 +366,46 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         } catch (e: Exception) {
             Log.e("DirectFileRepo", "Error loading $name/$subdirectory/$filename", e)
             null
+        }
+    }
+
+    override fun loadEmployeeActivityEvents(name: String): List<ActivityEvent> {
+        return try {
+            val file = File(File(baseDir, name), "activity_events.json")
+            if (!file.exists()) return emptyList()
+            val json = readFileContent(file) ?: return emptyList()
+            Gson().fromJson(json, ActivityFeed::class.java)?.events ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error loading activity events for $name", e)
+            emptyList()
+        }
+    }
+
+    override fun saveEmployeeActivityEvents(name: String, events: List<ActivityEvent>) {
+        try {
+            val empDir = File(baseDir, name)
+            if (!empDir.exists()) empDir.mkdirs()
+            val file = File(empDir, "activity_events.json")
+            val tempFile = File(empDir, "activity_events.json.tmp")
+            val json = Gson().toJson(ActivityFeed(events.take(50)))
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(json.toByteArray(StandardCharsets.UTF_8))
+                fos.flush()
+                fos.fd.sync()
+            }
+            atomicRename(tempFile, file)
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error saving activity events for $name", e)
+        }
+    }
+
+    override fun loadChallenges(): List<Challenge> {
+        val json = loadGlobalFile("challenges.json", useCache = false) ?: return emptyList()
+        return try {
+            Gson().fromJson(json, ChallengeCatalog::class.java)?.challenges ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error parsing challenges.json", e)
+            emptyList()
         }
     }
 

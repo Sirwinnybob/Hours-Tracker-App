@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.timecard"
         minSdk = 24
         targetSdk = 35
-        versionCode = 124
-        versionName = "3.1.8"
+        versionCode = 131
+        versionName = "3.3.0"
     }
 
     signingConfigs {
@@ -83,6 +83,9 @@ dependencies {
 
     // Core KTX
     implementation("androidx.core:core-ktx:1.15.0")
+
+    // WorkManager for background notifications
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
     // Media3 (ExoPlayer) for reliable transparent webm playback
     val media3Version = "1.2.1"

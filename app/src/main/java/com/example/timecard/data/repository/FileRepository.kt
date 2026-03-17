@@ -1,5 +1,6 @@
 package com.example.timecard.data.repository
 
+import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.data.model.ShopItem
 
 interface FileRepository {
@@ -23,6 +24,12 @@ interface FileRepository {
     fun saveEmployeeBinaryFile(name: String, filename: String, data: ByteArray): Boolean
     /** List all employee folder names in the root directory (for leaderboard). */
     fun listEmployeeFolders(): List<String>
+    /** Load activity events for a specific employee. Returns empty list if file absent. */
+    fun loadEmployeeActivityEvents(name: String): List<ActivityEvent>
+    /** Save activity events for the logged-in employee (overwrites atomically, max 50). */
+    fun saveEmployeeActivityEvents(name: String, events: List<ActivityEvent>)
+    /** Load challenges.json from the root of the shared folder. Returns empty list if absent. */
+    fun loadChallenges(): List<com.example.timecard.data.model.Challenge>
 
     // Lock Management
     fun acquireLock(name: String, date: String, deviceId: String): Boolean

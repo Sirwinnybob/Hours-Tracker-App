@@ -91,24 +91,7 @@ class SafFileRepository(
     }
 
     override fun loadShopCatalog(): List<com.example.timecard.data.model.ShopItem> {
-        val defaultItems = listOf(
-            com.example.timecard.data.model.ShopItem("accent_sunrise", "Sunrise", "Warm orange and pink", 250, "theme", "🌅"),
-            com.example.timecard.data.model.ShopItem("accent_twilight", "Twilight", "Deep purple and blue", 250, "theme", "🌃"),
-            com.example.timecard.data.model.ShopItem("accent_isle", "Isle", "Teal and green", 250, "theme", "🏝️"),
-            com.example.timecard.data.model.ShopItem("accent_daybreak", "Daybreak", "Bright yellow and orange", 250, "theme", "🌄"),
-            com.example.timecard.data.model.ShopItem("accent_red", "Ruby", "Deep red", 750, "theme", "🔴"),
-            com.example.timecard.data.model.ShopItem("accent_sunset", "Sunset", "Fiery magenta", 750, "theme", "🌇"),
-            com.example.timecard.data.model.ShopItem("accent_midnight", "Midnight", "Starry blue", 1000, "theme", "🌙"),
-            com.example.timecard.data.model.ShopItem("accent_ocean", "Ocean", "Deep aqua", 1000, "theme", "🌊"),
-            com.example.timecard.data.model.ShopItem("accent_royal", "Royal", "Rich purple", 1500, "theme", "👑"),
-            com.example.timecard.data.model.ShopItem("accent_hacker", "Terminal", "Cyber green", 1500, "theme", "💻"),
-
-            com.example.timecard.data.model.ShopItem("feature_custom_avatar", "Custom Avatar", "Upload your own profile picture", 2000, "feature", "🖼️"),
-            com.example.timecard.data.model.ShopItem("feature_display_name", "Display Name", "Unlock the ability to change your display name", 2500, "feature", "📝"),
-            com.example.timecard.data.model.ShopItem("consumable_send_note", "Send a Note", "Send an alert note to another employee", 30, "consumable", "✉️")
-        )
-        
-        val json = loadGlobalFile("shop_catalog.json", useCache = false) ?: return defaultItems
+        val json = loadGlobalFile("shop_catalog.json", useCache = false) ?: return emptyList()
         // Try wrapped {"items":[...]} format first
         try {
             val mapType = object : com.google.gson.reflect.TypeToken<Map<String, List<com.example.timecard.data.model.ShopItem>>>() {}.type
@@ -120,10 +103,10 @@ class SafFileRepository(
         return try {
             val listType = object : com.google.gson.reflect.TypeToken<List<com.example.timecard.data.model.ShopItem>>() {}.type
             val items: List<com.example.timecard.data.model.ShopItem>? = com.google.gson.Gson().fromJson(json, listType)
-            if (!items.isNullOrEmpty()) items.filter { it.inShop } else defaultItems
+            items?.filter { it.inShop } ?: emptyList()
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error parsing shop catalog", e)
-            defaultItems
+            emptyList()
         }
     }
 
@@ -428,6 +411,44 @@ class SafFileRepository(
                 }
                 sb.toString()
             }
+        }
+    }
+
+    override fun loadEmployeeActivityEvents(name: String): List<com.example.timecard.data.model.ActivityEvent> {
+        return try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+            val empDir = root.findFile(name) ?: return emptyList()
+            val file = empDir.findFile("activity_events.json") ?: return emptyList()
+            val json = readDocumentContent(file) ?: return emptyList()
+            com.google.gson.Gson().fromJson(json, com.example.timecard.data.model.ActivityFeed::class.java)?.events ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error loading activity events for $name", e)
+            emptyList()
+        }
+    }
+
+    override fun saveEmployeeActivityEvents(name: String, events: List<com.example.timecard.data.model.ActivityEvent>) {
+        try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return
+            var empDir = root.findFile(name) ?: root.createDirectory(name) ?: return
+            val feed = com.example.timecard.data.model.ActivityFeed(events.take(50))
+            val json = com.google.gson.Gson().toJson(feed)
+            val bytes = json.toByteArray(StandardCharsets.UTF_8)
+            val existing = empDir.findFile("activity_events.json")
+            val file = existing ?: empDir.createFile("application/json", "activity_events.json") ?: return
+            context.contentResolver.openOutputStream(file.uri, "wt")?.use { it.write(bytes) }
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error saving activity events for $name", e)
+        }
+    }
+
+    override fun loadChallenges(): List<com.example.timecard.data.model.Challenge> {
+        val json = loadGlobalFile("challenges.json", useCache = false) ?: return emptyList()
+        return try {
+            com.google.gson.Gson().fromJson(json, com.example.timecard.data.model.ChallengeCatalog::class.java)?.challenges ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error parsing challenges.json", e)
+            emptyList()
         }
     }
 }
