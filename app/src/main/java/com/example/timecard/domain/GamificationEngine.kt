@@ -49,13 +49,14 @@ object GamificationEngine {
         val newStreaks = computeStreaks(current.streaks, sortedWeeks, current.coinLog)
 
         // --- 1. Coins: per-day timeliness & streaks ---
+        val isCurrentWeek = weekData.weekStarting == DateUtils.getWeekStartingMonday()
+        val dailyCoinCap = if (isCurrentWeek) 9.0 else 16.0
         val weekParts = weekData.weekStarting.split("-")
         for (dayIndex in 0..4) { // Mon-Fri only
             val dayKey = DAYS[dayIndex]
             val dayTotal = weekData.rows.sumOf { row ->
                 row.getHours(dayKey).toDoubleOrNull() ?: 0.0
             }
-            if (dayTotal <= 0) continue
 
             val dayCal = Calendar.getInstance()
             dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
@@ -76,19 +77,32 @@ object GamificationEngine {
             val streakMult = GamificationConfig.streakMultiplier(newStreaks.currentDaily)
             val totalMultiplier = baseMultiplier * streakMult
 
+            val cappedNewHours = dayTotal.coerceAtMost(dailyCoinCap)
+
             if (existing == null) {
-                val baseCoin = (dayTotal * baseMultiplier).toInt()
-                val totalCoin = (dayTotal * totalMultiplier).toInt()
-                coinsGained += totalCoin
-                streakBonusCoins += (totalCoin - baseCoin)
-                coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal)
-            } else if (dayTotal > existing.hoursLogged + 0.24) {
-                val delta = dayTotal - existing.hoursLogged
-                val baseCoin = (delta * baseMultiplier).toInt()
-                val totalCoin = (delta * totalMultiplier).toInt()
-                coinsGained += totalCoin
-                streakBonusCoins += (totalCoin - baseCoin)
-                coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal)
+                if (dayTotal > 0) {
+                    val baseCoin = (cappedNewHours * baseMultiplier).toInt()
+                    val totalCoin = (cappedNewHours * totalMultiplier).toInt()
+                    coinsGained += totalCoin
+                    streakBonusCoins += (totalCoin - baseCoin)
+                    coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal, paidHours = cappedNewHours)
+                }
+            } else {
+                // Determine previously paid hours. Fall back to hoursLogged if paidHours is not set (legacy data)
+                // This correctly accounts for users who were previously over-awarded massive amounts of coins before the cap was implemented.
+                val previouslyPaid = if (existing.paidHours > 0.0) existing.paidHours else existing.hoursLogged
+
+                // Allow positive or negative adjustments based on the newly capped hours vs previously paid
+                val delta = cappedNewHours - previouslyPaid
+
+                // Only act if there's a meaningful change (either up, or down).
+                if (kotlin.math.abs(delta) > 0.24) {
+                    val baseCoin = (delta * baseMultiplier).toInt()
+                    val totalCoin = (delta * totalMultiplier).toInt()
+                    coinsGained += totalCoin
+                    streakBonusCoins += (totalCoin - baseCoin)
+                    coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal, paidHours = cappedNewHours)
+                }
             }
         }
 
@@ -557,6 +571,9 @@ object GamificationEngine {
                 val dayTotal = week.rows.sumOf { row -> row.getHours(dayKey).toDoubleOrNull() ?: 0.0 }
                 if (dayTotal <= 0) continue
 
+                // Backfill is always past data, so we cap at 16.0
+                val cappedNewHours = dayTotal.coerceAtMost(16.0)
+
                 val dayCal = Calendar.getInstance()
                 dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
                 dayCal.add(Calendar.DAY_OF_MONTH, dayIndex)
@@ -567,9 +584,9 @@ object GamificationEngine {
                     dayCal.get(Calendar.DAY_OF_MONTH)
                 )
                 if (dayDateStr !in coinLog) {
-                    val finalVal = dayTotal * GamificationConfig.BACKFILL_RATE * historicalStreakScale
+                    val finalVal = cappedNewHours * GamificationConfig.BACKFILL_RATE * historicalStreakScale
                     coinsGained += finalVal.toInt()
-                    coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal)
+                    coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal, paidHours = cappedNewHours)
                 }
             }
 
