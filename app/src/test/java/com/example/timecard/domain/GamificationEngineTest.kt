@@ -38,7 +38,7 @@ class GamificationEngineTest {
         val fullWeekTimecard = createTimecard(testWeekStarting, fullWeekRows)
 
         val result1 = GamificationEngine.processTimecardSave(
-            current = initialProfile,
+            current = initialProfile, employeeName = "Test Player",
             weekData = fullWeekTimecard,
             monthWeeks = listOf(fullWeekTimecard),
             recentWeeks = listOf(fullWeekTimecard),
@@ -57,7 +57,7 @@ class GamificationEngineTest {
         val deletedFridayTimecard = createTimecard(testWeekStarting, deletedFridayRows)
 
         val result2 = GamificationEngine.processTimecardSave(
-            current = profileAfterFullWeek,
+            current = profileAfterFullWeek, employeeName = "Test Player",
             weekData = deletedFridayTimecard,
             monthWeeks = listOf(deletedFridayTimecard),
             recentWeeks = listOf(deletedFridayTimecard),
@@ -72,7 +72,7 @@ class GamificationEngineTest {
 
         // Scenario 3: Refill Friday
         val result3 = GamificationEngine.processTimecardSave(
-            current = profileAfterDelete,
+            current = profileAfterDelete, employeeName = "Test Player",
             weekData = fullWeekTimecard,
             monthWeeks = listOf(fullWeekTimecard),
             recentWeeks = listOf(fullWeekTimecard),
@@ -98,7 +98,7 @@ class GamificationEngineTest {
         val fullWeekTimecard = createTimecard(testWeekStarting, fullWeekRows)
 
         val result1 = GamificationEngine.processTimecardSave(
-            current = initialProfile,
+            current = initialProfile, employeeName = "Test Player",
             weekData = fullWeekTimecard,
             monthWeeks = listOf(fullWeekTimecard),
             recentWeeks = listOf(fullWeekTimecard),
@@ -115,7 +115,7 @@ class GamificationEngineTest {
         val deletedFridayTimecard = createTimecard(testWeekStarting, deletedFridayRows)
 
         val result2 = GamificationEngine.processTimecardSave(
-            current = profileAfterFullWeek,
+            current = profileAfterFullWeek, employeeName = "Test Player",
             weekData = deletedFridayTimecard,
             monthWeeks = listOf(deletedFridayTimecard),
             recentWeeks = listOf(deletedFridayTimecard),
@@ -125,7 +125,7 @@ class GamificationEngineTest {
 
         // Scenario 3: Refill Friday
         val result3 = GamificationEngine.processTimecardSave(
-            current = result2.profile,
+            current = result2.profile, employeeName = "Test Player",
             weekData = fullWeekTimecard,
             monthWeeks = listOf(fullWeekTimecard),
             recentWeeks = listOf(fullWeekTimecard),
@@ -147,7 +147,7 @@ class GamificationEngineTest {
         val tc4 = createTimecard(testWeekStarting, rows4)
 
         val resultA = GamificationEngine.processTimecardSave(
-            current = initialProfile, weekData = tc4, monthWeeks = listOf(tc4), recentWeeks = listOf(tc4), isMonday = true, isBefore930 = true
+            current = initialProfile, employeeName = "Test Player", weekData = tc4, monthWeeks = listOf(tc4), recentWeeks = listOf(tc4), isMonday = true, isBefore930 = true
         )
         val coinsA = resultA.profile.coins
         assert(coinsA > 0)
@@ -157,7 +157,7 @@ class GamificationEngineTest {
         val tc8 = createTimecard(testWeekStarting, rows8)
 
         val resultB = GamificationEngine.processTimecardSave(
-            current = resultA.profile, weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), isMonday = true, isBefore930 = true
+            current = resultA.profile, employeeName = "Test Player", weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), isMonday = true, isBefore930 = true
         )
         val coinsB = resultB.profile.coins
         // We should gain new coins for the extra 4 hours
@@ -165,7 +165,7 @@ class GamificationEngineTest {
 
         // Step C: Process Monday with 4 hours (delete)
         val resultC = GamificationEngine.processTimecardSave(
-            current = resultB.profile, weekData = tc4, monthWeeks = listOf(tc4), recentWeeks = listOf(tc4), isMonday = true, isBefore930 = true
+            current = resultB.profile, employeeName = "Test Player", weekData = tc4, monthWeeks = listOf(tc4), recentWeeks = listOf(tc4), isMonday = true, isBefore930 = true
         )
         val coinsC = resultC.profile.coins
         // Coins should not decrease or increase
@@ -173,7 +173,7 @@ class GamificationEngineTest {
 
         // Step D: Process Monday with 8 hours (re-fill)
         val resultD = GamificationEngine.processTimecardSave(
-            current = resultC.profile, weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), isMonday = true, isBefore930 = true
+            current = resultC.profile, employeeName = "Test Player", weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), isMonday = true, isBefore930 = true
         )
         val coinsD = resultD.profile.coins
         // Coins should remain exactly the same as Step B
@@ -189,7 +189,7 @@ class GamificationEngineTest {
         val tcJobA = createTimecard(testWeekStarting, rowsJobA)
 
         val resultA = GamificationEngine.processTimecardSave(
-            current = initialProfile, weekData = tcJobA, monthWeeks = listOf(tcJobA), recentWeeks = listOf(tcJobA), isMonday = true, isBefore930 = true
+            current = initialProfile, employeeName = "Test Player", weekData = tcJobA, monthWeeks = listOf(tcJobA), recentWeeks = listOf(tcJobA), isMonday = true, isBefore930 = true
         )
         val coinsA = resultA.profile.coins
         assert(coinsA > 0)
@@ -199,7 +199,7 @@ class GamificationEngineTest {
         val tcJobB = createTimecard(testWeekStarting, rowsJobB)
 
         val resultB = GamificationEngine.processTimecardSave(
-            current = resultA.profile, weekData = tcJobB, monthWeeks = listOf(tcJobB), recentWeeks = listOf(tcJobB), isMonday = true, isBefore930 = true
+            current = resultA.profile, employeeName = "Test Player", weekData = tcJobB, monthWeeks = listOf(tcJobB), recentWeeks = listOf(tcJobB), isMonday = true, isBefore930 = true
         )
         val coinsB = resultB.profile.coins
 
