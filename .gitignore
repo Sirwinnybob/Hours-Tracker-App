@@ -16,6 +16,7 @@
 local.properties
 *.hprof
 *.log
+*.jks
 .vscode/
 /.idea/deploymentTargetSelector.xml
 /.idea/deviceManager.xml

@@ -16,12 +16,18 @@ android {
         versionName = "3.8.0"
     }
 
+    val localProperties = java.util.Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+
     signingConfigs {
         create("release") {
             storeFile = file("${rootProject.projectDir}/keystore.jks")
-            storePassword = "timecard123"
-            keyAlias = "timecard"
-            keyPassword = "timecard123"
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: localProperties.getProperty("release.storePassword")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: localProperties.getProperty("release.keyAlias")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: localProperties.getProperty("release.keyPassword")
         }
     }
 
