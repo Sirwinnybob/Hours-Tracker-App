@@ -54,7 +54,12 @@ import com.example.timecard.domain.BadgeEngine
 import com.example.timecard.ui.common.CoinAmount
 import com.example.timecard.ui.components.InitialsAvatar
 import com.example.timecard.ui.theme.ACCENT_UNLOCKS
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import androidx.compose.ui.graphics.RectangleShape
 
 @Composable
 fun SettingsModal(
@@ -132,10 +137,45 @@ fun SettingsModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState())
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                    )
             ) {
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "PROFILE & SETTINGS",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(LcarsRed)
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(if (colors.isLcars) 16.dp else 24.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
                 if (profileViewModel.isLockedByAnotherUser) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         Text("🔒", fontSize = 64.sp)
@@ -540,45 +580,53 @@ fun SettingsModal(
                     color = colors.textPrimary
                 )
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Default (no accent)
-                    val defaultSelected = profile.accentColor == null
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
-                            .background(com.example.timecard.ui.theme.AccentBlue)
-                            .then(
-                                if (defaultSelected) Modifier.border(3.dp, Color.White, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
-                                else Modifier
-                            )
-                            .clickable { profileViewModel.setAccentColor(null) }
-                    )
-                    ACCENT_UNLOCKS.forEach { (key, color, itemId) ->
-                        val unlocked = profile.inventory.contains(itemId)
-                        val selected = profile.accentColor == key
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
-                                .background(if (unlocked) color else color.copy(alpha = 0.25f))
-                                .then(
-                                    if (selected) Modifier.border(3.dp, Color.White, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
-                                    else Modifier
+                val themeDisplayNames = mapOf(
+                    null to "Default", "orange" to "Sunrise", "purple" to "Twilight",
+                    "teal" to "Isle", "gold" to "Daybreak", "red" to "Red",
+                    "hacker" to "Hacker", "sunset" to "Sunset", "midnight" to "Midnight",
+                    "ocean" to "Ocean", "lcars" to "LCARS", "starwars" to "Star Wars"
+                )
+                val allThemeEntries = buildList {
+                    add(Triple<String?, androidx.compose.ui.graphics.Color, String?>(null, com.example.timecard.ui.theme.AccentBlue, null))
+                    ACCENT_UNLOCKS.forEach { (k, c, i) -> add(Triple<String?, androidx.compose.ui.graphics.Color, String?>(k, c, i)) }
+                }
+                allThemeEntries.chunked(6).forEach { chunk ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        chunk.forEach { (key, color, itemId) ->
+                            val unlocked = itemId == null || profile.inventory.contains(itemId)
+                            val selected = profile.accentColor == key
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp)))
+                                        .background(if (unlocked) color else color.copy(alpha = 0.25f))
+                                        .then(if (selected) Modifier.border(2.dp, Color.White, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp))) else Modifier)
+                                        .then(if (unlocked) Modifier.clickable { profileViewModel.setAccentColor(key) } else Modifier)
+                                ) {
+                                    if (!unlocked) Text("🔒", fontSize = 7.sp, color = Color.White.copy(alpha = 0.7f))
+                                }
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    themeDisplayNames[key] ?: key ?: "?",
+                                    fontSize = 8.sp,
+                                    maxLines = 1,
+                                    color = if (selected) color else colors.textSecondary,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    textAlign = TextAlign.Center,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                .then(
-                                    if (unlocked) Modifier.clickable { profileViewModel.setAccentColor(key) }
-                                    else Modifier
-                                )
-                        ) {
-                            if (!unlocked) {
-                                Text("🔒", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
                             }
                         }
+                        repeat(6 - chunk.size) { Spacer(Modifier.weight(1f)) }
                     }
+                    Spacer(Modifier.height(6.dp))
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
                     "Buy new colors in the Shop. Tap to apply.",
                     fontSize = 11.sp,
@@ -616,16 +664,23 @@ fun SettingsModal(
                     Text("📋 View Past Alerts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                 }
 
-                Spacer(Modifier.height(12.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                if (!colors.isLcars) {
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    }
                 }
+                } // end else block
+                } // end inner Column
+
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
         }

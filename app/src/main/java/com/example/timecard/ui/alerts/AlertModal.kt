@@ -30,7 +30,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.ui.theme.AccentBlue
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import com.example.timecard.ui.profile.ConfettiBurst
 import java.time.Instant
 import java.time.ZoneId
@@ -73,20 +78,41 @@ fun AlertModal(viewModel: AlertsViewModel) {
                 .safeDrawingPadding(),
             contentAlignment = Alignment.Center
         ) {
-            Card(
-                shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = colors.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 16.dp),
+            Column(
                 modifier = Modifier
                     .widthIn(max = 420.dp)
                     .padding(24.dp)
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
+                    )
             ) {
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (isPeerNote) "NOTE FROM ${alert.sentBy?.uppercase() ?: ""}" else "SYSTEM ALERT",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
                 Column(
                     modifier = Modifier
-                        .padding(24.dp)
+                        .padding(if (colors.isLcars) 16.dp else 24.dp)
                         .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    if (!colors.isLcars) {
                     // Counter
                     Text(
                         text = "${viewModel.alertQueueIndex + 1} of ${viewModel.alertQueue.size}",
@@ -102,6 +128,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
                     )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -174,7 +201,9 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     Button(
                         onClick = { viewModel.acknowledgeCurrentAlert() },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isRed) Color(0xFFCC0000) else AccentBlue
+                            containerColor = if (colors.isLcars) LcarsOrange
+                                else if (colors.isRed) Color(0xFFCC0000)
+                                else AccentBlue
                         ),
                         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)),
                         modifier = Modifier
@@ -182,11 +211,18 @@ fun AlertModal(viewModel: AlertsViewModel) {
                             .height(48.dp)
                     ) {
                         Text(
-                            "\u2705 Acknowledge",
+                            if (colors.isLcars) "ACKNOWLEDGE" else "\u2705 Acknowledge",
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = if (colors.isLcars) Color.Black else Color.White,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null
                         )
                     }
+                } // end inner Column
+
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
 

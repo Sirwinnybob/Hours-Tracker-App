@@ -23,7 +23,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.theme.CoinAmber
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.RectangleShape
 
 @Composable
 fun ChallengesModal(
@@ -50,66 +56,108 @@ fun ChallengesModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                    .padding(24.dp)
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                    )
             ) {
-                Text(
-                    "🎯 Weekly Challenges",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
-
-                Spacer(Modifier.height(4.dp))
-
-                Text(
-                    "Complete challenges to earn bonus KK Coins!",
-                    fontSize = 13.sp,
-                    color = colors.textSecondary
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                if (viewModel.isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = colors.accent, modifier = Modifier.size(40.dp))
-                    }
-                } else if (viewModel.challengeProgress.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(120.dp),
-                        contentAlignment = Alignment.Center
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "No challenges this week",
-                            color = colors.textSecondary,
-                            fontSize = 14.sp
+                            "WEEKLY CHALLENGES",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
                         )
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(LcarsRed)
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(viewModel.challengeProgress) { cp ->
-                            ChallengeCard(cp = cp)
+                    Spacer(Modifier.height(4.dp))
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(if (colors.isLcars) 16.dp else 24.dp)
+                ) {
+                    if (!colors.isLcars) {
+                        Text(
+                            "🎯 Weekly Challenges",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.textPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+
+                    Text(
+                        "Complete challenges to earn bonus KK Coins!",
+                        fontSize = 13.sp,
+                        color = colors.textSecondary
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    if (viewModel.isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = colors.accent, modifier = Modifier.size(40.dp))
+                        }
+                    } else if (viewModel.challengeProgress.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No challenges this week",
+                                color = colors.textSecondary,
+                                fontSize = 14.sp
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(viewModel.challengeProgress) { cp ->
+                                ChallengeCard(cp = cp)
+                            }
+                        }
+                    }
+
+                    if (!colors.isLcars) {
+                        Spacer(Modifier.height(16.dp))
+                        Button(
+                            onClick = onDismiss,
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                            shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
         }

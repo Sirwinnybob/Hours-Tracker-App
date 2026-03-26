@@ -46,8 +46,13 @@ import com.example.timecard.data.model.DAY_LABELS_SHORT
 import com.example.timecard.data.model.DAYS
 import com.example.timecard.domain.DateUtils
 import com.example.timecard.domain.StatsPeriod
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.StatsBlue
+import androidx.compose.ui.graphics.RectangleShape
 import com.example.timecard.ui.theme.StatsGreen
 import com.example.timecard.ui.theme.StatsPurple
 import com.example.timecard.ui.charts.PieChart
@@ -79,10 +84,46 @@ fun StatsModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState())
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                    )
             ) {
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "STATISTICS",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(50)))
+                                .background(LcarsRed)
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(if (colors.isLcars) 16.dp else 24.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                if (!colors.isLcars) {
                 // Header
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -103,6 +144,7 @@ fun StatsModal(
                             .clickable { onDismiss() }
                             .padding(8.dp)
                     )
+                }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -444,13 +486,21 @@ fun StatsModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                if (!colors.isLcars) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+                } // end inner Column
+
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
         }

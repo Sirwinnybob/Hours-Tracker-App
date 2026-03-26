@@ -26,7 +26,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -54,15 +61,45 @@ fun PastAlertsModal(
                 .safeDrawingPadding(),
             contentAlignment = Alignment.Center
         ) {
-            Card(
-                shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = colors.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .padding(vertical = 32.dp)
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
+                    )
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "PAST ALERTS",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(LcarsRed)
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+
+                Column(modifier = Modifier.padding(if (colors.isLcars) 16.dp else 20.dp)) {
+                    if (!colors.isLcars) {
                     // Header
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -81,6 +118,7 @@ fun PastAlertsModal(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
+                    }
 
                     if (viewModel.allAlerts.isEmpty()) {
                         Text(
@@ -101,6 +139,11 @@ fun PastAlertsModal(
                             }
                         }
                     }
+                }
+
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
         }

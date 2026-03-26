@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker' -type f -name *catalog*)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\backend' -type f \\\\\\(-name *.json -o -name *.py \\\\\\))",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -type f \\\\\\(-name *Shop* -o -name *shop* -o -name *Catalog* -o -name *catalog* \\\\\\))",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type f -name *Repository* -print)",
+      "Bash(grep -r \"image\\\\|emoji\" 'C:\\\\Scripts\\\\Hours Tracker\\\\backend' --include=*.py)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type f -name *.xml -print)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp/app/src/main' -type f -name *.xml)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type d -name res -print)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp/app/src/main/res' -type f -name *.xml)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type f \\\\\\(-name MainActivity* -o -name *Activity* \\\\\\) -print)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type f -name *App.kt -print)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -path */build -prune -o -type f -name *Badge* -o -name *Popup* -o -name *Dialog* -print)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\AndroidApp' -type f -name *shop*.json -o -name catalog*)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker' -type f \\\\\\(-name *.tsx -o -name *.jsx -o -name *.ts -o -name *.js \\\\\\))",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\backend' -type f -name *.py)",
+      "Bash(find 'C:\\\\Scripts\\\\Hours Tracker\\\\backend' -maxdepth 1 -name *.py -type f)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:www.thelcars.com)",
+      "WebSearch",
+      "WebFetch(domain:www.lcars-terminal.de)",
+      "WebFetch(domain:philipalacey.com)",
+      "WebFetch(domain:www.lcars.org.uk)",
+      "WebFetch(domain:joernweissenborn.github.io)",
+      "WebFetch(domain:cdn-learn.adafruit.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:codepen.io)",
+      "WebFetch(domain:leonawicz.github.io)",
+      "WebFetch(domain:cran.r-project.org)",
+      "WebFetch(domain:learn.adafruit.com)"
+    ]
+  }
+}

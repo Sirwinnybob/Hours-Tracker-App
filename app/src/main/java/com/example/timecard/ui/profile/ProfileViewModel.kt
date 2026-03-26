@@ -619,6 +619,29 @@ class ProfileViewModel : ViewModel() {
                 allTimeCoinsEarned = newAllTimeCoins
             )
             saveProfile()
+
+            // Write activity events for newly granted badges
+            if (newlyGranted.isNotEmpty()) {
+                try {
+                    val now = java.time.Instant.now().toString()
+                    val newEvents = newlyGranted.mapNotNull { id ->
+                        val entry = serverGrantedMap[id] ?: return@mapNotNull null
+                        com.example.timecard.data.model.ActivityEvent(
+                            type = "badge_granted",
+                            employeeName = employeeName,
+                            displayName = profile.displayName ?: employeeName,
+                            detail = entry.name,
+                            detailIcon = entry.emoji,
+                            timestamp = now
+                        )
+                    }
+                    if (newEvents.isNotEmpty()) {
+                        val existing = repo.loadEmployeeActivityEvents(employeeName)
+                        val merged = (newEvents + existing).take(50)
+                        repo.saveEmployeeActivityEvents(employeeName, merged)
+                    }
+                } catch (_: Exception) {}
+            }
         } catch (e: Exception) {
             Log.d("ProfileVM", "No granted badges file (normal): ${e.message}")
         }

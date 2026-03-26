@@ -38,8 +38,12 @@ import com.example.timecard.ui.common.CoinAmount
 import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.profile.ProfileViewModel
 import com.example.timecard.ui.theme.ACCENT_UNLOCKS
+import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.JetBrainsMonoFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LocalTimecardColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +55,7 @@ fun ShopModal(
     val items = shopViewModel.items
     val userCoins = shopViewModel.userCoins
     val inventory = profileViewModel.profile.inventory
+    val isWinston = profileViewModel.employeeName.equals("Winston Ferguson", ignoreCase = true)
     val recipients = shopViewModel.recipients
     val itemImages = shopViewModel.itemImages
     val triedThemes = profileViewModel.profile.triedThemes
@@ -135,7 +140,13 @@ fun ShopModal(
                             isAnonymousMode = true
                         }
                         isLimited -> shopViewModel.purchaseLimitedItem(pending.id)
-                        else -> shopViewModel.purchaseItem(pending.id)
+                        else -> {
+                            shopViewModel.purchaseItem(pending.id)
+                            // Auto-apply if this is a theme unlock
+                            val themeKey = com.example.timecard.ui.theme.ACCENT_UNLOCKS
+                                .find { it.third == pending.id }?.first
+                            if (themeKey != null) profileViewModel.setAccentColor(themeKey)
+                        }
                     }
                 }) {
                     Text(if (isLimited) "Submit Claim" else "Confirm")
@@ -188,8 +199,39 @@ fun ShopModal(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 8.dp
         ) {
+            val colors = LocalTimecardColors.current
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(48.dp)
+                            .background(LcarsOrange).padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "EXCHANGE",
+                                fontFamily = AntonioFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                letterSpacing = 1.5.sp,
+                                color = Color.Black
+                            )
+                            CoinAmount(amount = userCoins, fontSize = 14.sp, iconSize = 16.dp)
+                        }
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFFCC6666))
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
+                    }
+                    Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(LcarsTan))
+                } else {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,6 +255,7 @@ fun ShopModal(
                 }
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                }
 
                 // Claim result banner
                 if (claimResult != null) {
@@ -286,10 +329,11 @@ fun ShopModal(
                                 previewSecondsLeft = previewSecondsLeft,
                                 isPendingClaim = pendingClaims.containsKey(item.id),
                                 isSoldOut = item.quantity != null && item.quantity <= 0,
-                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
+                                isPoolPreview = !item.inShop && !isWinston,
+                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id) && (item.inShop || isWinston)) {
                                     { shopViewModel.tryTheme(item.id, accentKeyForItem) }
                                 } else null,
-                                onPurchase = { pendingPurchase = item }
+                                onPurchase = { if (item.inShop || isWinston) pendingPurchase = item }
                             )
                         }
                     }
@@ -329,10 +373,11 @@ fun ShopModal(
                                 previewSecondsLeft = previewSecondsLeft,
                                 isPendingClaim = pendingClaims.containsKey(item.id),
                                 isSoldOut = item.quantity != null && item.quantity <= 0,
-                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id)) {
+                                isPoolPreview = !item.inShop && !isWinston,
+                                onTryTheme = if (isThemeCat && !isOwned && !triedThemes.contains(item.id) && (item.inShop || isWinston)) {
                                     { shopViewModel.tryTheme(item.id, accentKeyForItem) }
                                 } else null,
-                                onPurchase = { pendingPurchase = item }
+                                onPurchase = { if (item.inShop || isWinston) pendingPurchase = item }
                             )
                         }
                     }
@@ -353,6 +398,7 @@ fun ShopItemCard(
     previewSecondsLeft: Int = 0,
     isPendingClaim: Boolean = false,
     isSoldOut: Boolean = false,
+    isPoolPreview: Boolean = false,
     onTryTheme: (() -> Unit)? = null,
     onPurchase: () -> Unit
 ) {
@@ -376,7 +422,7 @@ fun ShopItemCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed && canAfford && !isOwned && !isPendingClaim && !isSoldOut) 0.95f else 1f,
+        targetValue = if (isPressed && canAfford && !isOwned && !isPendingClaim && !isSoldOut && !isPoolPreview) 0.95f else 1f,
         animationSpec = tween(durationMillis = 80),
         label = "button_scale"
     )
@@ -384,6 +430,7 @@ fun ShopItemCard(
     val amber = Color(0xFFF59E0B)
     val slate = Color(0xFF64748B)
     val buttonColor = when {
+        isPoolPreview -> Color(0xFF374151)
         isOwned -> emerald
         isSoldOut -> Color(0xFF991B1B)
         isPendingClaim -> amber
@@ -391,6 +438,7 @@ fun ShopItemCard(
         else -> emerald
     }
     val buttonText = when {
+        isPoolPreview -> "COMING SOON \uD83D\uDD12"
         isOwned -> "OWNED \u2705"
         isSoldOut -> "SOLD OUT"
         isPendingClaim -> "PENDING APPROVAL \u23F3"
@@ -398,6 +446,7 @@ fun ShopItemCard(
         else -> "BUY"
     }
     val buttonTextColor = when {
+        isPoolPreview -> Color(0xFF9CA3AF)
         isSoldOut -> Color.White
         isPendingClaim -> Color.Black
         isOwned || canAfford -> Color.Black

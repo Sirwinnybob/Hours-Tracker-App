@@ -18,7 +18,11 @@ import java.nio.charset.StandardCharsets
 
 class DirectFileRepository(private val baseDir: File) : FileRepository {
 
-    override fun loadShopCatalog(): List<ShopItem> {
+    override fun loadShopCatalog(): List<ShopItem> = loadShopCatalogInternal(filterPool = true)
+
+    override fun loadFullShopCatalog(): List<ShopItem> = loadShopCatalogInternal(filterPool = false)
+
+    private fun loadShopCatalogInternal(filterPool: Boolean): List<ShopItem> {
         val json = loadGlobalFile("shop_catalog.json", useCache = false)
         if (json != null) {
             // Try wrapped {"items":[...]} format first
@@ -26,13 +30,13 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
                 val mapType = object : TypeToken<Map<String, List<ShopItem>>>() {}.type
                 val result: Map<String, List<ShopItem>> = Gson().fromJson(json, mapType)
                 val items = result["items"]
-                if (!items.isNullOrEmpty()) return items.filter { it.inShop }
+                if (!items.isNullOrEmpty()) return if (filterPool) items.filter { it.inShop } else items
             } catch (e: Exception) { /* not wrapped format */ }
             // Fall back to bare [...] format
             try {
                 val type = object : TypeToken<List<ShopItem>>() {}.type
                 val items: List<ShopItem>? = Gson().fromJson(json, type)
-                if (!items.isNullOrEmpty()) return items.filter { it.inShop }
+                if (!items.isNullOrEmpty()) return if (filterPool) items.filter { it.inShop } else items
             } catch (e: Exception) {
                 Log.e("DirectFileRepo", "Error parsing shop_catalog.json", e)
             }

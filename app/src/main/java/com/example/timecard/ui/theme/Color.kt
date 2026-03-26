@@ -201,6 +201,54 @@ val LightHackerTextTotal = Color(0xFF009900)
 val LightHackerBorder = Color(0xFFC0E8C0)
 val LightHackerAccent = Color(0xFF00AA00)
 
+// LCARS Chrome palette — public constants used by LcarsChrome, TimesheetGrid, dialogs, etc.
+val LcarsOrange   = Color(0xFFFF9900)   // atomic-tangerine — primary chrome
+val LcarsTan      = Color(0xFFFFCC99)   // tanoi — secondary chrome
+val LcarsYellow   = Color(0xFFFFFF99)   // pale-canary
+val LcarsRed      = Color(0xFFCC6666)   // chestnut-rose
+val LcarsPurple   = Color(0xFFCC99CC)   // lilac
+val LcarsMelrose  = Color(0xFF9999FF)   // melrose purple
+val LcarsBlueBell = Color(0xFF9999CC)   // blue-bell
+val LcarsAnakiwa  = Color(0xFF99CCFF)   // anakiwa blue
+
+// LCARS Theme (Star Trek — terminal aesthetic, orange on black)
+val LcarsBackground = Color(0xFF000000)
+val LcarsBackgroundTo = Color(0xFF0A0400)
+val LcarsSurface = Color(0xFF160A00)
+val LcarsInput = Color(0xFF241200)
+val LcarsTextPrimary = Color(0xFFFF9900)
+val LcarsTextHeading = Color(0xFFFFCC99)
+val LcarsTextSecondary = Color(0xFFCC6600)
+val LcarsTextTotal = Color(0xFFFFCC00)
+val LcarsBorder = Color(0xFF3D1A00)
+val LcarsAccent = Color(0xFFFF9900)
+
+val LcarsChartColors = listOf(
+    Color(0xFFFF9900), Color(0xFFCC3333), Color(0xFF9999FF), Color(0xFFFFCC99),
+    Color(0xFF33CCFF), Color(0xFFFFCC00), Color(0xFFFF6600), Color(0xFF99CC33),
+    Color(0xFFFF99CC), Color(0xFF66CCCC)
+)
+val TableHeaderLcars = Color(0xFF3D1A00)
+
+// Star Wars Theme (Original Trilogy — deep space, iconic crawl yellow)
+val StarWarsBackground = Color(0xFF05080F)
+val StarWarsBackgroundTo = Color(0xFF080D18)
+val StarWarsSurface = Color(0xFF0D1424)
+val StarWarsInput = Color(0xFF141E38)
+val StarWarsTextPrimary = Color(0xFFFFE81F)
+val StarWarsTextHeading = Color(0xFFFFF5A0)
+val StarWarsTextSecondary = Color(0xFFB8A020)
+val StarWarsTextTotal = Color(0xFFFFD700)
+val StarWarsBorder = Color(0xFF1A2645)
+val StarWarsAccent = Color(0xFFFFE81F)
+
+val StarWarsChartColors = listOf(
+    Color(0xFFFFE81F), Color(0xFFFFD700), Color(0xFFFF8C00), Color(0xFFB8A020),
+    Color(0xFFC0C0C0), Color(0xFFFFCC00), Color(0xFFFF6B00), Color(0xFFD4AF37),
+    Color(0xFFFFF5A0), Color(0xFFE6C619)
+)
+val TableHeaderStarWars = Color(0xFF141E38)
+
 // Landing screen gradients
 val LandingGradientStart = Color(0xFF0F0C29)
 val LandingGradientMid = Color(0xFF302B63)
@@ -230,6 +278,14 @@ val OceanLandingGradientEnd = Color(0xFF072738)
 val HackerLandingGradientStart = Color(0xFF000000)
 val HackerLandingGradientMid = Color(0xFF001A00)
 val HackerLandingGradientEnd = Color(0xFF000D00)
+
+val LcarsLandingGradientStart = Color(0xFF000000)
+val LcarsLandingGradientMid = Color(0xFF1A0800)
+val LcarsLandingGradientEnd = Color(0xFF000000)
+
+val StarWarsLandingGradientStart = Color(0xFF020408)
+val StarWarsLandingGradientMid = Color(0xFF0A0F1E)
+val StarWarsLandingGradientEnd = Color(0xFF020814)
 
 // UI accent colors
 val AccentBlue = Color(0xFF667EEA)

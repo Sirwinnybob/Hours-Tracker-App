@@ -47,7 +47,8 @@ class TimecardColors(
     val isRed: Boolean,
     val isDark: Boolean,
     val isOled: Boolean,
-    val isTerminal: Boolean
+    val isTerminal: Boolean,
+    val isLcars: Boolean = false
 ) {
     val backgroundBrush: Brush
         get() = Brush.linearGradient(listOf(backgroundFrom, backgroundTo))
@@ -348,6 +349,38 @@ val LightHackerTimecardColors = TimecardColors(
     accent = LightHackerAccent, isRed = false, isDark = false, isOled = false, isTerminal = true
 )
 
+// --- SCI-FI THEMES ---
+
+val LcarsTimecardColors = TimecardColors(
+    backgroundFrom = LcarsBackground, backgroundTo = LcarsBackgroundTo,
+    surface = LcarsSurface, input = LcarsInput, hover = LcarsInput,
+    textPrimary = LcarsTextPrimary, textHeading = LcarsTextHeading,
+    textSecondary = LcarsTextSecondary, textTotal = LcarsTextTotal,
+    textGreen = Color(0xFF99FF66), textOrange = Color(0xFFFF6600),
+    border = LcarsBorder,
+    landingGradientStart = LcarsLandingGradientStart,
+    landingGradientMid = LcarsLandingGradientMid,
+    landingGradientEnd = LcarsLandingGradientEnd,
+    tableHeader = LcarsOrange,
+    chartColors = LcarsChartColors,
+    accent = LcarsAccent, isRed = false, isDark = true, isOled = false, isTerminal = false, isLcars = true
+)
+
+val StarWarsTimecardColors = TimecardColors(
+    backgroundFrom = StarWarsBackground, backgroundTo = StarWarsBackgroundTo,
+    surface = StarWarsSurface, input = StarWarsInput, hover = StarWarsInput,
+    textPrimary = StarWarsTextPrimary, textHeading = StarWarsTextHeading,
+    textSecondary = StarWarsTextSecondary, textTotal = StarWarsTextTotal,
+    textGreen = Color(0xFF68D391), textOrange = Color(0xFFFF8C00),
+    border = StarWarsBorder,
+    landingGradientStart = StarWarsLandingGradientStart,
+    landingGradientMid = StarWarsLandingGradientMid,
+    landingGradientEnd = StarWarsLandingGradientEnd,
+    tableHeader = TableHeaderStarWars,
+    chartColors = StarWarsChartColors,
+    accent = StarWarsAccent, isRed = false, isDark = true, isOled = false, isTerminal = false
+)
+
 val LocalTimecardColors = compositionLocalOf { DarkTimecardColors }
 
 private val LightMaterialColors = lightColorScheme(
@@ -477,6 +510,24 @@ private val LightHackerMaterialColors = lightColorScheme(
     onPrimary = Color.White
 )
 
+private val LcarsMaterialColors = darkColorScheme(
+    background = LcarsBackground,
+    surface = LcarsSurface,
+    onBackground = LcarsTextPrimary,
+    onSurface = LcarsTextHeading,
+    primary = LcarsAccent,
+    onPrimary = Color.Black
+)
+
+private val StarWarsMaterialColors = darkColorScheme(
+    background = StarWarsBackground,
+    surface = StarWarsSurface,
+    onBackground = StarWarsTextPrimary,
+    onSurface = StarWarsTextHeading,
+    primary = StarWarsAccent,
+    onPrimary = Color.Black
+)
+
 fun timecardColorsFor(mode: ThemeMode): TimecardColors = when (mode) {
     ThemeMode.Light -> LightTimecardColors
     ThemeMode.Dark -> DarkTimecardColors
@@ -494,7 +545,7 @@ fun TimecardColors.withAccent(newAccent: Color) = TimecardColors(
     landingGradientMid = landingGradientMid,
     landingGradientEnd = landingGradientEnd,
     tableHeader = tableHeader, chartColors = chartColors,
-    accent = newAccent, isRed = isRed, isDark = isDark, isOled = isOled, isTerminal = isTerminal
+    accent = newAccent, isRed = isRed, isDark = isDark, isOled = isOled, isTerminal = isTerminal, isLcars = isLcars
 )
 
 /** Maps an accentColor key (stored in profile.json) to a Color, or null for default. */
@@ -508,8 +559,9 @@ fun accentColorFor(key: String?): Color? = when (key) {
     "sunset" -> Color(0xFFE91E63)
     "midnight" -> Color(0xFF3F51B5)
     "ocean" -> Color(0xFF00BCD4)
+    "lcars" -> Color(0xFFFF9900)
+    "starwars" -> Color(0xFFFFE81F)
     else     -> null
-
 }
 
 /** Inventory item required to unlock each accent color. */
@@ -523,6 +575,8 @@ val ACCENT_UNLOCKS = listOf(
     Triple("sunset", Color(0xFFE91E63), "accent_sunset"),   // Added missing
     Triple("midnight", Color(0xFF3F51B5), "accent_midnight"), // Added missing
     Triple("ocean",  Color(0xFF00BCD4), "accent_ocean"),    // Added missing
+    Triple("lcars",  Color(0xFFFF9900), "accent_lcars"),
+    Triple("starwars", Color(0xFFFFE81F), "accent_starwars"),
 )
 
 /**
@@ -580,10 +634,24 @@ fun TimecardTheme(
             timecardColors = if (isOledBase) HackerOledTimecardColors else HackerTimecardColors
             materialColors = HackerMaterialColors
         }
+        "lcars" -> {
+            // LCARS: always dark, terminal rectangular shapes
+            timecardColors = LcarsTimecardColors
+            materialColors = LcarsMaterialColors
+        }
+        "starwars" -> {
+            // Star Wars: always dark
+            timecardColors = StarWarsTimecardColors
+            materialColors = StarWarsMaterialColors
+        }
     }
 
     CompositionLocalProvider(LocalTimecardColors provides timecardColors) {
-        val typography = if (timecardColors.isTerminal) TerminalTypography else TimecardTypography
+        val typography = when {
+            timecardColors.isLcars -> LcarsTypography
+            timecardColors.isTerminal -> TerminalTypography
+            else -> TimecardTypography
+        }
     
         MaterialTheme(
             colorScheme = materialColors,
@@ -654,7 +722,10 @@ class ThemeState(private val prefs: SharedPreferences) {
 
 @Composable
 fun timecardShape(base: Shape): Shape {
-    // Industrial Avionics aesthetic: override default bubbly shapes with rigid, physical shapes.
-    // Base shape is ignored to strictly enforce the design system across all standard UI elements.
-    return if (LocalTimecardColors.current.isTerminal) RectangleShape else androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+    val colors = LocalTimecardColors.current
+    return when {
+        colors.isLcars -> androidx.compose.foundation.shape.RoundedCornerShape(50)  // pill buttons
+        colors.isTerminal -> RectangleShape
+        else -> androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+    }
 }

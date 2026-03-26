@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -60,7 +61,14 @@ import com.example.timecard.data.model.DAY_LABELS
 import com.example.timecard.data.model.DAYS
 import com.example.timecard.domain.JobValidator
 import com.example.timecard.ui.components.AnimatedCounter
+import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.AccentBlue
+import com.example.timecard.ui.theme.LcarsAnakiwa
+import com.example.timecard.ui.theme.LcarsBlueBell
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsPurple
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -102,15 +110,16 @@ fun TimesheetGrid(
     val listState = rememberLazyListState()
 
     Column(modifier = modifier) {
-        // Sticky header row - kept outside LazyColumn for simplicity/stickiness without experimental APIs
+        // Sticky header row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(colors.tableHeader)
+                .background(if (colors.isLcars) LcarsOrange else colors.tableHeader)
                 .height(ROW_HEIGHT)
         ) {
             HeaderCell("Job", JOB_WEIGHT)
             DAYS.forEachIndexed { dayIndex, day ->
+                if (colors.isLcars && dayIndex > 0) Spacer(Modifier.width(2.dp).height(ROW_HEIGHT).background(Color.Black))
                 Box(
                     modifier = Modifier
                         .weight(DAY_WEIGHT)
@@ -118,16 +127,20 @@ fun TimesheetGrid(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = DAY_LABELS[day] ?: day,
-                        color = Color.White,
+                        text = if (colors.isLcars) (DAY_LABELS[day] ?: day).uppercase() else (DAY_LABELS[day] ?: day),
+                        color = if (colors.isLcars) Color.Black else Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        letterSpacing = if (colors.isLcars) 0.5.sp else 0.sp,
                         textAlign = TextAlign.Center
                     )
                 }
             }
+            if (colors.isLcars) Spacer(Modifier.width(2.dp).height(ROW_HEIGHT).background(Color.Black))
             HeaderCell("Total", TOTAL_WEIGHT)
         }
+        if (colors.isLcars) Spacer(Modifier.fillMaxWidth().height(4.dp).background(Color.Black))
 
         // LazyColumn for content
         LazyColumn(
@@ -194,14 +207,16 @@ fun TimesheetGrid(
                         .fillMaxWidth()
                         .height(ROW_HEIGHT)
                         .clickable { onAddRow() }
-                        .background(colors.hover.copy(alpha = 0.2f)),
+                        .background(if (colors.isLcars) Color.Black else colors.hover.copy(alpha = 0.2f)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "  + Add Job",
-                        color = colors.textSecondary,
+                        text = if (colors.isLcars) "  + ADD JOB" else "  + Add Job",
+                        color = if (colors.isLcars) LcarsTan else colors.textSecondary,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        letterSpacing = if (colors.isLcars) 1.sp else 0.sp,
                         modifier = Modifier.padding(start = 8.dp)
                     )
                 }
@@ -212,9 +227,9 @@ fun TimesheetGrid(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.surface)
+                        .background(if (colors.isLcars) Color.Black else colors.surface)
                         .height(ROW_HEIGHT)
-                        .border(0.5.dp, colors.border)
+                        .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                 ) {
                     Box(
                         modifier = Modifier
@@ -224,10 +239,12 @@ fun TimesheetGrid(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "Daily",
+                            text = if (colors.isLcars) "DAILY" else "Daily",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            letterSpacing = if (colors.isLcars) 1.sp else 0.sp,
+                            color = if (colors.isLcars) LcarsTan else colors.textSecondary
                         )
                     }
 
@@ -241,16 +258,15 @@ fun TimesheetGrid(
                         val isGood = if (target > 0) dayTotal >= target else true
                         val canFill = dayIndex < 5 && dayTotal < target
                         val zebraColor = if (dayIndex % 2 == 0) ZEBRA_EVEN else ZEBRA_ODD
+                        val lcarsZebra = if (dayIndex % 2 == 0) Color.Transparent else LcarsOrange.copy(alpha = 0.04f)
+                        if (colors.isLcars) Spacer(Modifier.width(2.dp).height(ROW_HEIGHT).background(Color.Black))
                         Box(
                             modifier = Modifier
                                 .weight(DAY_WEIGHT)
                                 .height(ROW_HEIGHT)
-                                .border(0.5.dp, colors.border)
-                                .background(zebraColor)
-                                .then(
-                                    if (canFill) Modifier.clickable { onFillShopHours(dayIndex) }
-                                    else Modifier
-                                )
+                                .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                                .background(if (colors.isLcars) lcarsZebra else zebraColor)
+                                .then(if (canFill) Modifier.clickable { onFillShopHours(dayIndex) } else Modifier)
                                 .padding(4.dp),
                             contentAlignment = Alignment.Center
                         ) {
@@ -263,32 +279,22 @@ fun TimesheetGrid(
                                 } else colors.textSecondary
                             )
                             if (canFill) {
-                                Text(
-                                    "+",
-                                    modifier = Modifier.align(Alignment.TopEnd),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textGreen
-                                )
+                                Text("+", modifier = Modifier.align(Alignment.TopEnd), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.textGreen)
                             }
                         }
                     }
 
+                    if (colors.isLcars) Spacer(Modifier.width(2.dp).height(ROW_HEIGHT).background(Color.Black))
                     Box(
                         modifier = Modifier
                             .weight(TOTAL_WEIGHT)
                             .height(ROW_HEIGHT)
-                            .border(0.5.dp, colors.border)
-                            .background(colors.accent.copy(alpha = 0.1f))
+                            .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                            .background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.accent.copy(alpha = 0.1f))
                             .padding(4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        AnimatedCounter(
-                            targetValue = uiState.getGrandTotal(),
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.textTotal
-                        )
+                        AnimatedCounter(targetValue = uiState.getGrandTotal(), fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, color = colors.textTotal)
                     }
                 }
             }
@@ -299,8 +305,8 @@ fun TimesheetGrid(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(32.dp)
-                        .background(colors.surface)
-                        .border(0.5.dp, colors.border)
+                        .background(if (colors.isLcars) Color.Black else colors.surface)
+                        .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                 ) {
                     Box(
                         modifier = Modifier
@@ -310,21 +316,25 @@ fun TimesheetGrid(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            "Lunch",
+                            text = if (colors.isLcars) "LUNCH" else "Lunch",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = colors.textSecondary
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            letterSpacing = if (colors.isLcars) 1.sp else 0.sp,
+                            color = if (colors.isLcars) LcarsTan else colors.textSecondary
                         )
                     }
                     DAYS.forEachIndexed { dayIndex, _ ->
                         val lunchTaken = dayIndex !in uiState.noLunchDays
                         val zebraColor = if (dayIndex % 2 == 0) ZEBRA_EVEN else ZEBRA_ODD
+                        val lcarsZebra = if (dayIndex % 2 == 0) Color.Transparent else LcarsOrange.copy(alpha = 0.04f)
+                        if (colors.isLcars) Spacer(Modifier.width(2.dp).fillMaxHeight().background(Color.Black))
                         Box(
                             modifier = Modifier
                                 .weight(DAY_WEIGHT)
                                 .fillMaxHeight()
-                                .border(0.5.dp, colors.border)
-                                .background(zebraColor)
+                                .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                                .background(if (colors.isLcars) lcarsZebra else zebraColor)
                                 .clickable { onToggleNoLunch(dayIndex) },
                             contentAlignment = Alignment.Center
                         ) {
@@ -333,8 +343,8 @@ fun TimesheetGrid(
                                 onCheckedChange = { onToggleNoLunch(dayIndex) },
                                 modifier = Modifier.scale(0.65f),
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = colors.accent,
-                                    uncheckedColor = colors.textSecondary
+                                    checkedColor = if (colors.isLcars) LcarsOrange else colors.accent,
+                                    uncheckedColor = if (colors.isLcars) LcarsTan else colors.textSecondary
                                 )
                             )
                         }
@@ -391,7 +401,7 @@ private fun TimesheetRowItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(rowColor)
+                .background(if (colors.isLcars) Color.Black else rowColor)
                 .height(IntrinsicSize.Min)
         ) {
             // Job cell
@@ -399,12 +409,12 @@ private fun TimesheetRowItem(
                 modifier = Modifier
                     .weight(JOB_WEIGHT)
                     .height(ROW_HEIGHT)
-                    .border(0.5.dp, colors.border)
+                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                     .background(
                         when {
                             isInvalidJob -> Color(0x33E53935)
-                            isDelivery -> Color(0x33DD6B20)
-                            else -> Color.Transparent
+                            isDelivery -> if (colors.isLcars) LcarsOrange.copy(alpha = 0.12f) else Color(0x33DD6B20)
+                            else -> if (colors.isLcars) Color.Transparent else Color.Transparent
                         }
                     )
                     .padding(4.dp),
@@ -451,18 +461,22 @@ private fun TimesheetRowItem(
                 }
             }
 
-            // Day cells with zebra columns
+            // Day cells
             DAYS.forEachIndexed { dayIndex, _ ->
                 val cellValue = uiState.hours.getOrNull(rowIndex)
                     ?.getOrElse(dayIndex) { "" } ?: ""
                 val zebraColor = if (dayIndex % 2 == 0) ZEBRA_EVEN else ZEBRA_ODD
+                val lcarsZebra = if (dayIndex % 2 == 0) Color.Transparent else LcarsOrange.copy(alpha = 0.04f)
+
+                // Black gap between cells in LCARS mode
+                if (colors.isLcars) Spacer(Modifier.width(2.dp).fillMaxHeight().background(Color.Black))
 
                 Box(
                     modifier = Modifier
                         .weight(DAY_WEIGHT)
                         .height(ROW_HEIGHT)
-                        .border(0.5.dp, colors.border)
-                        .background(zebraColor)
+                        .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                        .background(if (colors.isLcars) lcarsZebra else zebraColor)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -535,12 +549,13 @@ private fun TimesheetRowItem(
             }
 
             // Total cell
+            if (colors.isLcars) Spacer(Modifier.width(2.dp).fillMaxHeight().background(Color.Black))
             Box(
                 modifier = Modifier
                     .weight(TOTAL_WEIGHT)
                     .height(ROW_HEIGHT)
-                    .border(0.5.dp, colors.border)
-                    .background(colors.hover.copy(alpha = 0.3f))
+                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                    .background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.15f) else colors.hover.copy(alpha = 0.3f))
                     .padding(4.dp),
                     contentAlignment = Alignment.Center
             ) {
@@ -566,45 +581,17 @@ private fun TimesheetRowItem(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.accent.copy(alpha = 0.06f))
-                    .border(0.5.dp, colors.border)
+                    .background(if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.06f))
+                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                JobTagChip(
-                    label = "🚚 Delivery",
-                    active = isDelivery,
-                    activeColor = Color(0xFFDD6B20),
-                    colors = colors
-                ) { onDeliveryTag(rowIndex) }
-                JobTagChip(
-                    label = "🏖 PTO",
-                    active = job.uppercase() == "PTO",
-                    activeColor = colors.accent,
-                    colors = colors
-                ) { onJobTag(rowIndex, "PTO") }
-                JobTagChip(
-                    label = "🤒 Sick",
-                    active = job.uppercase() == "SICK",
-                    activeColor = Color(0xFFE53935),
-                    colors = colors
-                ) { onJobTag(rowIndex, "SICK") }
-                JobTagChip(
-                    label = "🎉 Holiday",
-                    active = job.uppercase() == "HOLIDAY",
-                    activeColor = Color(0xFF7B1FA2),
-                    colors = colors
-                ) { onJobTag(rowIndex, "HOLIDAY") }
+                JobTagChip(label = "🚚 Delivery", active = isDelivery, activeColor = if (colors.isLcars) LcarsOrange else Color(0xFFDD6B20), colors = colors) { onDeliveryTag(rowIndex) }
+                JobTagChip(label = "🏖 PTO", active = job.uppercase() == "PTO", activeColor = if (colors.isLcars) LcarsBlueBell else colors.accent, colors = colors) { onJobTag(rowIndex, "PTO") }
+                JobTagChip(label = "🤒 Sick", active = job.uppercase() == "SICK", activeColor = if (colors.isLcars) LcarsRed else Color(0xFFE53935), colors = colors) { onJobTag(rowIndex, "SICK") }
+                JobTagChip(label = "🎉 Holiday", active = job.uppercase() == "HOLIDAY", activeColor = if (colors.isLcars) LcarsPurple else Color(0xFF7B1FA2), colors = colors) { onJobTag(rowIndex, "HOLIDAY") }
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
-                // Close button
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(colors.hover)
-                        .clickable { onFocusClear() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("✕", color = colors.textSecondary, fontSize = 12.sp)
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.hover).clickable { onFocusClear() }, contentAlignment = Alignment.Center) {
+                    Text("✕", color = if (colors.isLcars) LcarsOrange else colors.textSecondary, fontSize = 12.sp)
                 }
             }
         }
@@ -624,48 +611,42 @@ private fun TimesheetRowItem(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.accent.copy(alpha = 0.08f))
-                    .border(0.5.dp, colors.border)
+                    .background(if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.08f))
+                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = "$dayLabel: ${String.format("%.2f", currentVal)}",
+                    text = if (colors.isLcars) "${dayLabel.uppercase()}: ${String.format("%.2f", currentVal)}" else "$dayLabel: ${String.format("%.2f", currentVal)}",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = colors.textHeading,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    letterSpacing = if (colors.isLcars) 0.8.sp else 0.sp,
+                    color = if (colors.isLcars) LcarsOrange else colors.textHeading,
                     modifier = Modifier.weight(1f)
                 )
-                QuickAddChip("-0.25", colors.textOrange) {
+                QuickAddChip("-0.25", if (colors.isLcars) LcarsRed else null, colors.textOrange) {
                     val newVal = maxOf(0.0, currentVal - 0.25)
                     val rounded = Math.round(newVal * 100.0) / 100.0
                     onHoursChange(rowIndex, activeDay, if (rounded > 0) rounded.toString() else "")
                 }
-                QuickAddChip("+0.25", colors.accent) {
+                QuickAddChip("+0.25", if (colors.isLcars) LcarsOrange else null, colors.accent) {
                     val newVal = Math.round((currentVal + 0.25) * 100.0) / 100.0
                     onHoursChange(rowIndex, activeDay, newVal.toString())
                 }
-                QuickAddChip("+0.5", colors.accent) {
+                QuickAddChip("+0.5", if (colors.isLcars) LcarsOrange else null, colors.accent) {
                     val newVal = Math.round((currentVal + 0.5) * 100.0) / 100.0
                     onHoursChange(rowIndex, activeDay, newVal.toString())
                 }
-                QuickAddChip("+1", colors.accent) {
+                QuickAddChip("+1", if (colors.isLcars) LcarsTan else null, colors.accent) {
                     val newVal = Math.round((currentVal + 1.0) * 100.0) / 100.0
                     onHoursChange(rowIndex, activeDay, newVal.toString())
                 }
-                QuickAddChip("+1.5", colors.accent) {
+                QuickAddChip("+1.5", if (colors.isLcars) LcarsTan else null, colors.accent) {
                     val newVal = Math.round((currentVal + 1.5) * 100.0) / 100.0
                     onHoursChange(rowIndex, activeDay, newVal.toString())
                 }
-                // Close button
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(colors.hover)
-                        .clickable { onFocusClear() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("\u2715", color = colors.textSecondary, fontSize = 12.sp)
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.hover).clickable { onFocusClear() }, contentAlignment = Alignment.Center) {
+                    Text("\u2715", color = if (colors.isLcars) LcarsOrange else colors.textSecondary, fontSize = 12.sp)
                 }
             }
         }
@@ -674,6 +655,7 @@ private fun TimesheetRowItem(
 
 @Composable
 private fun RowScope.HeaderCell(text: String, weight: Float) {
+    val colors = LocalTimecardColors.current
     Box(
         modifier = Modifier
             .weight(weight)
@@ -682,10 +664,12 @@ private fun RowScope.HeaderCell(text: String, weight: Float) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text,
-            color = Color.White,
+            text = if (colors.isLcars) text.uppercase() else text,
+            color = if (colors.isLcars) Color.Black else Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+            letterSpacing = if (colors.isLcars) 0.8.sp else 0.sp,
             textAlign = TextAlign.Center
         )
     }
@@ -699,40 +683,63 @@ private fun JobTagChip(
     colors: com.example.timecard.ui.theme.TimecardColors,
     onClick: () -> Unit
 ) {
+    val isLcars = colors.isLcars
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) activeColor.copy(alpha = 0.18f) else colors.input
+            containerColor = when {
+                isLcars && active -> activeColor
+                isLcars -> Color.Black
+                active -> activeColor.copy(alpha = 0.18f)
+                else -> colors.input
+            }
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            width = if (active) 1.5.dp else 1.dp,
-            color = if (active) activeColor else colors.border
-        ),
+        border = when {
+            isLcars && active -> null
+            isLcars -> androidx.compose.foundation.BorderStroke(1.dp, activeColor.copy(alpha = 0.4f))
+            active -> androidx.compose.foundation.BorderStroke(1.5.dp, activeColor)
+            else -> androidx.compose.foundation.BorderStroke(1.dp, colors.border)
+        },
         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
         contentPadding = ButtonDefaults.ContentPadding,
         modifier = Modifier.height(36.dp)
     ) {
         Text(
-            text = label,
-            color = if (active) activeColor else colors.textSecondary,
+            text = if (isLcars) label.uppercase() else label,
+            color = when {
+                isLcars && active -> Color.Black
+                isLcars -> activeColor
+                active -> activeColor
+                else -> colors.textSecondary
+            },
             fontSize = 13.sp,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-            fontFamily = androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily
+            fontWeight = FontWeight.Bold,
+            fontFamily = if (isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+            letterSpacing = if (isLcars) 0.5.sp else 0.sp
         )
     }
 }
 
 @Composable
-private fun QuickAddChip(label: String, color: Color, onClick: () -> Unit) {
+private fun QuickAddChip(label: String, lcarsBg: Color?, textColor: Color, onClick: () -> Unit) {
     val colors = LocalTimecardColors.current
+    val bg = if (colors.isLcars && lcarsBg != null) lcarsBg else colors.input
+    val lblColor = if (colors.isLcars && lcarsBg != null) Color.Black else textColor
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = colors.input),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+        colors = ButtonDefaults.buttonColors(containerColor = bg),
+        border = if (colors.isLcars) null else androidx.compose.foundation.BorderStroke(1.dp, colors.border),
         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
         contentPadding = ButtonDefaults.ContentPadding,
         modifier = Modifier.height(40.dp)
     ) {
-        Text(label, color = color, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily)
+        Text(
+            text = label,
+            color = lblColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+            letterSpacing = if (colors.isLcars) 0.5.sp else 0.sp
+        )
     }
 }

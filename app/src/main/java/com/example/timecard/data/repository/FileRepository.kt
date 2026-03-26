@@ -5,6 +5,8 @@ import com.example.timecard.data.model.ShopItem
 
 interface FileRepository {
     fun loadShopCatalog(): List<ShopItem>
+    /** Like loadShopCatalog but also includes items with inShop=false (reward pool preview). */
+    fun loadFullShopCatalog(): List<ShopItem>
     fun loadFile(name: String, date: String): String?
     fun saveJSON(json: String, name: String, date: String): String
     fun loadAlerts(name: String): String?

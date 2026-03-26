@@ -36,11 +36,17 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.common.CoinAmount
+import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.CoinAmber
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import androidx.compose.ui.graphics.RectangleShape
 
 private fun activityEventDescription(event: ActivityEvent): String = when (event.type) {
     "badge_earned"     -> "earned the ${event.detail} badge"
+    "badge_granted"    -> "was awarded the ${event.detail} badge"
     "streak_milestone" -> "reached a ${event.detail}-day streak!"
     "record_broken"    -> "set a new record: ${event.detail}"
     "coins_earned"     -> "earned ${event.detail}"
@@ -106,17 +112,52 @@ fun LeaderboardModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                    .padding(24.dp)
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                    )
             ) {
-                Text(
-                    "🏆 Leaderboard",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textPrimary
-                )
+                if (colors.isLcars) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(40.dp)
+                            .background(LcarsOrange).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "LEADERBOARD",
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            letterSpacing = 1.5.sp,
+                            color = Color.Black,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(
+                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(LcarsRed)
+                                .clickable { onDismiss() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
 
-                Spacer(Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(if (colors.isLcars) 16.dp else 24.dp)
+                ) {
+                if (!colors.isLcars) {
+                    Text(
+                        "🏆 Leaderboard",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary
+                    )
+                    Spacer(Modifier.height(16.dp))
+                }
 
                 // Tab bar — 5 tabs: Week / Month / Streak / Coins / Feed
                 Row(
@@ -221,7 +262,7 @@ fun LeaderboardModal(
                                     Text(event.detailIcon, fontSize = 20.sp)
                                     Spacer(Modifier.width(10.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Row {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
                                             Text(
                                                 event.displayName,
                                                 fontSize = 13.sp,
@@ -233,6 +274,17 @@ fun LeaderboardModal(
                                                 fontSize = 13.sp,
                                                 color = colors.textPrimary
                                             )
+                                            if (event.type == "badge_granted") {
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    "🎁",
+                                                    fontSize = 11.sp,
+                                                    color = CoinAmber,
+                                                    modifier = Modifier
+                                                        .background(CoinAmber.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                )
+                                            }
                                         }
                                         val timeStr = relativeTime(event.timestamp)
                                         if (timeStr.isNotEmpty()) {
@@ -363,15 +415,22 @@ fun LeaderboardModal(
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                if (!colors.isLcars) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+                } // end inner Column
 
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                if (colors.isLcars) {
+                    Spacer(Modifier.height(4.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
         }

@@ -107,9 +107,11 @@ class ShopViewModel : ViewModel() {
         val repo = repository ?: return
         val currentEmployee = profileViewModel?.employeeName ?: ""
 
+        val isWinston = currentEmployee.equals("Winston Ferguson", ignoreCase = true)
+
         viewModelScope.launch {
             val loadedItems = withContext(Dispatchers.IO) {
-                repo.loadShopCatalog()
+                if (isWinston) repo.loadFullShopCatalog() else repo.loadShopCatalog()
             }
 
             // Sort: special (featured) items first, then alphabetical within each group
