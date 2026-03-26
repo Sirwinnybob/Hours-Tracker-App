@@ -69,8 +69,8 @@ class GamificationEngineTest {
         val profileAfterDelete = result2.profile
         val coinsAfterDelete = profileAfterDelete.coins
 
-        // Coins should NOT increase when we just delete hours
-        assertEquals(coinsAfterFullWeek, coinsAfterDelete)
+        // Coins should decrease when we delete hours, because of the new negative adjustment feature
+        assert(coinsAfterDelete < coinsAfterFullWeek)
 
         // Scenario 3: Refill Friday
         val result3 = GamificationEngine.processTimecardSave(
@@ -177,8 +177,8 @@ class GamificationEngineTest {
             isMonday = true, isBefore930 = true
         )
         val coinsC = resultC.profile.coins
-        // Coins should not decrease or increase
-        assertEquals(coinsB, coinsC)
+        // Coins should decrease because we lowered the hours
+        assert(coinsC < coinsB)
 
         // Step D: Process Monday with 8 hours (re-fill)
         val resultD = GamificationEngine.processTimecardSave(
@@ -186,7 +186,7 @@ class GamificationEngineTest {
             isMonday = true, isBefore930 = true
         )
         val coinsD = resultD.profile.coins
-        // Coins should remain exactly the same as Step B
+        // Coins should return exactly to the same as Step B
         assertEquals(coinsB, coinsD)
     }
 

@@ -4,7 +4,8 @@ import com.google.gson.annotations.SerializedName
 
 data class CoinLogEntry(
     @SerializedName("savedAt") val savedAt: String = "",
-    @SerializedName("hoursLogged") val hoursLogged: Double = 0.0
+    @SerializedName("hoursLogged") val hoursLogged: Double = 0.0,
+    @SerializedName("paidHours") val paidHours: Double = 0.0
 )
 
 data class StreakData(
