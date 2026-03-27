@@ -226,4 +226,64 @@ class GamificationCheatTest {
         val finalCount = result2.profile.badges["perfect_week"] ?: 0
         assertEquals("System SECURE: perfect_week cannot be farmed infinitely.", 1, finalCount)
     }
+
+    @Test
+    fun `cheat - farming best week record coins by incremental saves`() {
+        val initialProfile = getBaseProfile()
+
+        val rows40 = listOf(createRow("Job A", mon = "10.0"))
+        val tc40 = createTimecard(testWeekStarting, rows40)
+
+        val result1 = GamificationEngine.processTimecardSave(
+            current = initialProfile, weekData = tc40, monthWeeks = listOf(tc40), recentWeeks = listOf(tc40), employeeName = "Test Player",
+            isMonday = true, isBefore930 = true
+        )
+
+        val expectedCoins = result1.profile.coins
+
+        val rows41 = listOf(createRow("Job A", mon = "10.0", tue = "1.0"))
+        val tc41 = createTimecard(testWeekStarting, rows41)
+
+        val result2 = GamificationEngine.processTimecardSave(
+            current = result1.profile, weekData = tc41, monthWeeks = listOf(tc41), recentWeeks = listOf(tc41), employeeName = "Test Player",
+            isMonday = true, isBefore930 = true
+        )
+
+
+        println("Expected: ${expectedCoins + 1}, Actual: ${result2.profile.coins}")
+        val actualCoins = result2.profile.coins
+        assertEquals("Should not be able to farm 25 record coins multiple times in the same week by logging incrementally", expectedCoins + 1, actualCoins)
+    }
+
+    @Test
+    fun `cheat - avoiding negative coins after spending and deleting hours`() {
+        val initialProfile = getBaseProfile()
+        val rows8 = listOf(createRow("Job A", mon = "8.0"))
+        val tc8 = createTimecard(testWeekStarting, rows8)
+        val result1 = GamificationEngine.processTimecardSave(
+            current = initialProfile, weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), employeeName = "Test Player", isMonday = true, isBefore930 = true
+        )
+
+        val earnedCoins = result1.profile.coins
+
+        // Simulate spending all coins
+        val profileAfterSpend = result1.profile.copy(coins = 0)
+
+        // Then they delete their hours
+        val rows0 = listOf(createRow("Job A", mon = "0.0"))
+        val tc0 = createTimecard(testWeekStarting, rows0)
+
+        val result2 = GamificationEngine.processTimecardSave(
+            current = profileAfterSpend, weekData = tc0, monthWeeks = listOf(tc0), recentWeeks = listOf(tc0), employeeName = "Test Player", isMonday = true, isBefore930 = true
+        )
+
+        assertEquals("Coins should NOT drop below zero when deleting hours. (It limits the refund)", 0, result2.profile.coins)
+
+        // Now, if they try to re-log 8 hours to farm base coins again...
+        val result3 = GamificationEngine.processTimecardSave(
+            current = result2.profile, weekData = tc8, monthWeeks = listOf(tc8), recentWeeks = listOf(tc8), employeeName = "Test Player", isMonday = true, isBefore930 = true
+        )
+
+        assertEquals("They should NOT get new coins when re-logging because they never paid back the refund debt in paidHours.", 0, result3.profile.coins)
+    }
 }
