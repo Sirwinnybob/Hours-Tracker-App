@@ -94,7 +94,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     // Media3 (ExoPlayer) for reliable transparent webm playback
-    val media3Version = "1.9.3"
+    val media3Version = "1.10.0"
     implementation("androidx.media3:media3-exoplayer:$media3Version")
     implementation("androidx.media3:media3-ui:$media3Version")
 

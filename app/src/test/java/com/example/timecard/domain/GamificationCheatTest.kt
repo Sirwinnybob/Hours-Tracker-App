@@ -141,8 +141,20 @@ class GamificationCheatTest {
         assertEquals("Streak should break due to missed week", expectedStreakAfterMiss, result2.profile.streaks.currentDaily)
 
         val tcPrevious = createTimecard(previousWeek, listOf(createRow("Job A", "9.0", "9.0", "9.0", "9.0", "4.0")))
+
+        // Pre-populate coinLog for the backfilled days so `computeStreaks` detects it as backfilled
+        val tempCoinLog = result2.profile.coinLog.toMutableMap()
+        val weekParts = previousWeek.split("-")
+        for (i in 0..4) {
+            val cal = java.util.Calendar.getInstance()
+            cal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
+            cal.add(java.util.Calendar.DAY_OF_MONTH, i)
+            val dayDateStr = String.format(java.util.Locale.US, "%04d-%02d-%02d", cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH))
+            tempCoinLog[dayDateStr] = com.example.timecard.data.model.CoinLogEntry(savedAt = java.time.Instant.now().toString(), hoursLogged = 9.0, paidHours = 9.0)
+        }
+        val profileWithPreBackfilledLog = result2.profile.copy(coinLog = tempCoinLog)
         val result3 = GamificationEngine.processTimecardSave(
-            current = result2.profile, weekData = tcPrevious, monthWeeks = listOf(tc2WeeksAgo, tcPrevious, tcCurrent), recentWeeks = listOf(tcCurrent, tcPrevious, tc2WeeksAgo), employeeName = "Test Player",
+            current = profileWithPreBackfilledLog, weekData = tcPrevious, monthWeeks = listOf(tc2WeeksAgo, tcPrevious, tcCurrent), recentWeeks = listOf(tcCurrent, tcPrevious, tc2WeeksAgo), employeeName = "Test Player",
             isMonday = true, isBefore930 = true
         )
 
