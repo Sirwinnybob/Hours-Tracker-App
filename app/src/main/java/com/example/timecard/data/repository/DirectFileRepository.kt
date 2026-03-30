@@ -444,6 +444,27 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         }
     }
 
+    override fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?> {
+        val result = mutableMapOf<String, String?>()
+        try {
+            val subDir = File(baseDir, subdirectory)
+            if (!subDir.exists() || !subDir.isDirectory) return emptyMap()
+            for (filename in filenames) {
+                try {
+                    val file = File(subDir, filename)
+                    if (file.exists() && file.isFile) {
+                        result[filename] = readFileContent(file)
+                    }
+                } catch (e: Exception) {
+                    Log.e("DirectFileRepo", "Error loading file $filename from $subdirectory", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DirectFileRepo", "Error accessing directory $subdirectory", e)
+        }
+        return result
+    }
+
     override fun listGlobalDir(subdirectory: String): List<String> {
         return try {
             val subDir = File(baseDir, subdirectory)

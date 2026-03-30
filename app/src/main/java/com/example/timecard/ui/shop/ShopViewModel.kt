@@ -252,12 +252,16 @@ class ShopViewModel : ViewModel() {
         val repo = repository ?: return
         val vm = profileViewModel ?: return
         val current = pendingLimitedClaims.toMap()
+        if (current.isEmpty()) return
+
+        val filenames = current.values.map { "${it.claimId}.json" }
+        val loadedFiles = withContext(Dispatchers.IO) {
+            repo.loadGlobalDirFiles("limited_purchases", filenames)
+        }
 
         for ((itemId, claim) in current) {
             try {
-                val json = withContext(Dispatchers.IO) {
-                    repo.loadGlobalDir("limited_purchases", "${claim.claimId}.json")
-                } ?: continue
+                val json = loadedFiles["${claim.claimId}.json"] ?: continue
 
                 val updated = Gson().fromJson(json, LimitedPurchaseClaim::class.java)
                 when (updated.approved) {
