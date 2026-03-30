@@ -175,6 +175,7 @@ object GamificationEngine {
         // --- 6. Assemble pre-badge profile ---
         val preBadge = current.copy(
             coins = current.coins + coinsGained,
+            allTimeCoinsEarned = current.allTimeCoinsEarned + coinsGained,
             streaks = newStreaks,
             records = newRecords,
             runningStats = newStats,
@@ -228,6 +229,7 @@ object GamificationEngine {
 
         val updatedProfile = preBadge.copy(
             coins = preBadge.coins + badgeCoins,
+            allTimeCoinsEarned = preBadge.allTimeCoinsEarned + badgeCoins,
             badges = updatedBadges,
             weeklyBonusLog = weeklyBonusLog
         )
@@ -524,210 +526,8 @@ object GamificationEngine {
     }
 
     fun runBackfill(currentProfile: PlayerProfile, allWeeks: List<TimecardData>): PlayerProfile {
-        if (allWeeks.isEmpty()) {
-            return currentProfile.copy(
-                runningStats = currentProfile.runningStats.copy(backfillComplete = true)
-            )
-        }
-
-        val now = Instant.now().toString()
-        var coinsGained = 0
-        val coinLog = mutableMapOf<String, CoinLogEntry>()
-        val weeklyBonusLog = mutableMapOf<String, MutableMap<String, Int>>()
-        var runStats = RunningStats(backfillComplete = true)
-        var records = RecordData()
-        val earnedBadges = mutableMapOf<String, Int>()
-        val monthTotals = mutableMapOf<String, Double>()
-
-        // --- Streaks from full history ---
-        // Use computeStreaks (the same function as live saves) so that bestDaily/bestWeekly
-        // are derived from the full historical record, not just set equal to currentDaily.
-        val sortedDesc = allWeeks.sortedByDescending { it.weekStarting }
-        // Backfill runs before current coinLog is computed, we can just use emptyMap
-        // for historical streaks, or better yet, since it's just generating the initial
-        // state, we don't know when they were "saved". Backfilling historical entries
-        // doesn't penalize for "missed and then recorded" because backfill is just
-        // processing a legacy log. We will pass emptyMap() to let it use strict logic,
-        // or actually pass coinLog from currentProfile just in case it's an incremental backfill.
-        val newStreaks = computeStreaks(StreakData(), sortedDesc, currentProfile.coinLog)
-
-        // Iterate oldest-to-newest so the streak organically builds
-        val sortedAsc = allWeeks.sortedBy { it.weekStarting }
-        
-        for (week in sortedAsc) {
-            val weekParts = week.weekStarting.split("-")
-
-            // Determine what the pseudo-streak was for this historical week
-            // Note: Since backfill is just an initial state generation, we 
-            // compute the final full streak logic below anyway. To prevent infinite 
-            // loops looking back historically, we'll apply a simpler historical
-            // scaling based on the final achieved streak for backwards-compatibility 
-            // without complex state reconstruction loops.
-            val historicalStreakScale = GamificationConfig.streakMultiplier(newStreaks.currentDaily)
-
-            // --- Per-day coins at 85% ---
-            for (dayIndex in 0..4) {
-                val dayKey = DAYS[dayIndex]
-                val dayTotal = week.rows.sumOf { row -> row.getHours(dayKey).toDoubleOrNull() ?: 0.0 }
-                if (dayTotal <= 0) continue
-
-                // Backfill is always past data, so we cap at 16.0
-                val cappedNewHours = dayTotal.coerceAtMost(16.0)
-
-                val dayCal = Calendar.getInstance()
-                dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
-                dayCal.add(Calendar.DAY_OF_MONTH, dayIndex)
-                val dayDateStr = String.format(java.util.Locale.US,
-                    "%04d-%02d-%02d",
-                    dayCal.get(Calendar.YEAR),
-                    dayCal.get(Calendar.MONTH) + 1,
-                    dayCal.get(Calendar.DAY_OF_MONTH)
-                )
-                if (dayDateStr !in coinLog) {
-                    val finalVal = cappedNewHours * GamificationConfig.BACKFILL_RATE * historicalStreakScale
-                    coinsGained += finalVal.toInt()
-                    coinLog[dayDateStr] = CoinLogEntry(savedAt = now, hoursLogged = dayTotal, paidHours = cappedNewHours)
-                }
-            }
-
-            // --- Running stats ---
-            val weekKey = week.weekStarting
-            if (weekKey !in runStats.processedWeeks) {
-                val shopH = week.rows.filter { it.job.uppercase() == "SHOP" }
-                    .sumOf { row -> DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 } }
-                val hasSat = week.rows.sumOf { row -> row.getHours("sat").toDoubleOrNull() ?: 0.0 } > 0
-                val delivJobs = week.rows.filter { JobValidator.isDeliveryJob(it.job) }
-                    .map { it.job.uppercase() }.toSet()
-                runStats = runStats.copy(
-                    totalShopHours = runStats.totalShopHours + shopH,
-                    deliveryJobsSeen = (runStats.deliveryJobsSeen + delivJobs).distinct(),
-                    saturdayWeeksCount = runStats.saturdayWeeksCount + (if (hasSat) 1 else 0),
-                    processedWeeks = runStats.processedWeeks + weekKey
-                )
-            }
-
-            // --- Records ---
-            val weekTotal = week.rows.sumOf { row -> DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 } }
-            val busiestDayVal = DAYS.maxOfOrNull { day ->
-                week.rows.sumOf { row -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-            } ?: 0.0
-            val topJob = week.rows
-                .associate { row -> row.job to DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 } }
-                .filter { it.key.isNotBlank() }.maxByOrNull { it.value }?.key ?: ""
-
-            if (weekTotal > records.bestWeekHours) {
-                records = records.copy(bestWeekHours = weekTotal)
-                coinsGained += 25
-            }
-            if (busiestDayVal > records.busiestDay) records = records.copy(busiestDay = busiestDayVal)
-            if (topJob.isNotBlank()) records = records.copy(favoriteJob = topJob)
-
-            // Month total for Century
-            val month = weekKey.substring(0, 7)
-            monthTotals[month] = (monthTotals[month] ?: 0.0) + weekTotal
-
-            // --- Repeatable badges per week ---
-            val isPerfect = GamificationConfig.DAY_TARGETS.indices.all { i ->
-                week.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
-            }
-            val weekBonuses = weeklyBonusLog.getOrPut(weekKey) { mutableMapOf() }
-            if (isPerfect) {
-                earnedBadges["perfect_week"] = (earnedBadges["perfect_week"] ?: 0) + 1
-                coinsGained += 30
-                weekBonuses["perfect_week_bonus"] = 1
-                weekBonuses["perfect_week"] = 1
-            }
-            if (weekTotal >= 50.0) {
-                earnedBadges["overtime_warrior"] = (earnedBadges["overtime_warrior"] ?: 0) + 1
-                weekBonuses["overtime_warrior"] = 1
-            }
-            // Job hopper — per qualifying day
-            var jobHopperCount = 0
-            for (dayKey in DAYS.take(5)) {
-                val jobsWithHours = week.rows.filter { row ->
-                    val h = row.getHours(dayKey).toDoubleOrNull() ?: 0.0
-                    h > 0 && row.job.isNotBlank() && row.job.uppercase() !in GamificationConfig.SPECIAL_JOBS
-                }.map { it.job.uppercase() }.toSet()
-                if (jobsWithHours.size >= 5) {
-                    earnedBadges["job_hopper"] = (earnedBadges["job_hopper"] ?: 0) + 1
-                    jobHopperCount++
-                }
-            }
-            if (jobHopperCount > 0) weekBonuses["job_hopper"] = jobHopperCount
-        }
-
-        // --- Best month record ---
-        val bestMonth = monthTotals.values.maxOrNull() ?: 0.0
-        records = records.copy(bestMonthHours = bestMonth)
-
-        // --- One-time milestone badges ---
-        if (allWeeks.isNotEmpty()) earnedBadges["clock_puncher"] = 1
-        if (runStats.totalShopHours >= 200.0) earnedBadges["shop_king"] = 1
-        if (runStats.saturdayWeeksCount >= 10) earnedBadges["saturday_warrior"] = 1
-        if (runStats.deliveryJobsSeen.size >= 10) earnedBadges["delivery_king"] = 1
-
-        // Consistent — 4 consecutive complete weeks (check in most recent 4)
-        if (sortedDesc.size >= 4 && sortedDesc.take(4).all { w ->
-            GamificationConfig.DAY_TARGETS.indices.all { i ->
-                w.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
-            }
-        }) earnedBadges["consistent"] = 1
-
-        // --- Badge coins ---
-        val badgeCoins = earnedBadges.entries.sumOf { (id, count) ->
-            (BadgeEngine.getDefinition(id)?.coinReward ?: 10) * count
-        }
-        val finalCoins = coinsGained + badgeCoins
-
-        return PlayerProfile(
-            displayName = currentProfile.displayName,
-            accentColor = currentProfile.accentColor,
-            grantedBadges = currentProfile.grantedBadges,
-            inventory = currentProfile.inventory,
-            coins = finalCoins,
-            badges = earnedBadges,
-            streaks = newStreaks,
-            records = records,
-            runningStats = runStats,
-            coinLog = coinLog,
-            weeklyBonusLog = weeklyBonusLog
+        return currentProfile.copy(
+            runningStats = currentProfile.runningStats.copy(backfillComplete = true)
         )
-    }
-
-    private fun computeBackfillStreaks(sortedDesc: List<TimecardData>): StreakData {
-        val cal = Calendar.getInstance()
-        val todayDow = cal.get(Calendar.DAY_OF_WEEK)
-        val todayIdx = if (todayDow == Calendar.SUNDAY) 6 else todayDow - Calendar.MONDAY
-
-        var daily = 0
-        outer@ for (i in sortedDesc.indices) {
-            val week = sortedDesc[i]
-            val maxDay = if (i == 0) minOf(todayIdx, 4) else 4
-            for (dayIdx in maxDay downTo 0) {
-                val total = week.rows.sumOf { row -> row.getHours(DAYS[dayIdx]).toDoubleOrNull() ?: 0.0 }
-                val isExcused = week.rows.any { row ->
-                    val h = row.getHours(DAYS[dayIdx]).toDoubleOrNull() ?: 0.0
-                    h > 0 && row.job.uppercase() in setOf("HOLIDAY", "VACATION", "SICK", "PERSONAL", "PTO")
-                }
-
-                if (total >= GamificationConfig.DAY_TARGETS[dayIdx]) {
-                    daily++
-                } else if (isExcused) {
-                    // Excused absence preserves streak
-                } else if (i == 0 && dayIdx == todayIdx) {
-                    // Today's hours aren't entered yet — skip without breaking streak
-                } else {
-                    break@outer
-                }
-            }
-        }
-        var weekly = 0
-        for (week in sortedDesc) {
-            val complete = (0..4).all { i ->
-                week.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } > 0
-            }
-            if (complete) weekly++ else break
-        }
-        return StreakData(currentDaily = daily, bestDaily = daily, currentWeekly = weekly, bestWeekly = weekly)
     }
 }
