@@ -15,6 +15,8 @@ import com.example.timecard.domain.ChallengeEngine
 import com.example.timecard.domain.GamificationEngine
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -531,11 +533,16 @@ class ProfileViewModel : ViewModel() {
             }
 
             // Load all timecards, oldest first for chronological processing
-            val allWeeks = mutableListOf<TimecardData>()
-            for (date in allDates.sorted()) { // sorted() = ascending (oldest week first)
-                val json = repo.loadFile(employeeName, date) ?: continue
-                try { allWeeks.add(gson.fromJson(json, TimecardData::class.java)) }
-                catch (_: Exception) {}
+            val allWeeks = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                allDates.sorted().map { date ->
+                    async {
+                        val json = repo.loadFile(employeeName, date)
+                        if (json != null) {
+                            try { gson.fromJson(json, TimecardData::class.java) }
+                            catch (_: Exception) { null }
+                        } else null
+                    }
+                }.awaitAll().filterNotNull().toMutableList()
             }
 
             profile = GamificationEngine.runBackfill(profile, allWeeks)
