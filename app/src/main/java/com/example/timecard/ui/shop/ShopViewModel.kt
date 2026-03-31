@@ -171,8 +171,10 @@ class ShopViewModel : ViewModel() {
                         var dName: String? = null
                         if (profileJson != null) {
                             try {
-                                val prof = gson.fromJson(profileJson, PlayerProfile::class.java)
-                                dName = prof.displayName
+                                val jsonObject = org.json.JSONObject(profileJson)
+                                if (jsonObject.has("displayName")) {
+                                    dName = jsonObject.optString("displayName", null)
+                                }
                             } catch (e: Exception) {}
                         }
                         list.add(EmployeeRecipient(folderName = folder, displayName = dName))
