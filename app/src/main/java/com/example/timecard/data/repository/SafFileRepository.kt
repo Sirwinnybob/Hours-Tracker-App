@@ -487,6 +487,28 @@ class SafFileRepository(
         }
     }
 
+    override fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?> {
+        val result = mutableMapOf<String, String?>()
+        return try {
+            val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyMap()
+            val subDir = root.findFile(subdirectory) ?: return emptyMap()
+            for (filename in filenames) {
+                try {
+                    val file = subDir.findFile(filename)
+                    if (file != null && file.isFile) {
+                        result[filename] = readDocumentContent(file)
+                    }
+                } catch (e: Exception) {
+                    Log.e("SafFileRepo", "Error loading file $filename from $subdirectory", e)
+                }
+            }
+            result
+        } catch (e: Exception) {
+            Log.e("SafFileRepo", "Error accessing directory $subdirectory", e)
+            emptyMap()
+        }
+    }
+
     override fun listGlobalDir(subdirectory: String): List<String> {
         return try {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()

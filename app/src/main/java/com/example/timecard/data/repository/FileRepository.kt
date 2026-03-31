@@ -51,6 +51,8 @@ interface FileRepository {
     fun saveGlobalDir(subdirectory: String, filename: String, json: String): String
     /** Reads [subdirectory]/[filename] from the shared root, or null if absent. */
     fun loadGlobalDir(subdirectory: String, filename: String): String?
+    /** Reads multiple files from [subdirectory] under the shared root efficiently. */
+    fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?>
     /** Lists filenames directly inside [subdirectory]/ under the shared root. */
     fun listGlobalDir(subdirectory: String): List<String>
 }
