@@ -22,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 
 
@@ -163,20 +165,27 @@ class ShopViewModel : ViewModel() {
                         } catch (e: Exception) { emptySet() }
                     } else emptySet()
 
-                    for (folder in repo.listEmployeeFolders()) {
-                        if (folder.equals(currentEmployee, ignoreCase = true)) continue
-                        if (validFolders.isNotEmpty() && !validFolders.any { it.equals(folder, ignoreCase = true) }) continue
-
-                        val profileJson = repo.loadGenericJSON(folder, "profile.json", useCache = true)
-                        var dName: String? = null
-                        if (profileJson != null) {
-                            try {
-                                val prof = gson.fromJson(profileJson, PlayerProfile::class.java)
-                                dName = prof.displayName
-                            } catch (e: Exception) {}
-                        }
-                        list.add(EmployeeRecipient(folderName = folder, displayName = dName))
+                    val targetFolders = repo.listEmployeeFolders().filter { folder ->
+                        !folder.equals(currentEmployee, ignoreCase = true) &&
+                        (validFolders.isEmpty() || validFolders.any { it.equals(folder, ignoreCase = true) })
                     }
+
+                    val recipientsList = kotlinx.coroutines.supervisorScope {
+                        targetFolders.map { folder ->
+                            async {
+                                val profileJson = repo.loadGenericJSON(folder, "profile.json", useCache = true)
+                                var dName: String? = null
+                                if (profileJson != null) {
+                                    try {
+                                        val prof = gson.fromJson(profileJson, PlayerProfile::class.java)
+                                        dName = prof.displayName
+                                    } catch (e: Exception) {}
+                                }
+                                EmployeeRecipient(folderName = folder, displayName = dName)
+                            }
+                        }.awaitAll()
+                    }
+                    list.addAll(recipientsList)
                 } catch(e: Exception) {}
                 list.sortedBy { it.displayName?.lowercase() ?: it.folderName.lowercase() }
             }
