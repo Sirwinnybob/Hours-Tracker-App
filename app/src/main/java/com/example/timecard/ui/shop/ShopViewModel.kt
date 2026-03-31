@@ -25,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 
 data class EmployeeRecipient(val folderName: String, val displayName: String?)
@@ -137,17 +139,17 @@ class ShopViewModel : ViewModel() {
 
             // Load images for items that have an imageFile path set
             val loadedImages = withContext(Dispatchers.IO) {
-                val map = mutableMapOf<String, ByteArray>()
-                for (item in items) {
-                    val imagePath = item.imageFile ?: continue
-                    try {
-                        val bytes = repo.loadGlobalBinaryFile(imagePath)
-                        if (bytes != null) map[item.id] = bytes
-                    } catch (e: Exception) {
-                        Log.e("ShopVM", "Failed to load image for ${item.id} at $imagePath", e)
+                items.mapNotNull { item ->
+                    val imagePath = item.imageFile ?: return@mapNotNull null
+                    async {
+                        try {
+                            repo.loadGlobalBinaryFile(imagePath)?.let { item.id to it }
+                        } catch (e: Exception) {
+                            Log.e("ShopVM", "Failed to load image for ${item.id} at $imagePath", e)
+                            null
+                        }
                     }
-                }
-                map
+                }.awaitAll().filterNotNull().toMap()
             }
             itemImages = loadedImages
 
