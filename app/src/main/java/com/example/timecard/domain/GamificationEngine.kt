@@ -97,11 +97,26 @@ object GamificationEngine {
 
                 // Only act if there's a meaningful change (either up, or down).
                 if (kotlin.math.abs(delta) > 0.24) {
-                    val baseCoin = (delta * baseMultiplier).toInt()
-                    val totalCoin = (delta * totalMultiplier).toInt()
+                    var baseCoin = (delta * baseMultiplier).toInt()
+                    var totalCoin = (delta * totalMultiplier).toInt()
+                    var finalPaidHours = cappedNewHours
+
+                    // SECURE: Prevent negative coins while avoiding duplication loop.
+                    // If this deletion would drop the player below 0 coins, we limit the refund
+                    // to whatever coins they have left, and we only reduce their 'paidHours'
+                    // by the exact amount they were able to refund.
+                    val projectedBalance = current.coins + coinsGained + totalCoin
+                    if (projectedBalance < 0) {
+                        totalCoin = -(current.coins + coinsGained)
+                        // Reverse math to find how many hours they actually refunded
+                        val actualDelta = if (totalMultiplier > 0) totalCoin / totalMultiplier else 0.0
+                        baseCoin = (actualDelta * baseMultiplier).toInt()
+                        finalPaidHours = previouslyPaid + actualDelta
+                    }
+
                     coinsGained += totalCoin
                     streakBonusCoins += (totalCoin - baseCoin)
-                    coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal, paidHours = cappedNewHours)
+                    coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal, paidHours = finalPaidHours)
                 }
             }
         }
@@ -148,8 +163,11 @@ object GamificationEngine {
         var recordMsg: String? = null
         if (weekTotal > 0 && weekTotal > newRecords.bestWeekHours) {
             newRecords = newRecords.copy(bestWeekHours = weekTotal)
-            recordMsg = "New best week: ${String.format(java.util.Locale.US, "%.2f", weekTotal)} hrs! \uD83C\uDFC5"
-            coinsGained += 25
+            if ((alreadyAwarded["best_week_bonus"] ?: 0) == 0) {
+                recordMsg = "New best week: ${String.format(java.util.Locale.US, "%.2f", weekTotal)} hrs! \uD83C\uDFC5"
+                coinsGained += 25
+                alreadyAwarded["best_week_bonus"] = 1
+            }
         }
         if (busiestDay > newRecords.busiestDay) newRecords = newRecords.copy(busiestDay = busiestDay)
         if (topJob.isNotBlank()) newRecords = newRecords.copy(favoriteJob = topJob)
@@ -197,7 +215,7 @@ object GamificationEngine {
         // on every save while conditions remain met. One-time badges are already protected
         // by the existingBadges count check inside BadgeEngine.award().
         val newBadgeMap = rawBadgeMap.toMutableMap()
-        val repeatablePerWeek = setOf("perfect_week", "speed_logger", "overtime_warrior")
+        val repeatablePerWeek = setOf("perfect_week", "speed_logger", "overtime_warrior", "best_week_bonus")
         repeatablePerWeek.forEach { id ->
             if ((newBadgeMap[id] ?: 0) > 0 && (alreadyAwarded[id] ?: 0) > 0) {
                 newBadgeMap.remove(id)
