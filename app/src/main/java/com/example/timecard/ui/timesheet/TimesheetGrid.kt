@@ -97,7 +97,11 @@ fun TimesheetGrid(
     onDeliveryTag: (Int) -> Unit,
     onJobTag: (Int, String) -> Unit,
     onToggleNoLunch: (Int) -> Unit,
-    chartsContent: (@Composable () -> Unit)?,
+    onUndo: () -> Unit = {},
+    onRedo: () -> Unit = {},
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
+    chartsContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val colors = LocalTimecardColors.current
@@ -206,7 +210,6 @@ fun TimesheetGrid(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(ROW_HEIGHT)
-                        .clickable { onAddRow() }
                         .background(if (colors.isLcars) Color.Black else colors.hover.copy(alpha = 0.2f)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -217,8 +220,36 @@ fun TimesheetGrid(
                         fontWeight = FontWeight.Bold,
                         fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         letterSpacing = if (colors.isLcars) 1.sp else 0.sp,
-                        modifier = Modifier.padding(start = 8.dp)
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .clickable { onAddRow() }
+                            .padding(end = 16.dp, top = 8.dp, bottom = 8.dp) // extra padding for click area
                     )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(end = 8.dp)) {
+                        Text(
+                            text = "UNDO",
+                            color = if (canUndo) (if (colors.isLcars) LcarsOrange else colors.accent) else colors.textSecondary.copy(alpha = 0.5f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            modifier = Modifier
+                                .clickable(enabled = canUndo) { onUndo() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                        Text(
+                            text = "REDO",
+                            color = if (canRedo) (if (colors.isLcars) LcarsOrange else colors.accent) else colors.textSecondary.copy(alpha = 0.5f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            modifier = Modifier
+                                .clickable(enabled = canRedo) { onRedo() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
