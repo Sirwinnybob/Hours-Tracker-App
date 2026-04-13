@@ -33,6 +33,36 @@ object GamificationEngine {
         isMonday: Boolean,
         isBefore930: Boolean
     ): GamificationResult {
+        // Pre-calculate daily totals and other row-based stats in a single pass
+        val dailyTotals = mutableMapOf<String, Double>()
+        val jobTotals = mutableMapOf<String, Double>()
+        val dailyJobSets = DAYS.associateWith { mutableSetOf<String>() }
+        var shopHoursThisWeek = 0.0
+        var hasSaturdayHours = false
+
+        for (row in weekData.rows) {
+            val jobUpper = row.job.uppercase()
+            val isShop = jobUpper == "SHOP"
+            val isSpecial = jobUpper in GamificationConfig.SPECIAL_JOBS
+
+            for (day in DAYS) {
+                val hours = row.getHours(day).toDoubleOrNull() ?: 0.0
+                if (hours > 0) {
+                    dailyTotals[day] = (dailyTotals[day] ?: 0.0) + hours
+                    if (row.job.isNotBlank()) {
+                        jobTotals[row.job] = (jobTotals[row.job] ?: 0.0) + hours
+                        if (!isSpecial) {
+                            dailyJobSets[day]?.add(jobUpper)
+                        }
+                    }
+                    if (isShop) shopHoursThisWeek += hours
+                    if (day == "sat") hasSaturdayHours = true
+                }
+            }
+        }
+        val weekTotal = dailyTotals.values.sum()
+        val jobHopperCount = dailyJobSets.filterKeys { it != "sat" }.count { it.value.size >= 5 }
+
         val now = Instant.now().toString()
         val weekKey = weekData.weekStarting
         val coinLog = current.coinLog.toMutableMap()
@@ -54,9 +84,7 @@ object GamificationEngine {
         val weekParts = weekData.weekStarting.split("-")
         for (dayIndex in 0..4) { // Mon-Fri only
             val dayKey = DAYS[dayIndex]
-            val dayTotal = weekData.rows.sumOf { row ->
-                row.getHours(dayKey).toDoubleOrNull() ?: 0.0
-            }
+            val dayTotal = dailyTotals[dayKey] ?: 0.0
 
             val dayCal = Calendar.getInstance()
             dayCal.set(weekParts[0].toInt(), weekParts[1].toInt() - 1, weekParts[2].toInt())
@@ -126,14 +154,6 @@ object GamificationEngine {
 
         var newStats = current.runningStats
         if (isNewWeek) {
-            val shopHoursThisWeek = weekData.rows
-                .filter { it.job.uppercase() == "SHOP" }
-                .sumOf { row -> DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 } }
-
-            val hasSaturday = weekData.rows.sumOf { row ->
-                row.getHours("sat").toDoubleOrNull() ?: 0.0
-            } > 0
-
             val deliveryJobsThisWeek = weekData.rows
                 .filter { JobValidator.isDeliveryJob(it.job) }
                 .map { it.job.uppercase() }
@@ -142,21 +162,14 @@ object GamificationEngine {
             newStats = current.runningStats.copy(
                 totalShopHours = current.runningStats.totalShopHours + shopHoursThisWeek,
                 deliveryJobsSeen = (current.runningStats.deliveryJobsSeen + deliveryJobsThisWeek).distinct(),
-                saturdayWeeksCount = current.runningStats.saturdayWeeksCount + (if (hasSaturday) 1 else 0),
+                saturdayWeeksCount = current.runningStats.saturdayWeeksCount + (if (hasSaturdayHours) 1 else 0),
                 processedWeeks = current.runningStats.processedWeeks + weekKey
             )
         }
 
         // --- 3. Records ---
-        val weekTotal = weekData.rows.sumOf { row ->
-            DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-        }
-        val busiestDay = DAYS.maxOfOrNull { day ->
-            weekData.rows.sumOf { row -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-        } ?: 0.0
-        val topJob = weekData.rows
-            .associate { row -> row.job to DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 } }
-            .filter { it.key.isNotBlank() }
+        val busiestDay = DAYS.maxOfOrNull { day -> dailyTotals[day] ?: 0.0 } ?: 0.0
+        val topJob = jobTotals.filter { it.key.isNotBlank() }
             .maxByOrNull { it.value }?.key ?: current.records.favoriteJob
 
         var newRecords = current.records
@@ -183,7 +196,7 @@ object GamificationEngine {
 
         // --- 5. Perfect Week Bonus ---
         val isPerfect = GamificationConfig.DAY_TARGETS.indices.all { i ->
-            weekData.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+            (dailyTotals[DAYS[i]] ?: 0.0) >= GamificationConfig.DAY_TARGETS[i]
         }
         if (isPerfect && (alreadyAwarded["perfect_week_bonus"] ?: 0) == 0) {
             coinsGained += 30
@@ -208,7 +221,9 @@ object GamificationEngine {
             weekData = weekData,
             allWeekData = sortedWeeks,
             isMonday = isMonday,
-            isBefore930 = isBefore930
+            isBefore930 = isBefore930,
+            dailyTotals = dailyTotals,
+            jobHopperCount = jobHopperCount
         )
 
         // Filter repeatable badges against this week's bonus log to prevent re-awarding
