@@ -50,9 +50,9 @@ object BadgeEngine {
 
     fun getDefinition(id: String): BadgeDefinition? = ALL_BADGES.find { it.id == id }
 
-    private fun isPerfectWeek(weekData: TimecardData): Boolean =
+    private fun isPerfectWeek(dailyTotals: Map<String, Double>): Boolean =
         GamificationConfig.DAY_TARGETS.indices.all { i ->
-            weekData.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+            (dailyTotals[DAYS[i]] ?: 0.0) >= GamificationConfig.DAY_TARGETS[i]
         }
 
     /**
@@ -73,7 +73,9 @@ object BadgeEngine {
         weekData: TimecardData,
         allWeekData: List<TimecardData>,
         isMonday: Boolean,
-        isBefore930: Boolean
+        isBefore930: Boolean,
+        dailyTotals: Map<String, Double> = emptyMap(),
+        jobHopperCount: Int = 0
     ): Map<String, Int> {
         val earned = mutableMapOf<String, Int>()
 
@@ -83,9 +85,7 @@ object BadgeEngine {
             earned[id] = (earned[id] ?: 0) + count
         }
 
-        val weekTotal = weekData.rows.sumOf { row ->
-            DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-        }
+        val weekTotal = dailyTotals.values.sum()
 // Clock Puncher — first ever save (one-time)
         award("clock_puncher")
 
@@ -93,21 +93,10 @@ object BadgeEngine {
         if (isMonday && isBefore930) award("speed_logger")
 
         // Job Hopper — 5+ different numeric jobs in a single day (repeatable, per qualifying day)
-        var jobHopperCount = 0
-        for (dayKey in DAYS.take(5)) {
-            val jobsWithHours = weekData.rows
-                .filter { row ->
-                    val h = row.getHours(dayKey).toDoubleOrNull() ?: 0.0
-                    h > 0 && row.job.isNotBlank() && row.job.uppercase() !in GamificationConfig.SPECIAL_JOBS
-                }
-                .map { it.job.uppercase() }
-                .toSet()
-            if (jobsWithHours.size >= 5) jobHopperCount++
-        }
         if (jobHopperCount > 0) award("job_hopper", jobHopperCount)
 
         // Perfect Week — all Mon-Fri hit targets (repeatable)
-        if (isPerfectWeek(weekData)) award("perfect_week")
+        if (isPerfectWeek(dailyTotals)) award("perfect_week")
 
         // Overtime Warrior — 50+ hours this week (repeatable)
         if (weekTotal >= 50.0) award("overtime_warrior")
@@ -146,7 +135,7 @@ object BadgeEngine {
 
         ALL_BADGES.filter { it.trigger.isNotEmpty() && it.id !in builtInIds }.forEach { def ->
             val count = checkCustomTrigger(
-                def, profile, weekData, allWeekData, weekTotal, monthTotal, isMonday, isBefore930
+                def, profile, weekData, allWeekData, weekTotal, monthTotal, isMonday, isBefore930, dailyTotals
             )
             if (count > 0) award(def.id, count)
         }
@@ -162,12 +151,13 @@ object BadgeEngine {
         weekTotal: Double,
         monthTotal: Double,
         isMonday: Boolean,
-        isBefore930: Boolean
+        isBefore930: Boolean,
+        dailyTotals: Map<String, Double>
     ): Int = when (def.trigger) {
         "first_save"                  -> 1
         "monday_morning"              -> if (isMonday && isBefore930) 1 else 0
         "week_hours_over"             -> if (weekTotal >= def.threshold) 1 else 0
-        "perfect_week"                -> if (isPerfectWeek(weekData)) 1 else 0
+        "perfect_week"                -> if (isPerfectWeek(dailyTotals)) 1 else 0
         "total_shop_hours_over"       -> if (profile.runningStats.totalShopHours >= def.threshold) 1 else 0
         "saturday_count_over"         -> if (profile.runningStats.saturdayWeeksCount >= def.threshold) 1 else 0
         "total_alerts_over"           -> if (profile.runningStats.alertsAcknowledged >= def.threshold) 1 else 0
