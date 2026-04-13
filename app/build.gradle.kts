@@ -13,8 +13,8 @@ android {
         applicationId = "com.example.timecard"
         minSdk = 24
         targetSdk = 36
-        versionCode = 140
-        versionName = "3.8.8"
+        versionCode = 141
+        versionName = "3.8.9"
     }
 
     val localProperties = Properties()
