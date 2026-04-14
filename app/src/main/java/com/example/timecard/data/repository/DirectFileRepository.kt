@@ -1,6 +1,7 @@
 package com.example.timecard.data.repository
 
 import android.util.Log
+import com.example.timecard.util.PathSanitizer
 import com.example.timecard.data.cache.FileCache
 import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.data.model.ActivityFeed
@@ -45,13 +46,15 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadFile(name: String, date: String): String? {
-        val cacheKey = "$name/$date.json"
+        val sName = PathSanitizer.sanitize(name)
+        val sDate = PathSanitizer.sanitize(date)
+        val cacheKey = "$sName/$sDate.json"
         FileCache.get(cacheKey)?.let {
             Log.d("FileCache", "Cache HIT: $cacheKey")
             return it
         }
         return try {
-            val file = File(File(baseDir, name), "$date.json")
+            val file = File(File(baseDir, sName), "$sDate.json")
             if (!file.exists()) return null
             val content = readFileContent(file)
             if (content != null) {
@@ -66,15 +69,17 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun saveJSON(json: String, name: String, date: String): String {
-        val cacheKey = "$name/$date.json"
+        val sName = PathSanitizer.sanitize(name)
+        val sDate = PathSanitizer.sanitize(date)
+        val cacheKey = "$sName/$sDate.json"
         return try {
-            val empDir = File(baseDir, name)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists() && !empDir.mkdirs()) {
-                return "Error: Could not create directory for $name"
+                return "Error: Could not create directory for $sName"
             }
-            val filename = "$date.json"
-            val file = File(empDir, filename)
-            val tempFile = File(empDir, "$filename.tmp")
+            val sFilenameFinal = "$sDate.json"
+            val file = File(empDir, sFilenameFinal)
+            val tempFile = File(empDir, "$sDate.tmp")
 
             FileOutputStream(tempFile).use { fos ->
                 fos.write(json.toByteArray(StandardCharsets.UTF_8))
@@ -114,7 +119,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadGenericJSON(name: String, filename: String, useCache: Boolean): String? {
-        val cacheKey = "$name/$filename"
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
+        val cacheKey = "$sName/$sFilename"
         if (useCache) {
             FileCache.get(cacheKey)?.let {
                 Log.d("FileCache", "Cache HIT: $cacheKey")
@@ -122,7 +129,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
             }
         }
         return try {
-            val file = File(File(baseDir, name), filename)
+            val file = File(File(baseDir, sName), sFilename)
             if (!file.exists()) return null
             val content = readFileContent(file)
             if (content != null && useCache) {
@@ -137,14 +144,16 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun saveGenericJSON(name: String, filename: String, json: String): String {
-        val cacheKey = "$name/$filename"
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
+        val cacheKey = "$sName/$sFilename"
         return try {
-            val empDir = File(baseDir, name)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists() && !empDir.mkdirs()) {
                 return "Error: Could not create directory"
             }
-            val file = File(empDir, filename)
-            val tempFile = File(empDir, "$filename.tmp")
+            val file = File(empDir, sFilename)
+            val tempFile = File(empDir, "$sFilename.tmp")
 
             FileOutputStream(tempFile).use { fos ->
                 fos.write(json.toByteArray(StandardCharsets.UTF_8))
@@ -179,7 +188,8 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadGlobalFile(filename: String, useCache: Boolean): String? {
-        val cacheKey = "global/$filename"
+        val sFilename = PathSanitizer.sanitize(filename)
+        val cacheKey = "global/$sFilename"
         if (useCache) {
             FileCache.get(cacheKey)?.let {
                 Log.d("FileCache", "Cache HIT: $cacheKey")
@@ -187,7 +197,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
             }
         }
         return try {
-            val file = File(baseDir, filename)
+            val file = File(baseDir, sFilename)
             if (!file.exists()) return null
             val content = readFileContent(file)
             if (content != null && useCache) {
@@ -196,50 +206,55 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
             }
             content
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading global file: $filename", e)
+            Log.e("DirectFileRepo", "Error loading global file: $sFilename", e)
             null
         }
     }
 
     override fun loadGlobalBinaryFile(relativePath: String): ByteArray? {
         return try {
-            val file = File(baseDir, relativePath.replace("\\", "/"))
+            val sPath = PathSanitizer.sanitizePath(relativePath)
+            val file = File(baseDir, sPath)
             if (file.exists()) file.readBytes() else null
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading binary file: $relativePath", e)
+            Log.e("DirectFileRepo", "Error loading binary file: $sPath", e)
             null
         }
     }
 
     override fun loadEmployeeBinaryFile(name: String, filename: String): ByteArray? {
         return try {
-            val empDir = File(baseDir, name)
+            val sName = PathSanitizer.sanitize(name)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val empDir = File(baseDir, sName)
             // Support wildcard extension: find first file matching prefix
-            if (filename.contains("*")) {
-                val prefix = filename.substringBefore("*")
+            if (sFilename.contains("*")) {
+                val prefix = sFilename.substringBefore("*")
                 val match = empDir.listFiles()?.firstOrNull { it.name.startsWith(prefix) }
                 return match?.readBytes()
             }
-            val file = File(empDir, filename)
+            val file = File(empDir, sFilename)
             if (file.exists()) file.readBytes() else null
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading employee binary: $name/$filename", e)
+            Log.e("DirectFileRepo", "Error loading employee binary: $sName/$sFilename", e)
             null
         }
     }
 
     override fun saveEmployeeBinaryFile(name: String, filename: String, data: ByteArray): Boolean {
         return try {
-            val empDir = File(baseDir, name)
+            val sName = PathSanitizer.sanitize(name)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists() && !empDir.mkdirs()) return false
             // Delete any existing .avatar.* file to avoid stale extension conflicts
-            if (filename.startsWith(".avatar")) {
+            if (sFilename.startsWith(".avatar")) {
                 empDir.listFiles()?.filter { it.name.startsWith(".avatar") }?.forEach { it.delete() }
             }
-            File(empDir, filename).writeBytes(data)
+            File(empDir, sFilename).writeBytes(data)
             true
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error saving employee binary: $name/$filename", e)
+            Log.e("DirectFileRepo", "Error saving employee binary: $sName/$sFilename", e)
             false
         }
     }
@@ -256,14 +271,15 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun getAvailableDates(name: String): List<String> {
         return try {
-            val empDir = File(baseDir, name)
+            val sName = PathSanitizer.sanitize(name)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists() || !empDir.isDirectory) return emptyList()
 
             // Find files matching date pattern "YYYY-MM-DD.json" only
-            val files = empDir.listFiles { _, filename ->
-                filename.endsWith(".json") &&
-                filename.length == 15 && // "YYYY-MM-DD.json" = 15 chars
-                filename[4] == '-' && filename[7] == '-'
+            val files = empDir.listFiles { _, f ->
+                f.endsWith(".json") &&
+                f.length == 15 && // "YYYY-MM-DD.json" = 15 chars
+                f[4] == '-' && f[7] == '-'
             } ?: return emptyList()
 
             files.map { it.name.removeSuffix(".json") }
@@ -275,9 +291,11 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun acquireLock(name: String, date: String, deviceId: String): Boolean {
-        val empDir = File(baseDir, name)
+        val sName = PathSanitizer.sanitize(name)
+        val sDate = PathSanitizer.sanitize(date)
+        val empDir = File(baseDir, sName)
         if (!empDir.exists()) empDir.mkdirs()
-        val lockFile = File(empDir, "$date.json.lock")
+        val lockFile = File(empDir, "$sDate.json.lock")
 
         if (lockFile.exists()) {
             val content = readFileContent(lockFile) ?: ""
@@ -287,7 +305,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
                 val ownerDeviceId = parts[1]
                 
                 if (ownerDeviceId == deviceId) {
-                    renewLock(name, date, deviceId) // We already own it, renew implicitly
+                    renewLock(sName, sDate, deviceId) // We already own it, renew implicitly
                     return true
                 }
 
@@ -299,15 +317,17 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         }
 
         // Lock doesn't exist, or is corrupted, or is expired. Acquire it.
-        renewLock(name, date, deviceId)
+        renewLock(sName, sDate, deviceId)
         return true
     }
 
     override fun renewLock(name: String, date: String, deviceId: String) {
         try {
-            val empDir = File(baseDir, name)
+            val sName = PathSanitizer.sanitize(name)
+            val sDate = PathSanitizer.sanitize(date)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists()) empDir.mkdirs()
-            val lockFile = File(empDir, "$date.json.lock")
+            val lockFile = File(empDir, "$sDate.json.lock")
             val timestamp = System.currentTimeMillis()
             
             FileOutputStream(lockFile).use { fos ->
@@ -321,7 +341,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun releaseLock(name: String, date: String, deviceId: String) {
-        val lockFile = File(File(baseDir, name), "$date.json.lock")
+        val sName = PathSanitizer.sanitize(name)
+        val sDate = PathSanitizer.sanitize(date)
+        val lockFile = File(File(baseDir, sName), "$sDate.json.lock")
         if (lockFile.exists()) {
             val content = readFileContent(lockFile) ?: ""
             val parts = content.split(",")
@@ -333,23 +355,28 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun listFilesInDir(name: String, subdirectory: String): List<String> {
         return try {
-            val subDir = File(File(baseDir, name), subdirectory)
+            val sName = PathSanitizer.sanitize(name)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val subDir = File(File(baseDir, sName), sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyList()
             subDir.listFiles { f -> f.isFile }?.map { it.name } ?: emptyList()
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error listing files in $name/$subdirectory", e)
+            Log.e("DirectFileRepo", "Error listing files in $sName/$sSub", e)
             emptyList()
         }
     }
 
     override fun saveInDir(name: String, subdirectory: String, filename: String, json: String): String {
         return try {
-            val subDir = File(File(baseDir, name), subdirectory)
+            val sName = PathSanitizer.sanitize(name)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val subDir = File(File(baseDir, sName), sSub)
             if (!subDir.exists() && !subDir.mkdirs()) {
-                return "Error: Could not create directory $name/$subdirectory"
+                return "Error: Could not create directory $sName/$sSub"
             }
-            val file = File(subDir, filename)
-            val tempFile = File(subDir, "$filename.tmp")
+            val file = File(subDir, sFilename)
+            val tempFile = File(subDir, "$sFilename.tmp")
             FileOutputStream(tempFile).use { fos ->
                 fos.write(json.toByteArray(StandardCharsets.UTF_8))
                 fos.flush()
@@ -364,30 +391,35 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun loadFromDir(name: String, subdirectory: String, filename: String): String? {
         return try {
-            val file = File(File(File(baseDir, name), subdirectory), filename)
+            val sName = PathSanitizer.sanitize(name)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val file = File(File(File(baseDir, sName), sSub), sFilename)
             if (!file.exists()) return null
             readFileContent(file)
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading $name/$subdirectory/$filename", e)
+            Log.e("DirectFileRepo", "Error loading $sName/$sSub/$sFilename", e)
             null
         }
     }
 
     override fun loadEmployeeActivityEvents(name: String): List<ActivityEvent> {
         return try {
-            val file = File(File(baseDir, name), "activity_events.json")
+            val sName = PathSanitizer.sanitize(name)
+            val file = File(File(baseDir, sName), "activity_events.json")
             if (!file.exists()) return emptyList()
             val json = readFileContent(file) ?: return emptyList()
             Gson().fromJson(json, ActivityFeed::class.java)?.events ?: emptyList()
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading activity events for $name", e)
+            Log.e("DirectFileRepo", "Error loading activity events for $sName", e)
             emptyList()
         }
     }
 
     override fun saveEmployeeActivityEvents(name: String, events: List<ActivityEvent>) {
         try {
-            val empDir = File(baseDir, name)
+            val sName = PathSanitizer.sanitize(name)
+            val empDir = File(baseDir, sName)
             if (!empDir.exists()) empDir.mkdirs()
             val file = File(empDir, "activity_events.json")
             val tempFile = File(empDir, "activity_events.json.tmp")
@@ -399,7 +431,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
             }
             atomicRename(tempFile, file)
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error saving activity events for $name", e)
+            Log.e("DirectFileRepo", "Error saving activity events for $sName", e)
         }
     }
 
@@ -415,12 +447,14 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun saveGlobalDir(subdirectory: String, filename: String, json: String): String {
         return try {
-            val subDir = File(baseDir, subdirectory)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val subDir = File(baseDir, sSub)
             if (!subDir.exists() && !subDir.mkdirs()) {
-                return "Error: Could not create directory $subdirectory"
+                return "Error: Could not create directory $sSub"
             }
-            val file = File(subDir, filename)
-            val tempFile = File(subDir, "$filename.tmp")
+            val file = File(subDir, sFilename)
+            val tempFile = File(subDir, "$sFilename.tmp")
             FileOutputStream(tempFile).use { fos ->
                 fos.write(json.toByteArray(StandardCharsets.UTF_8))
                 fos.flush()
@@ -435,11 +469,13 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun loadGlobalDir(subdirectory: String, filename: String): String? {
         return try {
-            val file = File(File(baseDir, subdirectory), filename)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val sFilename = PathSanitizer.sanitize(filename)
+            val file = File(File(baseDir, sSub), sFilename)
             if (!file.exists()) return null
             readFileContent(file)
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error loading $subdirectory/$filename", e)
+            Log.e("DirectFileRepo", "Error loading $sSub/$sFilename", e)
             null
         }
     }
@@ -447,31 +483,34 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     override fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?> {
         val result = mutableMapOf<String, String?>()
         try {
-            val subDir = File(baseDir, subdirectory)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val subDir = File(baseDir, sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyMap()
-            for (filename in filenames) {
+            for (f in filenames) {
                 try {
-                    val file = File(subDir, filename)
+                    val sFilename = PathSanitizer.sanitize(f)
+                    val file = File(subDir, sFilename)
                     if (file.exists() && file.isFile) {
-                        result[filename] = readFileContent(file)
+                        result[f] = readFileContent(file)
                     }
                 } catch (e: Exception) {
-                    Log.e("DirectFileRepo", "Error loading file $filename from $subdirectory", e)
+                    Log.e("DirectFileRepo", "Error loading file $sFilename from $sSub", e)
                 }
             }
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error accessing directory $subdirectory", e)
+            Log.e("DirectFileRepo", "Error accessing directory $sSub", e)
         }
         return result
     }
 
     override fun listGlobalDir(subdirectory: String): List<String> {
         return try {
-            val subDir = File(baseDir, subdirectory)
+            val sSub = PathSanitizer.sanitize(subdirectory)
+            val subDir = File(baseDir, sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyList()
             subDir.listFiles { f -> f.isFile }?.map { it.name } ?: emptyList()
         } catch (e: Exception) {
-            Log.e("DirectFileRepo", "Error listing files in $subdirectory", e)
+            Log.e("DirectFileRepo", "Error listing files in $sSub", e)
             emptyList()
         }
     }
