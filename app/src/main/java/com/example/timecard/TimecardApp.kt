@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TimecardApp(
     themeState: ThemeState,
+    autoLoginInput: String? = null,
     onReinstallLatest: () -> Unit,
     pendingUpdate: java.io.File? = null,
     onInstallUpdate: () -> Unit = {}
@@ -117,6 +118,20 @@ fun TimecardApp(
 
         // Splash screen state
 
+        LaunchedEffect(autoLoginInput) {
+            val input = autoLoginInput?.trim() ?: return@LaunchedEffect
+            if (input.isEmpty()) return@LaunchedEffect
+            if (loginViewModel.employees.isEmpty()) {
+                loginViewModel.initialize(context)
+            }
+            val employee = loginViewModel.employees.find { it.id == input }
+                ?: loginViewModel.employees.find { it.name.equals(input, ignoreCase = true) }
+            if (employee != null) {
+                loginViewModel.loginInput = employee.name
+                loggedInEmployee = employee
+                isExpanded = false
+            }
+        }
 
         LaunchedEffect(isExpanded) {
             if (!isExpanded && loggedInEmployee != null) {
