@@ -69,6 +69,8 @@ import kotlinx.coroutines.launch
 fun TimecardApp(
     themeState: ThemeState,
     autoLoginInput: String? = null,
+    jobNumberInput: String? = null,
+    hoursInput: Double? = null,
     onReinstallLatest: () -> Unit,
     pendingUpdate: java.io.File? = null,
     onInstallUpdate: () -> Unit = {}
@@ -152,6 +154,15 @@ fun TimecardApp(
                 profileViewModel.logout()
                 alertsViewModel.onAcknowledged = null
             }
+        }
+
+        var prefillDone by remember { mutableStateOf(false) }
+        LaunchedEffect(jobNumberInput, tsState.isDataLoaded, tsState.isLockedByAnotherUser) {
+            if (jobNumberInput == null || prefillDone) return@LaunchedEffect
+            if (!tsState.isDataLoaded) return@LaunchedEffect
+            if (tsState.isLockedByAnotherUser) return@LaunchedEffect
+            timesheetViewModel.prefillJobEntry(jobNumberInput, hoursInput ?: 0.0)
+            prefillDone = true
         }
 
         LaunchedEffect(tsState.lastSavedData) {

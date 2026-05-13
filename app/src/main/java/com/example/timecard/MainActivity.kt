@@ -22,6 +22,12 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
 
+    companion object {
+        const val EXTRA_AUTO_LOGIN = "extra_auto_login"
+        const val EXTRA_JOB_NUMBER = "extra_job_number"
+        const val EXTRA_HOURS = "extra_hours"
+    }
+
     private lateinit var updateManager: UpdateManager
     private lateinit var themeState: ThemeState
 
@@ -48,9 +54,16 @@ class MainActivity : ComponentActivity() {
 
         scheduleReminders()
 
+        val autoLoginInput = intent?.getStringExtra(EXTRA_AUTO_LOGIN)
+        val jobNumberInput = intent?.getStringExtra(EXTRA_JOB_NUMBER)
+        val hoursInput = intent?.getStringExtra(EXTRA_HOURS)?.toDoubleOrNull()
+
         setContent {
             TimecardApp(
                 themeState = themeState,
+                autoLoginInput = autoLoginInput,
+                jobNumberInput = jobNumberInput,
+                hoursInput = hoursInput,
                 onReinstallLatest = { updateManager.reinstallLatest() },
                 pendingUpdate = updateManager.pendingUpdateApk,
                 onInstallUpdate = { updateManager.installPendingUpdate() }
