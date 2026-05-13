@@ -1,10 +1,12 @@
 package com.example.timecard.ui.profile
 
+import android.app.Application
+import android.provider.Settings
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.timecard.data.model.PlayerProfile
 import com.example.timecard.data.model.TimecardData
@@ -20,7 +22,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-class ProfileViewModel : ViewModel() {
+class ProfileViewModel(application: Application) : AndroidViewModel(application) {
 
     var profile by mutableStateOf(PlayerProfile())
         private set
@@ -54,7 +56,10 @@ class ProfileViewModel : ViewModel() {
     var streakAtRisk by mutableStateOf(false)
         private set
 
-    val deviceId = java.util.UUID.randomUUID().toString()
+    val deviceId: String = Settings.Secure.getString(
+        application.contentResolver,
+        Settings.Secure.ANDROID_ID
+    ) ?: java.util.UUID.randomUUID().toString()
 
     var isLockedByAnotherUser by mutableStateOf(false)
         private set
