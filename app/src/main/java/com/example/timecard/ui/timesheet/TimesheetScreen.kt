@@ -1,5 +1,6 @@
 package com.example.timecard.ui.timesheet
 
+import android.app.Activity
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,12 +97,14 @@ fun TimesheetScreen(
     shopViewModel: com.example.timecard.ui.shop.ShopViewModel? = null,
     employees: List<com.example.timecard.data.model.Employee> = emptyList(),
     onLogout: () -> Unit,
-    onNameMeasured: ((com.example.timecard.ui.login.HeaderMetrics) -> Unit)? = null
+    onNameMeasured: ((com.example.timecard.ui.login.HeaderMetrics) -> Unit)? = null,
+    launchedByKkc: Boolean = false
 ) {
     val uiState by timesheetViewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalTimecardColors.current
     val navController = rememberNavController()
     val configuration = LocalConfiguration.current
+    val activity = LocalContext.current as? Activity
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val screenWidth = configuration.screenWidthDp
 
@@ -138,7 +142,8 @@ fun TimesheetScreen(
                             repository = repository,
                             employees = employees,
                             onLogout = { timesheetViewModel.logout(); onLogout() },
-                            onNameMeasured = onNameMeasured
+                            onNameMeasured = onNameMeasured,
+                            launchedByKkc = launchedByKkc
                         )
 
                         // Shop banner
@@ -251,6 +256,11 @@ fun TimesheetScreen(
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(btnSpacing), verticalAlignment = Alignment.CenterVertically) {
+                                if (launchedByKkc) {
+                                    Button(onClick = { activity?.finish() }, colors = ButtonDefaults.buttonColors(containerColor = colors.accent), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
+                                        Text("← KKC", color = Color.White, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
+                                    }
+                                }
                                 Button(onClick = { statsViewModel.loadStats(StatsPeriod.ThisWeek); navController.navigate("stats") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
                                     Text("STATS", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
                                 }
@@ -485,9 +495,11 @@ private fun LcarsActionBar(
     repository: com.example.timecard.data.repository.FileRepository?,
     employees: List<com.example.timecard.data.model.Employee>,
     onLogout: () -> Unit,
-    onNameMeasured: ((com.example.timecard.ui.login.HeaderMetrics) -> Unit)?
+    onNameMeasured: ((com.example.timecard.ui.login.HeaderMetrics) -> Unit)?,
+    launchedByKkc: Boolean = false
 ) {
     val btnHeight = if (isCompact) 34.dp else 38.dp
+    val activity = LocalContext.current as? Activity
     val fontSize = if (isCompact) 11.sp else 13.sp
     val hPad = if (isCompact) 10.dp else 14.dp
 
@@ -512,6 +524,19 @@ private fun LcarsActionBar(
         ) {
             val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeName
             Text(text = nameForMeasure, fontSize = 18.sp, maxLines = 1, softWrap = false, color = Color.Transparent)
+        }
+
+        // Back to KKCSheetTracker (shown only when launched by that app)
+        if (launchedByKkc) {
+            Button(
+                onClick = { activity?.finish() },
+                colors = ButtonDefaults.buttonColors(containerColor = LcarsOrange),
+                shape = RoundedCornerShape(50),
+                contentPadding = PaddingValues(horizontal = hPad, vertical = 0.dp),
+                modifier = Modifier.height(btnHeight)
+            ) {
+                Text("← KKC", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = fontSize, letterSpacing = 0.8.sp, color = Color.Black)
+            }
         }
 
         // Week nav button (shown when previous week exists)

@@ -237,6 +237,7 @@ fun TimecardApp(
                         employeeName = employee.name,
                         repository = repository,
                         themeState = themeState,
+                        launchedByKkc = autoLoginInput != null,
                         timesheetViewModel = timesheetViewModel,
                         alertsViewModel = alertsViewModel,
                         statsViewModel = statsViewModel,
