@@ -176,8 +176,7 @@ class TimesheetViewModel : ViewModel() {
             val normalizedJob = jobNumber.uppercase()
             val rowIndex = state.jobs.indexOfFirst { it.equals(normalizedJob, ignoreCase = true) }
                 .takeIf { it >= 0 }
-                ?: state.jobs.indexOfFirst { it.isBlank() && state.jobs.indexOf(it) > 0 }
-                    .takeIf { it >= 0 }
+                ?: (1 until state.jobs.size).firstOrNull { i -> state.jobs[i].isBlank() }
                 ?: return@updateState state
 
             val newJobs = state.jobs.toMutableList()
