@@ -41,7 +41,8 @@ data class TimesheetUiState(
     val previousHourValues: List<List<Double>> = emptyList(),
     val previousNumRows: Int = 9,
     val lastSavedData: TimecardData? = null,
-    val previousWeekData: TimecardData? = null
+    val previousWeekData: TimecardData? = null,
+    val isDataLoaded: Boolean = false
 )
 
 class TimesheetViewModel : ViewModel() {
@@ -158,6 +159,35 @@ class TimesheetViewModel : ViewModel() {
                 scheduleAutosave()
                 state.copy(jobs = newJobs)
             } else state
+        }
+    }
+
+    fun prefillJobEntry(jobNumber: String, elapsedHours: Double) {
+        updateState { state ->
+            val todayIndex = when (java.time.LocalDate.now().dayOfWeek) {
+                java.time.DayOfWeek.MONDAY -> 0
+                java.time.DayOfWeek.TUESDAY -> 1
+                java.time.DayOfWeek.WEDNESDAY -> 2
+                java.time.DayOfWeek.THURSDAY -> 3
+                java.time.DayOfWeek.FRIDAY -> 4
+                java.time.DayOfWeek.SATURDAY -> 5
+                else -> return@updateState state
+            }
+            val normalizedJob = jobNumber.uppercase()
+            val rowIndex = state.jobs.indexOfFirst { it.equals(normalizedJob, ignoreCase = true) }
+                .takeIf { it >= 0 }
+                ?: state.jobs.indexOfFirst { it.isBlank() && state.jobs.indexOf(it) > 0 }
+                    .takeIf { it >= 0 }
+                ?: return@updateState state
+
+            val newJobs = state.jobs.toMutableList()
+            newJobs[rowIndex] = normalizedJob
+            val newHours = state.hours.map { it.toMutableList() }.toMutableList()
+            if (elapsedHours > 0.0) {
+                newHours[rowIndex][todayIndex] = "%.2f".format(elapsedHours)
+            }
+            scheduleAutosave()
+            state.copy(jobs = newJobs, hours = newHours)
         }
     }
 
@@ -415,6 +445,7 @@ class TimesheetViewModel : ViewModel() {
         } else {
             clearGrid()
         }
+        _uiState.update { it.copy(isDataLoaded = true) }
     }
 
     private fun loadGrid(data: TimecardData) {
