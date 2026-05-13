@@ -1,7 +1,9 @@
 package com.example.timecard.ui.timesheet
 
+import android.app.Application
+import android.provider.Settings
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.timecard.data.model.DAYS
 import com.example.timecard.data.model.TimecardData
@@ -45,7 +47,7 @@ data class TimesheetUiState(
     val isDataLoaded: Boolean = false
 )
 
-class TimesheetViewModel : ViewModel() {
+class TimesheetViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         const val DEFAULT_ROW_COUNT = 9
@@ -54,7 +56,10 @@ class TimesheetViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(TimesheetUiState())
     val uiState: StateFlow<TimesheetUiState> = _uiState.asStateFlow()
 
-    val deviceId = java.util.UUID.randomUUID().toString()
+    val deviceId: String = Settings.Secure.getString(
+        application.contentResolver,
+        Settings.Secure.ANDROID_ID
+    ) ?: java.util.UUID.randomUUID().toString()
     private var lastInteractionTimeMillis = System.currentTimeMillis()
     private var lockRenewJob: Job? = null
 

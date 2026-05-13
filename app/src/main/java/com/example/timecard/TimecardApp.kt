@@ -97,7 +97,7 @@ fun TimecardApp(
         val scope = rememberCoroutineScope()
         val colors = LocalTimecardColors.current
 
-        var showSplash by remember { mutableStateOf(true) }
+        var showSplash by remember { mutableStateOf(autoLoginInput == null) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
         var isExpanded by remember { mutableStateOf(true) }
 
