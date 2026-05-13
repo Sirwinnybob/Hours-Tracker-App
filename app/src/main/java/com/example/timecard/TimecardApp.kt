@@ -99,7 +99,8 @@ fun TimecardApp(
 
         var showSplash by remember { mutableStateOf(autoLoginInput == null) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
-        var isExpanded by remember { mutableStateOf(true) }
+        // Start collapsed when launched by KKC so the NameCard entry animation is skipped
+        var isExpanded by remember { mutableStateOf(autoLoginInput == null) }
 
         // Detect app foreground — trigger inactivity logout if the background
         // pause caused the coroutine timer to be suspended.
@@ -131,15 +132,22 @@ fun TimecardApp(
             if (employee != null) {
                 loginViewModel.loginInput = employee.name
                 loggedInEmployee = employee
-                isExpanded = false
+            } else {
+                isExpanded = true  // show login form if name not recognized
             }
         }
 
-        LaunchedEffect(isExpanded) {
+        LaunchedEffect(isExpanded, loggedInEmployee) {
             if (!isExpanded && loggedInEmployee != null) {
-                kotlinx.coroutines.delay(600)
-                launch { timesheetAlpha.animateTo(1f, tween(700)) }
-                launch { gradientAlpha.animateTo(0f, tween(600)) }
+                if (autoLoginInput != null) {
+                    // KKC launch: NameCard already hidden, show timesheet immediately
+                    timesheetAlpha.snapTo(1f)
+                    gradientAlpha.snapTo(0f)
+                } else {
+                    kotlinx.coroutines.delay(600)
+                    launch { timesheetAlpha.animateTo(1f, tween(700)) }
+                    launch { gradientAlpha.animateTo(0f, tween(600)) }
+                }
             }
         }
 

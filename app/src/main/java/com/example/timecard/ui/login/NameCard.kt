@@ -113,6 +113,14 @@ fun NameCard(
     // Initialize and play entry animation
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
+        if (!isExpanded) {
+            // KKC auto-login: start hidden, skip entry animation entirely
+            entryCardAlpha.snapTo(0f)
+            progress.snapTo(0f)
+            hasEnteredOnce = true
+            onCollapseComplete()
+            return@LaunchedEffect
+        }
         titleAlpha.animateTo(1f, tween(400, easing = FastOutSlowInEasing))
         delay(300)
         launch { entryCardAlpha.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
