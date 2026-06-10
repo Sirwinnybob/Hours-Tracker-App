@@ -53,6 +53,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -417,6 +421,15 @@ private fun TimesheetRowItem(
     val isInvalidJob = job.isNotBlank() && !JobValidator.isValidJobEntry(job)
     val isShopRow = job.uppercase() == "SHOP"
 
+    val uppercaseTransformation = remember {
+        VisualTransformation { text ->
+            TransformedText(
+                text = AnnotatedString(text.text.uppercase()),
+                offsetMapping = OffsetMapping.Identity
+            )
+        }
+    }
+
     val targetColor = if (isFocused) {
         colors.accent.copy(alpha = 0.1f)
     } else {
@@ -456,12 +469,13 @@ private fun TimesheetRowItem(
                     onValueChange = { onJobChange(rowIndex, it) },
                     singleLine = true,
                     textStyle = TextStyle(
-                        fontFamily = androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
                         color = colors.textPrimary,
                         fontSize = 15.sp,
                         textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Medium
                     ),
+                    visualTransformation = if (colors.isLcars) uppercaseTransformation else VisualTransformation.None,
                     cursorBrush = SolidColor(colors.accent),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                     keyboardActions = KeyboardActions(
@@ -518,10 +532,11 @@ private fun TimesheetRowItem(
                         },
                         singleLine = true,
                         textStyle = TextStyle(
-                            fontFamily = androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
                             color = colors.textPrimary,
                             fontSize = 16.sp,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal
                         ),
                         cursorBrush = SolidColor(colors.accent),
                         keyboardOptions = KeyboardOptions(
@@ -616,10 +631,10 @@ private fun TimesheetRowItem(
                     .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                JobTagChip(label = "🚚 Delivery", active = isDelivery, activeColor = if (colors.isLcars) LcarsOrange else Color(0xFFDD6B20), colors = colors) { onDeliveryTag(rowIndex) }
-                JobTagChip(label = "🏖 PTO", active = job.uppercase() == "PTO", activeColor = if (colors.isLcars) LcarsBlueBell else colors.accent, colors = colors) { onJobTag(rowIndex, "PTO") }
-                JobTagChip(label = "🤒 Sick", active = job.uppercase() == "SICK", activeColor = if (colors.isLcars) LcarsRed else Color(0xFFE53935), colors = colors) { onJobTag(rowIndex, "SICK") }
-                JobTagChip(label = "🎉 Holiday", active = job.uppercase() == "HOLIDAY", activeColor = if (colors.isLcars) LcarsPurple else Color(0xFF7B1FA2), colors = colors) { onJobTag(rowIndex, "HOLIDAY") }
+                JobTagChip(label = if (colors.isLcars) "DELIVERY" else "🚚 Delivery", active = isDelivery, activeColor = if (colors.isLcars) LcarsOrange else Color(0xFFDD6B20), colors = colors) { onDeliveryTag(rowIndex) }
+                JobTagChip(label = if (colors.isLcars) "PTO" else "🏖 PTO", active = job.uppercase() == "PTO", activeColor = if (colors.isLcars) LcarsBlueBell else colors.accent, colors = colors) { onJobTag(rowIndex, "PTO") }
+                JobTagChip(label = if (colors.isLcars) "SICK" else "🤒 Sick", active = job.uppercase() == "SICK", activeColor = if (colors.isLcars) LcarsRed else Color(0xFFE53935), colors = colors) { onJobTag(rowIndex, "SICK") }
+                JobTagChip(label = if (colors.isLcars) "HOLIDAY" else "🎉 Holiday", active = job.uppercase() == "HOLIDAY", activeColor = if (colors.isLcars) LcarsPurple else Color(0xFF7B1FA2), colors = colors) { onJobTag(rowIndex, "HOLIDAY") }
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
                 Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.hover).clickable { onFocusClear() }, contentAlignment = Alignment.Center) {
                     Text("✕", color = if (colors.isLcars) LcarsOrange else colors.textSecondary, fontSize = 12.sp)
@@ -656,25 +671,24 @@ private fun TimesheetRowItem(
                     modifier = Modifier.weight(1f)
                 )
                 QuickAddChip("-0.25", if (colors.isLcars) LcarsRed else null, colors.textOrange) {
-                    val newVal = maxOf(0.0, currentVal - 0.25)
-                    val rounded = Math.round(newVal * 100.0) / 100.0
-                    onHoursChange(rowIndex, activeDay, if (rounded > 0) rounded.toString() else "")
+                    val rounded = Math.round(maxOf(0.0, currentVal - 0.25) * 4.0) / 4.0
+                    onHoursChange(rowIndex, activeDay, if (rounded > 0) String.format("%.2f", rounded) else "")
                 }
                 QuickAddChip("+0.25", if (colors.isLcars) LcarsOrange else null, colors.accent) {
-                    val newVal = Math.round((currentVal + 0.25) * 100.0) / 100.0
-                    onHoursChange(rowIndex, activeDay, newVal.toString())
+                    val newVal = Math.round((currentVal + 0.25) * 4.0) / 4.0
+                    onHoursChange(rowIndex, activeDay, String.format("%.2f", newVal))
                 }
                 QuickAddChip("+0.5", if (colors.isLcars) LcarsOrange else null, colors.accent) {
-                    val newVal = Math.round((currentVal + 0.5) * 100.0) / 100.0
-                    onHoursChange(rowIndex, activeDay, newVal.toString())
+                    val newVal = Math.round((currentVal + 0.5) * 4.0) / 4.0
+                    onHoursChange(rowIndex, activeDay, String.format("%.2f", newVal))
                 }
                 QuickAddChip("+1", if (colors.isLcars) LcarsTan else null, colors.accent) {
-                    val newVal = Math.round((currentVal + 1.0) * 100.0) / 100.0
-                    onHoursChange(rowIndex, activeDay, newVal.toString())
+                    val newVal = Math.round((currentVal + 1.0) * 4.0) / 4.0
+                    onHoursChange(rowIndex, activeDay, String.format("%.2f", newVal))
                 }
                 QuickAddChip("+1.5", if (colors.isLcars) LcarsTan else null, colors.accent) {
-                    val newVal = Math.round((currentVal + 1.5) * 100.0) / 100.0
-                    onHoursChange(rowIndex, activeDay, newVal.toString())
+                    val newVal = Math.round((currentVal + 1.5) * 4.0) / 4.0
+                    onHoursChange(rowIndex, activeDay, String.format("%.2f", newVal))
                 }
                 Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.hover).clickable { onFocusClear() }, contentAlignment = Alignment.Center) {
                     Text("\u2715", color = if (colors.isLcars) LcarsOrange else colors.textSecondary, fontSize = 12.sp)

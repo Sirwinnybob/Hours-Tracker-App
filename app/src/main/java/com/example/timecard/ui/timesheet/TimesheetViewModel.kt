@@ -212,26 +212,38 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             4 -> 4.0          // Fri
             else -> return    // Sat — no target
         }
-        val dayTotal = _uiState.value.getDayTotal(dayIndex)
-        val remaining = Math.round((target - dayTotal) * 4.0) / 4.0
+        val state = _uiState.value
+        val shopRowIdx = state.jobs.indexOfFirst { it.uppercase() == "SHOP" }
+        val currentShopHrs = if (shopRowIdx >= 0) {
+            state.hours.getOrNull(shopRowIdx)?.getOrElse(dayIndex) { "" }?.toDoubleOrNull() ?: 0.0
+        } else 0.0
+        // Filling SHOP will activate the 0.5h no-lunch bonus in getDayTotal; pre-subtract it
+        // so we don't overshoot when SHOP transitions from empty to non-empty.
+        val effectiveTarget = if (dayIndex in state.noLunchDays && currentShopHrs == 0.0) {
+            target - 0.5
+        } else {
+            target
+        }
+        val dayTotal = state.getDayTotal(dayIndex)
+        val remaining = Math.round((effectiveTarget - dayTotal) * 4.0) / 4.0
         if (remaining <= 0) return
 
-        updateState { state ->
-            var shopRow = state.jobs.indexOfFirst { it.uppercase() == "SHOP" }
-            val newJobs = state.jobs.toMutableList()
+        updateState { st ->
+            var shopRow = st.jobs.indexOfFirst { it.uppercase() == "SHOP" }
+            val newJobs = st.jobs.toMutableList()
             if (shopRow == -1) {
                 shopRow = newJobs.indexOfFirst { it.isBlank() }
-                if (shopRow == -1) return@updateState state
+                if (shopRow == -1) return@updateState st
                 newJobs[shopRow] = "SHOP"
             }
 
-            val newHours = state.hours.map { it.toMutableList() }.toMutableList()
+            val newHours = st.hours.map { it.toMutableList() }.toMutableList()
             val currentShop = newHours[shopRow][dayIndex].toDoubleOrNull() ?: 0.0
             newHours[shopRow][dayIndex] = String.format("%.2f", currentShop + remaining)
-            
+
             scheduleAutosave()
-            
-            state.copy(
+
+            st.copy(
                 jobs = newJobs,
                 hours = newHours,
                 fillingCellPrevValue = currentShop,
@@ -353,13 +365,8 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         val rows = (0 until state.numRows).map { i ->
             val job = if (i < state.jobs.size) state.jobs[i] else ""
             val dayValues = if (i < state.hours.size) state.hours[i] else DAYS.map { "" }
-            // Add the 0.5h lunch bonus to the shop row for days marked no-lunch
             fun dayVal(idx: Int): String {
-                val raw = snapValue(dayValues.getOrElse(idx) { "" })
-                return if (i == shopRowIdx && idx in state.noLunchDays) {
-                    val base = raw.toDoubleOrNull() ?: 0.0
-                    if (base > 0) String.format("%.2f", base + 0.5) else raw
-                } else raw
+                return snapValue(dayValues.getOrElse(idx) { "" })
             }
             TimecardRow(
                 job = job,
@@ -476,7 +483,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             numRows = rowCount,
             jobs = newJobs,
             hours = newHours,
-            noLunchDays = setOf(4, 5)
+            noLunchDays = emptySet()
         ) }
         history.clear()
         historyIndex = -1
@@ -488,7 +495,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             numRows = DEFAULT_ROW_COUNT,
             jobs = List(DEFAULT_ROW_COUNT) { if (it == 0) "SHOP" else "" },
             hours = List(DEFAULT_ROW_COUNT) { List(DAYS.size) { "" } },
-            noLunchDays = setOf(4, 5)
+            noLunchDays = emptySet()
         ) }
         history.clear()
         historyIndex = -1
