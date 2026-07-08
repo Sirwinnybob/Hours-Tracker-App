@@ -299,7 +299,7 @@ fun TimesheetGrid(
                             modifier = Modifier
                                 .weight(DAY_WEIGHT)
                                 .height(ROW_HEIGHT)
-                                .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                                .border(0.5.dp, colors.border)
                                 .background(if (colors.isLcars) lcarsZebra else zebraColor)
                                 .then(if (canFill) Modifier.clickable { onFillShopHours(dayIndex) } else Modifier)
                                 .padding(4.dp),
@@ -324,7 +324,7 @@ fun TimesheetGrid(
                         modifier = Modifier
                             .weight(TOTAL_WEIGHT)
                             .height(ROW_HEIGHT)
-                            .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                            .border(0.5.dp, colors.border)
                             .background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.accent.copy(alpha = 0.1f))
                             .padding(4.dp),
                         contentAlignment = Alignment.Center
@@ -341,7 +341,7 @@ fun TimesheetGrid(
                         .fillMaxWidth()
                         .height(32.dp)
                         .background(if (colors.isLcars) Color.Black else colors.surface)
-                        .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                        .border(0.5.dp, colors.border)
                 ) {
                     Box(
                         modifier = Modifier
@@ -368,7 +368,7 @@ fun TimesheetGrid(
                             modifier = Modifier
                                 .weight(DAY_WEIGHT)
                                 .fillMaxHeight()
-                                .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                                .border(0.5.dp, colors.border)
                                 .background(if (colors.isLcars) lcarsZebra else zebraColor)
                                 .clickable { onToggleNoLunch(dayIndex) },
                             contentAlignment = Alignment.Center
@@ -453,7 +453,7 @@ private fun TimesheetRowItem(
                 modifier = Modifier
                     .weight(JOB_WEIGHT)
                     .height(ROW_HEIGHT)
-                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                    .border(0.5.dp, colors.border)
                     .background(
                         when {
                             isInvalidJob -> Color(0x33E53935)
@@ -520,7 +520,7 @@ private fun TimesheetRowItem(
                     modifier = Modifier
                         .weight(DAY_WEIGHT)
                         .height(ROW_HEIGHT)
-                        .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                        .border(0.5.dp, colors.border)
                         .background(if (colors.isLcars) lcarsZebra else zebraColor)
                         .padding(4.dp),
                     contentAlignment = Alignment.Center
@@ -600,7 +600,7 @@ private fun TimesheetRowItem(
                 modifier = Modifier
                     .weight(TOTAL_WEIGHT)
                     .height(ROW_HEIGHT)
-                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                    .border(0.5.dp, colors.border)
                     .background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.15f) else colors.hover.copy(alpha = 0.3f))
                     .padding(4.dp),
                     contentAlignment = Alignment.Center
@@ -628,7 +628,7 @@ private fun TimesheetRowItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.06f))
-                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                    .border(0.5.dp, colors.border)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 JobTagChip(label = if (colors.isLcars) "DELIVERY" else "🚚 Delivery", active = isDelivery, activeColor = if (colors.isLcars) LcarsOrange else Color(0xFFDD6B20), colors = colors) { onDeliveryTag(rowIndex) }
@@ -658,7 +658,7 @@ private fun TimesheetRowItem(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.08f))
-                    .then(if (!colors.isLcars) Modifier.border(0.5.dp, colors.border) else Modifier)
+                    .border(0.5.dp, colors.border)
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 Text(

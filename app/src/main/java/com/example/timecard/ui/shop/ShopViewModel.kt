@@ -33,6 +33,15 @@ data class EmployeeRecipient(val folderName: String, val displayName: String?)
 
 class ShopViewModel : ViewModel() {
 
+    private fun parseName(fullName: String): String {
+        val parts = fullName.split(",").map { it.trim() }
+        return if (parts.size == 2) {
+            "${parts[1]} ${parts[0]}"
+        } else {
+            fullName
+        }
+    }
+
     var items by mutableStateOf<List<ShopItem>>(emptyList())
         private set
 
@@ -162,7 +171,8 @@ class ShopViewModel : ViewModel() {
                     val validFolders: Set<String> = if (employeeJson != null) {
                         try {
                             val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
-                            val employees: List<Employee> = gson.fromJson(employeeJson, type)
+                            var employees: List<Employee> = gson.fromJson(employeeJson, type)
+                            employees = employees.map { it.copy(name = parseName(it.name)) }
                             employees.filter { !it.excluded || it.name.equals("Winston Ferguson", ignoreCase = true) }.map { it.name }.toSet()
                         } catch (e: Exception) { emptySet() }
                     } else emptySet()
@@ -278,10 +288,14 @@ class ShopViewModel : ViewModel() {
                 when (updated.approved) {
                     true -> {
                         // Approved! Deduct coins and add to inventory
-                        vm.processPurchase(claim.itemId, claim.itemTitle, claim.price)
+                        val success = vm.processPurchase(claim.itemId, claim.itemTitle, claim.price)
                         pendingLimitedClaims = pendingLimitedClaims - itemId
-                        limitedClaimResult = "✅ Purchase approved: ${claim.itemTitle}"
-                        Log.d("ShopVM", "Limited claim approved: ${claim.claimId}")
+                        if (success) {
+                            limitedClaimResult = "✅ Purchase approved: ${claim.itemTitle}"
+                        } else {
+                            limitedClaimResult = "❌ Purchase failed (insufficient coins or item already owned): ${claim.itemTitle}"
+                        }
+                        Log.d("ShopVM", "Limited claim approved: ${claim.claimId}, success=$success")
                     }
                     false -> {
                         // Denied — no coins lost

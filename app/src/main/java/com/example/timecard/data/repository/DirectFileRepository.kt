@@ -212,8 +212,8 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadGlobalBinaryFile(relativePath: String): ByteArray? {
+        val sPath = PathSanitizer.sanitizePath(relativePath)
         return try {
-            val sPath = PathSanitizer.sanitizePath(relativePath)
             val file = File(baseDir, sPath)
             if (file.exists()) file.readBytes() else null
         } catch (e: Exception) {
@@ -223,9 +223,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadEmployeeBinaryFile(name: String, filename: String): ByteArray? {
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sFilename = PathSanitizer.sanitize(filename)
             val empDir = File(baseDir, sName)
             // Support wildcard extension: find first file matching prefix
             if (sFilename.contains("*")) {
@@ -242,9 +242,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun saveEmployeeBinaryFile(name: String, filename: String, data: ByteArray): Boolean {
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sFilename = PathSanitizer.sanitize(filename)
             val empDir = File(baseDir, sName)
             if (!empDir.exists() && !empDir.mkdirs()) return false
             // Delete any existing .avatar.* file to avoid stale extension conflicts
@@ -318,7 +318,21 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
         // Lock doesn't exist, or is corrupted, or is expired. Acquire it.
         renewLock(sName, sDate, deviceId)
-        return true
+        // Best-effort narrowing of the check-then-act race: plain file create/rename here has no
+        // atomic create-if-absent primitive on a network share, so two devices can still both
+        // reach this point concurrently. Writing then reading back means only whichever write
+        // physically landed last will see its own deviceId on read-back, so at most one caller
+        // returns true. This does not make the operation atomic, it only shrinks the race window
+        // versus trusting the pre-write state.
+        return verifyLockOwnership(empDir, sDate, deviceId)
+    }
+
+    private fun verifyLockOwnership(empDir: File, sDate: String, deviceId: String): Boolean {
+        val lockFile = File(empDir, "$sDate.json.lock")
+        if (!lockFile.exists()) return false
+        val content = readFileContent(lockFile) ?: return false
+        val parts = content.split(",")
+        return parts.size == 2 && parts[1] == deviceId
     }
 
     override fun renewLock(name: String, date: String, deviceId: String) {
@@ -354,9 +368,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun listFilesInDir(name: String, subdirectory: String): List<String> {
+        val sName = PathSanitizer.sanitize(name)
+        val sSub = PathSanitizer.sanitize(subdirectory)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val subDir = File(File(baseDir, sName), sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyList()
             subDir.listFiles { f -> f.isFile }?.map { it.name } ?: emptyList()
@@ -390,10 +404,10 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadFromDir(name: String, subdirectory: String, filename: String): String? {
+        val sName = PathSanitizer.sanitize(name)
+        val sSub = PathSanitizer.sanitize(subdirectory)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sSub = PathSanitizer.sanitize(subdirectory)
-            val sFilename = PathSanitizer.sanitize(filename)
             val file = File(File(File(baseDir, sName), sSub), sFilename)
             if (!file.exists()) return null
             readFileContent(file)
@@ -404,8 +418,8 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadEmployeeActivityEvents(name: String): List<ActivityEvent> {
+        val sName = PathSanitizer.sanitize(name)
         return try {
-            val sName = PathSanitizer.sanitize(name)
             val file = File(File(baseDir, sName), "activity_events.json")
             if (!file.exists()) return emptyList()
             val json = readFileContent(file) ?: return emptyList()
@@ -417,8 +431,8 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun saveEmployeeActivityEvents(name: String, events: List<ActivityEvent>) {
+        val sName = PathSanitizer.sanitize(name)
         try {
-            val sName = PathSanitizer.sanitize(name)
             val empDir = File(baseDir, sName)
             if (!empDir.exists()) empDir.mkdirs()
             val file = File(empDir, "activity_events.json")
@@ -468,9 +482,9 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun loadGlobalDir(subdirectory: String, filename: String): String? {
+        val sSub = PathSanitizer.sanitize(subdirectory)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
-            val sFilename = PathSanitizer.sanitize(filename)
             val file = File(File(baseDir, sSub), sFilename)
             if (!file.exists()) return null
             readFileContent(file)
@@ -482,13 +496,13 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
 
     override fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?> {
         val result = mutableMapOf<String, String?>()
+        val sSub = PathSanitizer.sanitize(subdirectory)
         try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val subDir = File(baseDir, sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyMap()
             for (f in filenames) {
+                val sFilename = PathSanitizer.sanitize(f)
                 try {
-                    val sFilename = PathSanitizer.sanitize(f)
                     val file = File(subDir, sFilename)
                     if (file.exists() && file.isFile) {
                         result[f] = readFileContent(file)
@@ -504,8 +518,8 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun listGlobalDir(subdirectory: String): List<String> {
+        val sSub = PathSanitizer.sanitize(subdirectory)
         return try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val subDir = File(baseDir, sSub)
             if (!subDir.exists() || !subDir.isDirectory) return emptyList()
             subDir.listFiles { f -> f.isFile }?.map { it.name } ?: emptyList()
@@ -516,9 +530,29 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     private fun atomicRename(from: File, to: File): Boolean {
+        val fromPath = from.toPath()
+        val toPath = to.toPath()
         for (i in 0 until 3) {
-            if (from.renameTo(to)) return true
-            if (to.exists() && to.delete() && from.renameTo(to)) return true
+            try {
+                try {
+                    java.nio.file.Files.move(
+                        fromPath,
+                        toPath,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE
+                    )
+                    return true
+                } catch (e: java.nio.file.AtomicMoveNotSupportedException) {
+                    java.nio.file.Files.move(
+                        fromPath,
+                        toPath,
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                    )
+                    return true
+                }
+            } catch (e: Exception) {
+                Log.e("DirectFileRepo", "Rename failed on attempt $i: ${e.message}", e)
+            }
             try { Thread.sleep(50) } catch (_: InterruptedException) {}
         }
         return false

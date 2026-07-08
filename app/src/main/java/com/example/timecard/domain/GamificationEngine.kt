@@ -79,8 +79,11 @@ object GamificationEngine {
         val newStreaks = computeStreaks(current.streaks, sortedWeeks, current.coinLog)
 
         // --- 1. Coins: per-day timeliness & streaks ---
-        val isCurrentWeek = weekData.weekStarting == DateUtils.getWeekStartingMonday()
-        val dailyCoinCap = if (isCurrentWeek) 9.0 else 16.0
+        // On-time (current-week) entry must never pay out less than a delayed/backfilled entry —
+        // otherwise waiting to save a prior week becomes a way to inflate coins. Past weeks used
+        // to be capped at 16h (vs 9h for the current week), which paid MORE for delaying entry.
+        // Both trust tiers are now capped at the same (lower) ceiling.
+        val dailyCoinCap = 9.0
         val weekParts = weekData.weekStarting.split("-")
         for (dayIndex in 0..4) { // Mon-Fri only
             val dayKey = DAYS[dayIndex]
@@ -144,7 +147,12 @@ object GamificationEngine {
 
                     coinsGained += totalCoin
                     streakBonusCoins += (totalCoin - baseCoin)
-                    coinLog[dayDateStr] = existing.copy(hoursLogged = dayTotal, paidHours = finalPaidHours)
+                    // Re-stamp savedAt on every material edit (not just the first save for the day).
+                    // isBackfilled below compares savedAt against the calendar day to detect late entry;
+                    // if we kept the original savedAt via copy(), a trivial same-day save followed weeks
+                    // later by an edit up to real hours would forever look on-time and dodge the
+                    // streak-breaking anti-cheat check.
+                    coinLog[dayDateStr] = existing.copy(savedAt = now, hoursLogged = dayTotal, paidHours = finalPaidHours)
                 }
             }
         }
@@ -229,8 +237,14 @@ object GamificationEngine {
         // Filter repeatable badges against this week's bonus log to prevent re-awarding
         // on every save while conditions remain met. One-time badges are already protected
         // by the existingBadges count check inside BadgeEngine.award().
+        // Driven by BadgeDefinition.repeatable so ANY repeatable badge — built-in or a
+        // server/admin-defined custom badge — gets the same per-week dedup, not just a
+        // hardcoded handful of IDs. job_hopper is excluded: it has its own delta-based
+        // per-day dedup below since it can legitimately earn more than once per week.
         val newBadgeMap = rawBadgeMap.toMutableMap()
-        val repeatablePerWeek = setOf("perfect_week", "speed_logger", "overtime_warrior", "best_week_bonus")
+        val repeatablePerWeek = rawBadgeMap.keys.filter { id ->
+            id != "job_hopper" && BadgeEngine.getDefinition(id)?.repeatable == true
+        }.toSet()
         repeatablePerWeek.forEach { id ->
             if ((newBadgeMap[id] ?: 0) > 0 && (alreadyAwarded[id] ?: 0) > 0) {
                 newBadgeMap.remove(id)

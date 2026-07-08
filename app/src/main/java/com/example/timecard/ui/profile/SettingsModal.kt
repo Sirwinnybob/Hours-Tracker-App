@@ -57,6 +57,7 @@ import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LcarsAnakiwa
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.ui.graphics.RectangleShape
 
@@ -81,57 +82,119 @@ fun SettingsModal(
     }
 
     // Badge detail popup
+    // Badge detail popup
     selectedBadge?.let { badge ->
-        Dialog(onDismissRequest = { selectedBadge = null }) {
+        val dialogContent = @Composable {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .background(colors.surface, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp)))
+                    .background(
+                        if (colors.isLcars) Color.Black else colors.surface,
+                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
+                    )
+                    .then(
+                        if (colors.isLcars) Modifier.border(2.dp, LcarsOrange, RectangleShape) else Modifier
+                    )
                     .padding(24.dp)
             ) {
                 val detailImgBytes = profileViewModel.badgeImages[badge.id]
-                if (detailImgBytes != null) {
+                val detailBadgeBitmap = detailImgBytes?.let { bytes ->
+                    remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
+                }
+                if (detailBadgeBitmap != null) {
                     Image(
-                        bitmap = remember(detailImgBytes) { BitmapFactory.decodeByteArray(detailImgBytes, 0, detailImgBytes.size).asImageBitmap() },
+                        bitmap = detailBadgeBitmap,
                         contentDescription = badge.name,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.size(64.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)))
+                        modifier = Modifier.size(64.dp).clip(
+                            if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp))
+                        )
                     )
                 } else {
-                    Text(badge.emoji, fontSize = 44.sp)
+                    if (colors.isLcars) {
+                        Text(
+                            text = badge.name.uppercase(),
+                            fontFamily = AntonioFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = LcarsOrange
+                        )
+                    } else {
+                        Text(badge.emoji, fontSize = 44.sp)
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
-                Text(badge.name, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, textAlign = TextAlign.Center)
+                Text(
+                    text = if (colors.isLcars) badge.name.uppercase() else badge.name,
+                    fontSize = 18.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(Modifier.height(6.dp))
-                Text(badge.description, fontSize = 13.sp, color = colors.textSecondary, textAlign = TextAlign.Center)
+                Text(
+                    text = if (colors.isLcars) badge.description.uppercase() else badge.description,
+                    fontSize = 13.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(Modifier.height(4.dp))
-                Text("\"${badge.flavorText}\"", fontSize = 12.sp, color = colors.accent, textAlign = TextAlign.Center)
+                Text(
+                    text = if (colors.isLcars) "\"${badge.flavorText.uppercase()}\"" else "\"${badge.flavorText}\"",
+                    fontSize = 12.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    color = colors.accent,
+                    textAlign = TextAlign.Center
+                )
                 Spacer(Modifier.height(8.dp))
-                Text("+${badge.coinReward} Kustom Kash${if (badge.repeatable) " · Repeatable" else ""}", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (colors.isLcars) {
+                        "+${badge.coinReward} KK${if (badge.repeatable) " · REPEATABLE" else ""}"
+                    } else {
+                        "+${badge.coinReward} Kustom Kash${if (badge.repeatable) " · Repeatable" else ""}"
+                    },
+                    fontSize = 11.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    color = Color(0xFFD4AF37),
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = { selectedBadge = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (colors.isLcars) LcarsRed else colors.hover,
+                        contentColor = if (colors.isLcars) Color.White else colors.textPrimary
+                    ),
+                    shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (colors.isLcars) "CLOSE" else "Close",
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
+        Dialog(onDismissRequest = { selectedBadge = null }) {
+            dialogContent()
+        }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    val modalContent = @Composable {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
+            modifier = if (colors.isLcars) {
+                Modifier.fillMaxSize().background(Color.Black)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
+                    .safeDrawingPadding()
+            },
+            contentAlignment = if (colors.isLcars) Alignment.TopCenter else Alignment.Center
         ) {
             Column(
                 modifier = Modifier
@@ -177,23 +240,44 @@ fun SettingsModal(
                 ) {
                 if (profileViewModel.isLockedByAnotherUser) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("🔒", fontSize = 64.sp)
+                        if (!colors.isLcars) {
+                            Text("🔒", fontSize = 64.sp)
+                        } else {
+                            Text(
+                                "ACCESS DENIED",
+                                fontSize = 32.sp,
+                                fontFamily = AntonioFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = LcarsRed
+                            )
+                        }
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "Profile Locked",
+                            text = if (colors.isLcars) "PROFILE LOCKED" else "Profile Locked",
                             fontSize = 24.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "This profile is currently being accessed by another tablet or was opened within the last 5 minutes.\n\n" +
-                            "If this lock persists try:\n" +
-                            "1. Waiting 5 minutes\n" +
-                            "2. Syncing your tablet.\n" +
-                            "3. Restarting then syncing your tablet.\n\n" +
-                            "If this lock persists tell Winston and he will get it unlocked for you.",
+                            text = if (colors.isLcars) {
+                                "THIS PROFILE IS CURRENTLY BEING ACCESSED BY ANOTHER STATION OR WAS OPENED WITHIN THE LAST 5 MINUTES.\n\n" +
+                                "TO RESOLVE:\n" +
+                                "1. WAIT 5 MINUTES\n" +
+                                "2. SYNC TERMINAL DATA\n" +
+                                "3. RESTART AND RE-SYNC TERMINAL\n\n" +
+                                "CONTACT SYSTEM ADMINISTRATOR (WINSTON) IF LOCK PERSISTS."
+                            } else {
+                                "This profile is currently being accessed by another tablet or was opened within the last 5 minutes.\n\n" +
+                                "If this lock persists try:\n" +
+                                "1. Waiting 5 minutes\n" +
+                                "2. Syncing your tablet.\n" +
+                                "3. Restarting then syncing your tablet.\n\n" +
+                                "If this lock persists tell Winston and he will get it unlocked for you."
+                            },
                             fontSize = 16.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(horizontal = 16.dp)
@@ -201,22 +285,34 @@ fun SettingsModal(
                         Spacer(Modifier.height(32.dp))
                         Button(
                             onClick = onDismiss,
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                            shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (colors.isLcars) LcarsRed else colors.hover,
+                                contentColor = if (colors.isLcars) Color.White else Color.White
+                            ),
+                            shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Close", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = if (colors.isLcars) "CLOSE" else "Close",
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 } else {
                     // Header
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (profile.avatar == "custom" && profileViewModel.avatarImage != null) {
+                        val headerAvatarBitmap = if (profile.avatar == "custom" && profileViewModel.avatarImage != null) {
                             val imgBytes = profileViewModel.avatarImage!!
+                            remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size)?.asImageBitmap() }
+                        } else null
+                        if (headerAvatarBitmap != null) {
                             Image(
-                                bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
+                                bitmap = headerAvatarBitmap,
                                 contentDescription = "Avatar",
-                                modifier = Modifier.size(36.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
+                                modifier = Modifier.size(36.dp).clip(
+                                    if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp))
+                                )
                             )
                             Spacer(Modifier.width(10.dp))
                         } else {
@@ -224,19 +320,25 @@ fun SettingsModal(
                                 name = profile.displayName ?: actualName,
                                 size = 36.dp,
                                 fontSize = 13.sp,
-                                bgColor = colors.accent
+                                bgColor = if (colors.isLcars) LcarsTan else colors.accent
                             )
                             Spacer(Modifier.width(10.dp))
                         }
                         Column {
                             Text(
-                                "⚙️ Profile & Settings",
+                                text = if (colors.isLcars) "PROFILE & SETTINGS" else "⚙️ Profile & Settings",
                                 fontSize = 20.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary
                             )
                             Spacer(Modifier.height(4.dp))
-                            Text(actualName, fontSize = 13.sp, color = colors.textSecondary)
+                            Text(
+                                text = if (colors.isLcars) actualName.uppercase() else actualName,
+                                fontSize = 13.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                color = colors.textSecondary
+                            )
                         }
                     }
 
@@ -288,7 +390,13 @@ fun SettingsModal(
                     }
                 }
 
-                Text("📷 Profile Photo", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                Text(
+                    text = if (colors.isLcars) "PROFILE PHOTO" else "📷 Profile Photo",
+                    fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
                 Spacer(Modifier.height(8.dp))
 
                 if (profile.inventory.contains("feature_custom_avatar")) {
@@ -297,19 +405,24 @@ fun SettingsModal(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Current avatar preview
-                        if (profile.avatar == "custom" && profileViewModel.avatarImage != null) {
+                        val previewAvatarBitmap = if (profile.avatar == "custom" && profileViewModel.avatarImage != null) {
                             val imgBytes = profileViewModel.avatarImage!!
+                            remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size)?.asImageBitmap() }
+                        } else null
+                        if (previewAvatarBitmap != null) {
                             Image(
-                                bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
+                                bitmap = previewAvatarBitmap,
                                 contentDescription = "Current avatar",
-                                modifier = Modifier.size(56.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
+                                modifier = Modifier.size(56.dp).clip(
+                                    if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp))
+                                )
                             )
                         } else {
                             InitialsAvatar(
                                 name = profile.displayName ?: actualName,
                                 size = 56.dp,
                                 fontSize = 20.sp,
-                                bgColor = colors.accent
+                                bgColor = if (colors.isLcars) LcarsTan else colors.accent
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -319,20 +432,40 @@ fun SettingsModal(
                                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                     )
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                                shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (colors.isLcars) LcarsAnakiwa else colors.accent,
+                                    contentColor = if (colors.isLcars) Color.Black else Color.White
+                                ),
+                                shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                                 modifier = Modifier.height(34.dp)
                             ) {
-                                Text(if (profile.avatar == "custom") "Change Photo" else "Upload Photo", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (colors.isLcars) {
+                                        if (profile.avatar == "custom") "CHANGE PHOTO" else "UPLOAD PHOTO"
+                                    } else {
+                                        if (profile.avatar == "custom") "Change Photo" else "Upload Photo"
+                                    },
+                                    fontSize = 13.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             if (profile.avatar == "custom") {
                                 Button(
                                     onClick = { profileViewModel.clearCustomAvatar() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (colors.isLcars) LcarsRed else colors.hover,
+                                        contentColor = if (colors.isLcars) Color.White else colors.textSecondary
+                                    ),
+                                    shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                                     modifier = Modifier.height(34.dp)
                                 ) {
-                                    Text("Remove Photo", fontSize = 13.sp, color = colors.textSecondary)
+                                    Text(
+                                        text = if (colors.isLcars) "REMOVE PHOTO" else "Remove Photo",
+                                        fontSize = 13.sp,
+                                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }
@@ -342,19 +475,36 @@ fun SettingsModal(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color(0xFF111111) else colors.hover,
+                                if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         InitialsAvatar(
                             name = profile.displayName ?: actualName,
                             size = 40.dp,
                             fontSize = 15.sp,
-                            bgColor = colors.accent.copy(alpha = 0.5f)
+                            bgColor = if (colors.isLcars) LcarsTan.copy(alpha = 0.5f) else colors.accent.copy(alpha = 0.5f)
                         )
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text("Initials Avatar", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-                            Text("🔒 Unlock custom photo in Shop", fontSize = 11.sp, color = colors.textSecondary)
+                            Text(
+                                text = if (colors.isLcars) "INITIALS AVATAR" else "Initials Avatar",
+                                fontSize = 13.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textSecondary
+                            )
+                            Text(
+                                text = if (colors.isLcars) "UNLOCK CUSTOM PHOTO IN SHOP" else "🔒 Unlock custom photo in Shop",
+                                fontSize = 11.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                color = colors.textSecondary
+                            )
                         }
                     }
                 }
@@ -365,7 +515,13 @@ fun SettingsModal(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)))
+                        .background(
+                            if (colors.isLcars) Color.Black else colors.hover,
+                            if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp))
+                        )
+                        .then(
+                            if (colors.isLcars) Modifier.border(1.dp, LcarsOrange, RectangleShape) else Modifier
+                        )
                         .padding(16.dp)
                 ) {
                     Row(
@@ -377,11 +533,14 @@ fun SettingsModal(
                             CoinAmount(
                                 amount = profile.coins,
                                 fontSize = 24.sp,
-                                iconSize = 28.dp
+                                iconSize = 28.dp,
+                                color = if (colors.isLcars) LcarsOrange else com.example.timecard.ui.theme.CoinAmber
                             )
                             Text(
-                                "Kustom Kash",
+                                text = if (colors.isLcars) "KUSTOM KASH" else "Kustom Kash",
                                 fontSize = 12.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
                                 color = colors.textSecondary
                             )
                         }
@@ -416,7 +575,13 @@ fun SettingsModal(
                 Spacer(Modifier.height(20.dp))
 
                 // Personal Records
-                Text("🏅 Personal Records", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
+                Text(
+                    text = if (colors.isLcars) "PERSONAL RECORDS" else "🏅 Personal Records",
+                    fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     StatChip("Best Week", "${String.format("%.2f", profile.records.bestWeekHours)} hrs", "", Modifier.weight(1f), colors)
@@ -425,8 +590,9 @@ fun SettingsModal(
                 Spacer(Modifier.height(8.dp))
                 if (profile.records.favoriteJob.isNotBlank()) {
                     Text(
-                        "Favorite job: ${profile.records.favoriteJob}",
+                        text = if (colors.isLcars) "FAVORITE JOB: ${profile.records.favoriteJob.uppercase()}" else "Favorite job: ${profile.records.favoriteJob}",
                         fontSize = 13.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         color = colors.textSecondary
                     )
                 }
@@ -436,16 +602,22 @@ fun SettingsModal(
                 // Badges — only earned ones shown
                 val totalEarned = profile.badges.values.sum()
                 Text(
-                    "🏆 Badges${if (earnedBadges.isNotEmpty()) " ($totalEarned earned)" else ""}",
+                    text = if (colors.isLcars) {
+                        "BADGES${if (earnedBadges.isNotEmpty()) " ($totalEarned EARNED)" else ""}"
+                    } else {
+                        "🏆 Badges${if (earnedBadges.isNotEmpty()) " ($totalEarned earned)" else ""}"
+                    },
                     fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
                 )
                 Spacer(Modifier.height(4.dp))
                 if (earnedBadges.isEmpty()) {
                     Text(
-                        "Save your first timecard to start earning badges!",
+                        text = if (colors.isLcars) "SAVE YOUR FIRST TIMECARD TO START EARNING BADGES!" else "Save your first timecard to start earning badges!",
                         fontSize = 12.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         color = colors.textSecondary
                     )
                 } else {
@@ -460,30 +632,51 @@ fun SettingsModal(
                     ) {
                         items(earnedBadges) { def ->
                             val count = profile.badges[def.id] ?: 1
+                            val itemBg = if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.12f)
+                            val itemShape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
+                            val itemBorder = if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(colors.accent.copy(alpha = 0.12f), com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
+                                        .background(itemBg, itemShape)
+                                        .then(itemBorder)
                                         .clickable { selectedBadge = def }
                                         .padding(6.dp)
                                 ) {
                                     val imgBytes = profileViewModel.badgeImages[def.id]
-                                    if (imgBytes != null) {
+                                    val gridBadgeBitmap = imgBytes?.let { bytes ->
+                                        remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
+                                    }
+                                    if (gridBadgeBitmap != null) {
                                         Image(
-                                            bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
+                                            bitmap = gridBadgeBitmap,
                                             contentDescription = def.name,
                                             contentScale = ContentScale.Fit,
-                                            modifier = Modifier.size(32.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)))
+                                            modifier = Modifier.size(32.dp).clip(
+                                                if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp))
+                                            )
                                         )
                                     } else {
-                                        Text(def.emoji, fontSize = 22.sp)
+                                        if (colors.isLcars) {
+                                            Text(
+                                                text = def.name.take(3).uppercase(),
+                                                fontFamily = AntonioFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = LcarsTan
+                                            )
+                                        } else {
+                                            Text(def.emoji, fontSize = 22.sp)
+                                        }
                                     }
                                     Text(
-                                        def.name,
+                                        text = if (colors.isLcars) def.name.uppercase() else def.name,
                                         fontSize = 9.sp,
-                                        color = colors.accent,
+                                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                        color = if (colors.isLcars) LcarsTan else colors.accent,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 2,
                                         overflow = TextOverflow.Ellipsis,
@@ -496,14 +689,18 @@ fun SettingsModal(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(2.dp)
-                                            .background(Color(0xFFD4AF37), com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
+                                            .background(
+                                                color = if (colors.isLcars) LcarsOrange else Color(0xFFD4AF37),
+                                                shape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp))
+                                            )
                                             .padding(horizontal = 4.dp, vertical = 1.dp)
                                     ) {
                                         Text(
-                                            "×$count",
+                                            text = "×$count",
                                             fontSize = 7.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF1A1A1A)
+                                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                            color = if (colors.isLcars) Color.Black else Color(0xFF1A1A1A)
                                         )
                                     }
                                 }
@@ -515,10 +712,21 @@ fun SettingsModal(
                 Spacer(Modifier.height(20.dp))
 
                 // Display Name
-                Text("Display Name", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
                 Text(
-                    "Shown in the app instead of your actual name. Your login ID never changes.",
+                    text = if (colors.isLcars) "DISPLAY NAME" else "Display Name",
+                    fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
+                Text(
+                    text = if (colors.isLcars) {
+                        "SHOWN IN THE APP INSTEAD OF YOUR ACTUAL NAME. YOUR LOGIN ID NEVER CHANGES."
+                    } else {
+                        "Shown in the app instead of your actual name. Your login ID never changes."
+                    },
                     fontSize = 12.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     color = colors.textSecondary
                 )
                 Spacer(Modifier.height(8.dp))
@@ -526,44 +734,78 @@ fun SettingsModal(
                     TextField(
                         value = displayNameInput,
                         onValueChange = { displayNameInput = it },
-                        placeholder = { Text(actualName, color = colors.textSecondary, fontFamily = com.example.timecard.ui.theme.OutfitFontFamily) },
+                        placeholder = {
+                            Text(
+                                text = if (colors.isLcars) actualName.uppercase() else actualName,
+                                color = colors.textSecondary,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else com.example.timecard.ui.theme.OutfitFontFamily
+                            )
+                        },
                         singleLine = true,
                         textStyle = androidx.compose.ui.text.TextStyle(
-                            fontFamily = com.example.timecard.ui.theme.OutfitFontFamily,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else com.example.timecard.ui.theme.OutfitFontFamily,
                             color = colors.textPrimary,
                             fontSize = 15.sp
                         ),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = colors.input,
-                            unfocusedContainerColor = colors.input,
+                            focusedContainerColor = if (colors.isLcars) Color.Black else colors.input,
+                            unfocusedContainerColor = if (colors.isLcars) Color.Black else colors.input,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
-                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier)
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { profileViewModel.setDisplayName(displayNameInput) },
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (colors.isLcars) LcarsAnakiwa else colors.accent,
+                            contentColor = if (colors.isLcars) Color.Black else Color.White
+                        ),
+                        shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Save Display Name", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (colors.isLcars) "SAVE DISPLAY NAME" else "Save Display Name",
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 } else {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color(0xFF111111) else colors.hover,
+                                if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
-                        Text("🔒", fontSize = 18.sp)
-                        Spacer(Modifier.width(10.dp))
+                        if (!colors.isLcars) {
+                            Text("🔒", fontSize = 18.sp)
+                            Spacer(Modifier.width(10.dp))
+                        }
                         Column {
-                            Text("Locked", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textSecondary)
-                            Text("🔒 Unlock custom name in Shop", fontSize = 11.sp, color = colors.textSecondary)
+                            Text(
+                                text = if (colors.isLcars) "LOCKED" else "Locked",
+                                fontSize = 13.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textSecondary
+                            )
+                            Text(
+                                text = if (colors.isLcars) "UNLOCK CUSTOM NAME IN SHOP" else "🔒 Unlock custom name in Shop",
+                                fontSize = 11.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                color = colors.textSecondary
+                            )
                         }
                     }
                 }
@@ -573,8 +815,13 @@ fun SettingsModal(
                 // Accent Colors / Immersive Themes
                 val unlockedCount = ACCENT_UNLOCKS.count { (_, _, itemId) -> profile.inventory.contains(itemId) }
                 Text(
-                    "🎨 Immersive Theme${if (unlockedCount == 0) " (buy colors in Shop)" else ""}",
+                    text = if (colors.isLcars) {
+                        "IMMERSIVE THEME${if (unlockedCount == 0) " (BUY COLORS IN SHOP)" else ""}"
+                    } else {
+                        "🎨 Immersive Theme${if (unlockedCount == 0) " (buy colors in Shop)" else ""}"
+                    },
                     fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
                 )
@@ -602,17 +849,35 @@ fun SettingsModal(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier
                                         .size(20.dp)
-                                        .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp)))
+                                        .clip(
+                                            if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp))
+                                        )
                                         .background(if (unlocked) color else color.copy(alpha = 0.25f))
-                                        .then(if (selected) Modifier.border(2.dp, Color.White, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp))) else Modifier)
+                                        .then(
+                                            if (selected) {
+                                                Modifier.border(
+                                                    width = 2.dp,
+                                                    color = Color.White,
+                                                    shape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(3.dp))
+                                                )
+                                            } else Modifier
+                                        )
                                         .then(if (unlocked) Modifier.clickable { profileViewModel.setAccentColor(key) } else Modifier)
                                 ) {
-                                    if (!unlocked) Text("🔒", fontSize = 7.sp, color = Color.White.copy(alpha = 0.7f))
+                                    if (!unlocked) {
+                                        if (colors.isLcars) {
+                                            Text("L", fontSize = 7.sp, color = Color.White.copy(alpha = 0.7f), fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold)
+                                        } else {
+                                            Text("🔒", fontSize = 7.sp, color = Color.White.copy(alpha = 0.7f))
+                                        }
+                                    }
                                 }
                                 Spacer(Modifier.height(2.dp))
+                                val themeName = themeDisplayNames[key] ?: key ?: "?"
                                 Text(
-                                    themeDisplayNames[key] ?: key ?: "?",
+                                    text = if (colors.isLcars) themeName.uppercase() else themeName,
                                     fontSize = 8.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                     maxLines = 1,
                                     color = if (selected) color else colors.textSecondary,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
@@ -627,8 +892,9 @@ fun SettingsModal(
                 }
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "Buy new colors in the Shop. Tap to apply.",
+                    text = if (colors.isLcars) "BUY NEW COLORS IN THE SHOP. TAP TO APPLY." else "Buy new colors in the Shop. Tap to apply.",
                     fontSize = 11.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     color = colors.textSecondary
                 )
 
@@ -640,12 +906,23 @@ fun SettingsModal(
                         onDismiss()
                         onOpenShop()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = com.example.timecard.ui.theme.CoinAmber.copy(alpha = 0.15f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, com.example.timecard.ui.theme.CoinAmber),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (colors.isLcars) LcarsTan.copy(alpha = 0.15f) else com.example.timecard.ui.theme.CoinAmber.copy(alpha = 0.15f),
+                        contentColor = if (colors.isLcars) LcarsTan else com.example.timecard.ui.theme.CoinAmber
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (colors.isLcars) LcarsTan else com.example.timecard.ui.theme.CoinAmber
+                    ),
+                    shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
                     modifier = Modifier.fillMaxWidth().height(50.dp)
                 ) {
-                    Text("🛒 Visit Shop", color = com.example.timecard.ui.theme.CoinAmber, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        text = if (colors.isLcars) "VISIT SHOP" else "🛒 Visit Shop",
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -655,12 +932,22 @@ fun SettingsModal(
                         onDismiss()
                         onNavigateToAlerts()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                    shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (colors.isLcars) Color.Black else colors.surface,
+                        contentColor = if (colors.isLcars) Color.White else colors.textPrimary
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = if (colors.isLcars) LcarsTan else colors.border
+                    ),
+                    shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                     modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
-                    Text("📋 View Past Alerts", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = if (colors.isLcars) "VIEW PAST ALERTS" else "📋 View Past Alerts",
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 if (!colors.isLcars) {
@@ -682,6 +969,17 @@ fun SettingsModal(
                     Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
+        }
+    }
+
+    if (colors.isLcars) {
+        modalContent()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            modalContent()
         }
     }
 }
@@ -707,20 +1005,50 @@ private fun StatChip(
         ).value
     } else 1f
 
+    val isLcars = colors.isLcars
+    val chipBg = if (isLcars) Color.Black else colors.hover
+    val chipBorderModifier = if (isLcars) {
+        Modifier.border(1.dp, LcarsTan, RectangleShape)
+    } else {
+        Modifier
+    }
+    val chipShape = if (isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
+    
+    // Strip emoji if LCARS
+    val displayValue = if (isLcars) {
+        value.replace("🔥", "").replace("📆", "").trim()
+    } else {
+        value
+    }
+
     Column(
         modifier = modifier
-            .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
+            .background(chipBg, chipShape)
+            .then(chipBorderModifier)
             .padding(10.dp)
     ) {
-        Text(label, fontSize = 11.sp, color = colors.textSecondary)
         Text(
-            value,
+            text = if (isLcars) label.uppercase() else label,
+            fontSize = 11.sp,
+            fontFamily = if (isLcars) AntonioFontFamily else null,
+            fontWeight = if (isLcars) FontWeight.Bold else FontWeight.Normal,
+            color = colors.textSecondary
+        )
+        Text(
+            text = if (isLcars) displayValue.uppercase() else displayValue,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = colors.textPrimary,
-            fontFamily = com.example.timecard.ui.theme.JetBrainsMonoFontFamily,
+            fontFamily = if (isLcars) AntonioFontFamily else com.example.timecard.ui.theme.JetBrainsMonoFontFamily,
             modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
         )
-        if (sub.isNotBlank()) Text(sub, fontSize = 10.sp, color = colors.textSecondary)
+        if (sub.isNotBlank()) {
+            Text(
+                text = if (isLcars) sub.uppercase() else sub,
+                fontSize = 10.sp,
+                fontFamily = if (isLcars) AntonioFontFamily else null,
+                color = colors.textSecondary
+            )
+        }
     }
 }

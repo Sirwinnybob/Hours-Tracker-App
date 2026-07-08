@@ -14,6 +14,8 @@ import com.example.timecard.data.model.TimecardData
 import com.example.timecard.data.repository.FileRepository
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class LeaderboardEntry(
     val name: String,
@@ -53,13 +55,16 @@ class LeaderboardViewModel : ViewModel() {
         viewModelScope.launch {
             isFeedLoading = true
             try {
-                val allEvents = mutableListOf<ActivityEvent>()
-                for (empName in employeeNames) {
-                    try {
-                        allEvents += repository.loadEmployeeActivityEvents(empName)
-                    } catch (_: Exception) {}
+                val sortedEvents = withContext(Dispatchers.IO) {
+                    val allEvents = mutableListOf<ActivityEvent>()
+                    for (empName in employeeNames) {
+                        try {
+                            allEvents += repository.loadEmployeeActivityEvents(empName)
+                        } catch (_: Exception) {}
+                    }
+                    allEvents.sortedByDescending { it.timestamp }.take(100)
                 }
-                feedEvents = allEvents.sortedByDescending { it.timestamp }.take(100)
+                feedEvents = sortedEvents
             } finally {
                 isFeedLoading = false
             }
@@ -77,72 +82,74 @@ class LeaderboardViewModel : ViewModel() {
         viewModelScope.launch {
             isLoading = true
             try {
-                val result = mutableListOf<LeaderboardEntry>()
-                val currentMonth = currentWeekDate.substring(0, 7)
+                val result = withContext(Dispatchers.IO) {
+                    val list = mutableListOf<LeaderboardEntry>()
+                    val currentMonth = currentWeekDate.substring(0, 7)
 
-                for (empName in employeeNames) {
-                    try {
-                        // Load profile for level / displayName / XP
-                        val profileJson = repository.loadGenericJSON(empName, "profile.json")
-                        val profile = if (profileJson != null) {
-                            try { gson.fromJson(profileJson, PlayerProfile::class.java) ?: PlayerProfile() }
-                            catch (_: Exception) { PlayerProfile() }
-                        } else PlayerProfile()
+                    for (empName in employeeNames) {
+                        try {
+                            // Load profile for level / displayName / XP
+                            val profileJson = repository.loadGenericJSON(empName, "profile.json")
+                            val profile = if (profileJson != null) {
+                                try { gson.fromJson(profileJson, PlayerProfile::class.java) ?: PlayerProfile() }
+                                catch (_: Exception) { PlayerProfile() }
+                            } else PlayerProfile()
 
-                        // Load avatar (try wildcard first, then explicit extensions)
-                        val avatarBytes = repository.loadEmployeeBinaryFile(empName, ".avatar.jpg")
-                            ?: repository.loadEmployeeBinaryFile(empName, ".avatar.png")
-                            ?: repository.loadEmployeeBinaryFile(empName, ".avatar.jpeg")
+                            // Load avatar (try wildcard first, then explicit extensions)
+                            val avatarBytes = repository.loadEmployeeBinaryFile(empName, ".avatar.jpg")
+                                ?: repository.loadEmployeeBinaryFile(empName, ".avatar.png")
+                                ?: repository.loadEmployeeBinaryFile(empName, ".avatar.jpeg")
 
-                        // Current week hours
-                        val weekJson = repository.loadFile(empName, currentWeekDate)
-                        val weekData = weekJson?.let {
-                            try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
-                        }
-                        val weekHours = weekData?.rows?.sumOf { row ->
-                            DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-                        } ?: 0.0
+                            // Current week hours
+                            val weekJson = repository.loadFile(empName, currentWeekDate)
+                            val weekData = weekJson?.let {
+                                try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
+                            }
+                            val weekHours = weekData?.rows?.sumOf { row ->
+                                DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
+                            } ?: 0.0
 
-                        // Month hours across all weeks that fall in the current month
-                        val dates = repository.getAvailableDates(empName)
-                        var monthHours = weekHours
-                        for (date in dates) {
-                            if (date == currentWeekDate) continue
-                            if (!date.startsWith(currentMonth)) continue
-                            val json = repository.loadFile(empName, date) ?: continue
-                            try {
-                                val data = gson.fromJson(json, TimecardData::class.java)
-                                monthHours += data.rows.sumOf { row ->
-                                    DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
-                                }
-                            } catch (_: Exception) {}
-                        }
+                            // Month hours across all weeks that fall in the current month
+                            val dates = repository.getAvailableDates(empName)
+                            var monthHours = weekHours
+                            for (date in dates) {
+                                if (date == currentWeekDate) continue
+                                if (!date.startsWith(currentMonth)) continue
+                                val json = repository.loadFile(empName, date) ?: continue
+                                try {
+                                    val data = gson.fromJson(json, TimecardData::class.java)
+                                    monthHours += data.rows.sumOf { row ->
+                                        DAYS.sumOf { day -> row.getHours(day).toDoubleOrNull() ?: 0.0 }
+                                    }
+                                } catch (_: Exception) {}
+                            }
 
-                        result.add(
-                            LeaderboardEntry(
-                                name = empName,
-                                displayName = profile.displayName,
-                                weekHours = weekHours,
-                                monthHours = monthHours,
-                                allTimeCoins = profile.allTimeCoinsEarned,
-                                currentStreak = profile.streaks.currentDaily,
-                                avatarBytes = avatarBytes,
-                                bestDailyStreak = profile.streaks.bestDaily,
-                                currentWeeklyStreak = profile.streaks.currentWeekly,
-                                bestWeeklyStreak = profile.streaks.bestWeekly,
-                                bestWeekHours = profile.records.bestWeekHours,
-                                bestDayHours = profile.records.busiestDay,
-                                badges = profile.badges,
-                                inventory = profile.inventory,
-                                purchaseHistory = profile.purchaseHistory,
-                                coins = profile.coins
+                            list.add(
+                                LeaderboardEntry(
+                                    name = empName,
+                                    displayName = profile.displayName,
+                                    weekHours = weekHours,
+                                    monthHours = monthHours,
+                                    allTimeCoins = profile.allTimeCoinsEarned,
+                                    currentStreak = profile.streaks.currentDaily,
+                                    avatarBytes = avatarBytes,
+                                    bestDailyStreak = profile.streaks.bestDaily,
+                                    currentWeeklyStreak = profile.streaks.currentWeekly,
+                                    bestWeeklyStreak = profile.streaks.bestWeekly,
+                                    bestWeekHours = profile.records.bestWeekHours,
+                                    bestDayHours = profile.records.busiestDay,
+                                    badges = profile.badges,
+                                    inventory = profile.inventory,
+                                    purchaseHistory = profile.purchaseHistory,
+                                    coins = profile.coins
+                                )
                             )
-                        )
-                    } catch (e: Exception) {
-                        Log.e("LeaderboardVM", "Error for $empName", e)
+                        } catch (e: Exception) {
+                            Log.e("LeaderboardVM", "Error for $empName", e)
+                        }
                     }
+                    list
                 }
-
                 entries = result
                 lastLoadedWeek = currentWeekDate
             } finally {

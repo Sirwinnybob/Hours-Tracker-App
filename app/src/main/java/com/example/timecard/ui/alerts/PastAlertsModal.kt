@@ -30,6 +30,7 @@ import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LcarsAnakiwa
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
@@ -49,22 +50,23 @@ fun PastAlertsModal(
         viewModel.loadPastAlerts()
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    val modalContent = @Composable {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(bottom = 48.dp)
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
+            modifier = if (colors.isLcars) {
+                Modifier.fillMaxSize().background(Color.Black)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(bottom = 48.dp)
+                    .safeDrawingPadding()
+            },
+            contentAlignment = if (colors.isLcars) Alignment.TopCenter else Alignment.Center
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
-                    .padding(vertical = 32.dp)
+                    .fillMaxWidth(if (colors.isLcars) 1f else 0.92f)
+                    .padding(vertical = if (colors.isLcars) 0.dp else 32.dp)
                     .background(
                         if (colors.isLcars) Color.Black else colors.surface,
                         if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
@@ -122,7 +124,8 @@ fun PastAlertsModal(
 
                     if (viewModel.allAlerts.isEmpty()) {
                         Text(
-                            text = "No alerts yet",
+                            text = if (colors.isLcars) "NO ALERTS RECORDED" else "No alerts yet",
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textSecondary,
                             fontSize = 14.sp,
                             textAlign = TextAlign.Center,
@@ -148,77 +151,161 @@ fun PastAlertsModal(
             }
         }
     }
+
+    if (colors.isLcars) {
+        modalContent()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            modalContent()
+        }
+    }
 }
 
 @Composable
 private fun PastAlertItem(alert: AlertsViewModel.MergedAlert) {
     val colors = LocalTimecardColors.current
+    val isLcars = colors.isLcars
 
-    Card(
-        shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
-        colors = CardDefaults.cardColors(
-            containerColor = if (alert.acknowledged) {
-                colors.surface
-            } else {
-                Color(0xFFFFF3CD).copy(alpha = 0.15f)
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            // Message
-            Text(
-                text = formatAlertMessage(alert.message),
-                fontSize = 14.sp,
-                color = colors.textPrimary
+    if (isLcars) {
+        val spineColor = if (alert.acknowledged) LcarsTan else LcarsOrange
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black)
+                .height(IntrinsicSize.Min)
+        ) {
+            // Left indicator spine
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .fillMaxHeight()
+                    .background(spineColor)
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Meta row
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.width(6.dp))
+            // Content Box
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Color(0xFF111111))
+                    .padding(12.dp)
             ) {
-                val dateStr = try {
-                    val instant = Instant.parse(alert.sentAt)
-                    val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy h:mm a")
-                        .withZone(ZoneId.systemDefault())
-                    formatter.format(instant)
-                } catch (e: Exception) {
-                    alert.sentAt
+                Text(
+                    text = formatAlertMessage(alert.message).text.uppercase(),
+                    fontFamily = AntonioFontFamily,
+                    fontSize = 14.sp,
+                    color = colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val dateStr = try {
+                        val instant = java.time.Instant.parse(alert.sentAt)
+                        val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy h:mm a")
+                            .withZone(java.time.ZoneId.systemDefault())
+                        formatter.format(instant)
+                    } catch (e: Exception) {
+                        alert.sentAt
+                    }
+                    Text(
+                           text = "FROM ${alert.sentBy?.uppercase() ?: "ADMIN"} // $dateStr",
+                           fontFamily = AntonioFontFamily,
+                           fontSize = 11.sp,
+                           color = colors.textSecondary,
+                           modifier = Modifier.weight(1f)
+                    )
+                    val badgeColor = if (alert.acknowledged) LcarsTan else LcarsOrange
+                    val badgeText = if (alert.acknowledged) "ACKNOWLEDGED" else "PENDING"
+                    Text(
+                        text = badgeText,
+                        fontFamily = AntonioFontFamily,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeColor
+                    )
+                }
+                if (!alert.response.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "REPLY: \"${alert.response.uppercase()}\"",
+                        fontFamily = AntonioFontFamily,
+                        fontSize = 12.sp,
+                        color = LcarsAnakiwa
+                    )
+                }
+            }
+        }
+    } else {
+        Card(
+            shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)),
+            colors = CardDefaults.cardColors(
+                containerColor = if (alert.acknowledged) {
+                    colors.surface
+                } else {
+                    Color(0xFFFFF3CD).copy(alpha = 0.15f)
+                }
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                // Message
+                Text(
+                    text = formatAlertMessage(alert.message),
+                    fontSize = 14.sp,
+                    color = colors.textPrimary
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Meta row
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val dateStr = try {
+                        val instant = java.time.Instant.parse(alert.sentAt)
+                        val formatter = java.time.format.DateTimeFormatter.ofPattern("MM/dd/yyyy h:mm a")
+                            .withZone(java.time.ZoneId.systemDefault())
+                        formatter.format(instant)
+                    } catch (e: Exception) {
+                        alert.sentAt
+                    }
+
+                    Text(
+                        text = "From ${alert.sentBy ?: "Admin"} \u2022 $dateStr",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Badge
+                    val badgeColor = if (alert.acknowledged) Color(0xFF48BB78) else Color(0xFFECC94B)
+                    val badgeText = if (alert.acknowledged) "\u2713 Acknowledged" else "Pending"
+                    Text(
+                        text = badgeText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeColor
+                    )
                 }
 
-                Text(
-                    text = "From ${alert.sentBy ?: "Admin"} \u2022 $dateStr",
-                    fontSize = 11.sp,
-                    color = colors.textSecondary,
-                    modifier = Modifier.weight(1f)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Badge
-                val badgeColor = if (alert.acknowledged) Color(0xFF48BB78) else Color(0xFFECC94B)
-                val badgeText = if (alert.acknowledged) "\u2713 Acknowledged" else "Pending"
-                Text(
-                    text = badgeText,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = badgeColor
-                )
-            }
-
-            // Response if present
-            if (!alert.response.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Reply: \"${alert.response}\"",
-                    fontSize = 12.sp,
-                    fontStyle = FontStyle.Italic,
-                    color = colors.accent
-                )
+                // Response if present
+                if (!alert.response.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Reply: \"${alert.response}\"",
+                        fontSize = 12.sp,
+                        fontStyle = FontStyle.Italic,
+                        color = colors.accent
+                    )
+                }
             }
         }
     }

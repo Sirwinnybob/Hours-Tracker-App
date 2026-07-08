@@ -84,9 +84,12 @@ fun BadgePopup(
                         .padding(horizontal = 20.dp, vertical = 14.dp)
                 ) {
                     val imgBytes = badgeImages[def.id]
-                    if (imgBytes != null) {
+                    val decodedBitmap = remember(imgBytes) {
+                        imgBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                    }
+                    if (decodedBitmap != null) {
                         Image(
-                            bitmap = remember(imgBytes) { BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap() },
+                            bitmap = decodedBitmap.asImageBitmap(),
                             contentDescription = def.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.size(44.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)))

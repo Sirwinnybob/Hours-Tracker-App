@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +57,9 @@ import com.example.timecard.ui.components.ThemeToggle
 import com.example.timecard.ui.theme.AccentBlue
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.ThemeState
+import androidx.compose.ui.graphics.RectangleShape
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsMelrose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -274,6 +278,8 @@ fun NameCard(
     val buttonAlpha = p
 
     val resolvedShape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(cornerRadius.dp))
+    val cardBackground = if (colors.isLcars) Color.Black else colors.surface
+    val cardShape = if (colors.isLcars) RectangleShape else resolvedShape
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Title — only visible when expanded
@@ -320,8 +326,8 @@ fun NameCard(
                     .graphicsLayer {
                         translationX = flyX.value
                         translationY = flyY.value
-                        shadowElevation = with(density) { elevation.dp.toPx() }
-                        shape = resolvedShape
+                        shadowElevation = if (colors.isLcars) 0f else with(density) { elevation.dp.toPx() }
+                        shape = cardShape
                         clip = true
                         // Entry animation
                         if (!hasEnteredOnce) {
@@ -329,34 +335,70 @@ fun NameCard(
                             translationY = with(density) { entryCardOffsetY.value.dp.toPx() }
                         }
                     }
-                    .background(colors.surface, resolvedShape)
+                    .background(cardBackground, cardShape)
             ) {
                 Column(
                     horizontalAlignment = if (p > 0.5f) Alignment.CenterHorizontally else Alignment.Start,
-                    modifier = Modifier.padding(cardPaddingDp.dp)
+                    modifier = Modifier.padding(if (colors.isLcars && !isExpanded) 0.dp else cardPaddingDp.dp)
                 ) {
-                    // Text field — ALWAYS present, disabled when collapsed
-                    // When collapsed, show display name if set
                     val collapsedText = if (!isExpanded && displayName != null) displayName else viewModel.loginInput
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        // Avatar moved to Profile Button, so we no longer render it here
-                        AutocompleteTextField(
-                            value = collapsedText,
-                            onValueChange = { viewModel.loginInput = it },
-                            suggestions = viewModel.filteredEmployees,
-                            onSuggestionSelected = { name -> viewModel.loginInput = name },
-                            onSubmit = {
-                                val employee = viewModel.attemptLogin()
-                                if (employee != null) onLoginSuccess(employee)
-                            },
-                            focusRequester = focusRequester,
-                            enabled = isExpanded,
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = (16f * p).dp, vertical = 8.dp),
-                            modifier = Modifier.weight(1f)
-                        )
+                        if (isExpanded) {
+                            AutocompleteTextField(
+                                value = collapsedText,
+                                onValueChange = { viewModel.loginInput = it },
+                                suggestions = viewModel.filteredEmployees,
+                                onSuggestionSelected = { name -> viewModel.loginInput = name },
+                                onSubmit = {
+                                    val employee = viewModel.attemptLogin()
+                                    if (employee != null) onLoginSuccess(employee)
+                                },
+                                focusRequester = focusRequester,
+                                enabled = true,
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = (16f * p).dp, vertical = 8.dp),
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            if (colors.isLcars) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(28.dp)
+                                            .background(LcarsMelrose)
+                                            .padding(horizontal = 12.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Text(
+                                            text = collapsedText.uppercase(),
+                                            color = Color.Black,
+                                            fontFamily = AntonioFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp).height(28.dp).background(Color.Black))
+                                }
+                            } else {
+                                Text(
+                                    text = collapsedText,
+                                    color = colors.textPrimary,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    modifier = Modifier
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .align(Alignment.CenterVertically)
+                                )
+                            }
+                        }
                     }
 
                     // Spacer + Button collapse to 0 height when progress → 0

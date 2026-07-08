@@ -20,9 +20,15 @@ import com.google.gson.JsonObject
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.Calendar
 
 class ProfileViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val activityEventsMutex = Mutex()
 
     var profile by mutableStateOf(PlayerProfile())
         private set
@@ -261,13 +267,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
         // Write activity events for this save
         if (result.newEvents.isNotEmpty()) {
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                try {
-                    val repo = repository ?: return@launch
-                    val existing = repo.loadEmployeeActivityEvents(employeeName)
-                    val merged = (result.newEvents + existing).take(50)
-                    repo.saveEmployeeActivityEvents(employeeName, merged)
-                } catch (_: Exception) {}
+            viewModelScope.launch(Dispatchers.IO) {
+                val repo = repository ?: return@launch
+                activityEventsMutex.withLock {
+                    try {
+                        val existing = repo.loadEmployeeActivityEvents(employeeName)
+                        val merged = (result.newEvents + existing).take(50)
+                        repo.saveEmployeeActivityEvents(employeeName, merged)
+                    } catch (_: Exception) {}
+                }
             }
         }
 
@@ -311,9 +319,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         saveProfile()
     }
 
-    private fun loadCustomAvatar() {
+    private suspend fun loadCustomAvatar() {
         val repo = repository ?: return
-        val bytes = repo.loadEmployeeBinaryFile(employeeName, ".avatar*")
+        val bytes = withContext(Dispatchers.IO) {
+            repo.loadEmployeeBinaryFile(employeeName, ".avatar*")
+        }
         avatarImage = bytes
     }
 
@@ -392,13 +402,17 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun loadProfile() {
+    private suspend fun loadProfile() {
         if (employeeName.isNotEmpty()) {
-            repository?.releaseLock(employeeName, "profile", deviceId)
+            withContext(Dispatchers.IO) {
+                repository?.releaseLock(employeeName, "profile", deviceId)
+            }
             lockRenewJob?.cancel()
         }
 
-        val lockAcquired = repository?.acquireLock(employeeName, "profile", deviceId) ?: true
+        val lockAcquired = withContext(Dispatchers.IO) {
+            repository?.acquireLock(employeeName, "profile", deviceId) ?: true
+        }
         isLockedByAnotherUser = !lockAcquired
 
         if (isLockedByAnotherUser) {
@@ -414,13 +428,17 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     logout()
                     break
                 } else {
-                    repository?.renewLock(employeeName, "profile", deviceId)
+                    withContext(Dispatchers.IO) {
+                        repository?.renewLock(employeeName, "profile", deviceId)
+                    }
                 }
             }
         }
 
-        viewModelScope.launch {
-            val json = repository?.loadGenericJSON(employeeName, "profile.json")
+        run {
+            val json = withContext(Dispatchers.IO) {
+                repository?.loadGenericJSON(employeeName, "profile.json", useCache = false)
+            }
             val loaded = if (json != null) {
                 try {
                     // Detect old badge format (array) and migrate to new map format
@@ -457,7 +475,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                         else -> null  // Sunday — no work expected
                     }
                     if (dayKey != null) {
-                        val weekJson = repository?.loadFile(employeeName, weekStart.toString())
+                        val weekJson = withContext(Dispatchers.IO) {
+                            repository?.loadFile(employeeName, weekStart.toString())
+                        }
                         val weekData = weekJson?.let {
                             try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
                         }
@@ -472,11 +492,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             // The backend writes avatar_pending.jpg instead of .avatar.jpg directly,
             // so that only the tablet (sole writer of its own folder) finalizes the binary.
             val repo = repository
-            val pending = repo?.loadEmployeeBinaryFile(employeeName, "avatar_pending.jpg")
+            val pending = withContext(Dispatchers.IO) {
+                repo?.loadEmployeeBinaryFile(employeeName, "avatar_pending.jpg")
+            }
             if (pending != null && pending.isNotEmpty()) {
-                repo.saveEmployeeBinaryFile(employeeName, ".avatar.jpg", pending)
-                // Consume the pending file so it isn't re-adopted on next login
-                repo.saveEmployeeBinaryFile(employeeName, "avatar_pending.jpg", ByteArray(0))
+                withContext(Dispatchers.IO) {
+                    repo?.saveEmployeeBinaryFile(employeeName, ".avatar.jpg", pending)
+                    // Consume the pending file so it isn't re-adopted on next login
+                    repo?.saveEmployeeBinaryFile(employeeName, "avatar_pending.jpg", ByteArray(0))
+                }
                 avatarImage = pending
                 if (profile.avatar != "custom") {
                     profile = profile.copy(avatar = "custom")
@@ -487,7 +511,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             } else {
                 // File-presence fallback: detect custom avatar even when profile.avatar
                 // is stale or null (e.g. after a backend-only upload on a previous session).
-                val bytes = repo?.loadEmployeeBinaryFile(employeeName, ".avatar*")
+                val bytes = withContext(Dispatchers.IO) {
+                    repo?.loadEmployeeBinaryFile(employeeName, ".avatar*")
+                }
                 if (bytes != null && bytes.isNotEmpty()) {
                     avatarImage = bytes
                     profile = profile.copy(avatar = "custom")
@@ -497,10 +523,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
             // Load any per-employee custom badge images (overrides config imagePath images)
             val customBadgeImages = mutableMapOf<String, ByteArray>()
-            BadgeEngine.ALL_BADGES.forEach { def ->
-                val bytes = repo?.loadEmployeeBinaryFile(employeeName, ".badge_${def.id}.png")
-                if (bytes != null && bytes.isNotEmpty()) {
-                    customBadgeImages[def.id] = bytes
+            withContext(Dispatchers.IO) {
+                BadgeEngine.ALL_BADGES.forEach { def ->
+                    val bytes = repo?.loadEmployeeBinaryFile(employeeName, ".badge_${def.id}.png")
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        customBadgeImages[def.id] = bytes
+                    }
                 }
             }
             if (customBadgeImages.isNotEmpty()) {
@@ -573,7 +601,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun applyGrantedBadges() {
         val repo = repository ?: return
         try {
-            val json = repo.loadGenericJSON(employeeName, "granted_badges.json", useCache = false) ?: return
+            val json = withContext(Dispatchers.IO) {
+                repo.loadGenericJSON(employeeName, "granted_badges.json", useCache = false)
+            } ?: return
             val config = gson.fromJson(json, GrantedBadgeConfig::class.java) ?: return
             
             val serverGrantedIds = config.badges.map { it.id }
@@ -634,25 +664,29 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
             // Write activity events for newly granted badges
             if (newlyGranted.isNotEmpty()) {
-                try {
-                    val now = java.time.Instant.now().toString()
-                    val newEvents = newlyGranted.mapNotNull { id ->
-                        val entry = serverGrantedMap[id] ?: return@mapNotNull null
-                        com.example.timecard.data.model.ActivityEvent(
-                            type = "badge_granted",
-                            employeeName = employeeName,
-                            displayName = profile.displayName ?: employeeName,
-                            detail = entry.name,
-                            detailIcon = entry.emoji,
-                            timestamp = now
-                        )
+                withContext(Dispatchers.IO) {
+                    activityEventsMutex.withLock {
+                        try {
+                            val now = java.time.Instant.now().toString()
+                            val newEvents = newlyGranted.mapNotNull { id ->
+                                val entry = serverGrantedMap[id] ?: return@mapNotNull null
+                                com.example.timecard.data.model.ActivityEvent(
+                                    type = "badge_granted",
+                                    employeeName = employeeName,
+                                    displayName = profile.displayName ?: employeeName,
+                                    detail = entry.name,
+                                    detailIcon = entry.emoji,
+                                    timestamp = now
+                                )
+                            }
+                            if (newEvents.isNotEmpty()) {
+                                val existing = repo.loadEmployeeActivityEvents(employeeName)
+                                val merged = (newEvents + existing).take(50)
+                                repo.saveEmployeeActivityEvents(employeeName, merged)
+                            }
+                        } catch (_: Exception) {}
                     }
-                    if (newEvents.isNotEmpty()) {
-                        val existing = repo.loadEmployeeActivityEvents(employeeName)
-                        val merged = (newEvents + existing).take(50)
-                        repo.saveEmployeeActivityEvents(employeeName, merged)
-                    }
-                } catch (_: Exception) {}
+                }
             }
         } catch (e: Exception) {
             Log.d("ProfileVM", "No granted badges file (normal): ${e.message}")
@@ -663,7 +697,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val json = gson.toJson(profile)
-                repository?.saveGenericJSON(employeeName, "profile.json", json)
+                withContext(Dispatchers.IO) {
+                    repository?.saveGenericJSON(employeeName, "profile.json", json)
+                }
             } catch (e: Exception) {
                 Log.e("ProfileVM", "Save failed", e)
             }

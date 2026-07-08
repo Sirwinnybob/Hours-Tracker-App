@@ -34,6 +34,16 @@ import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.timecardShape
 
+import com.example.timecard.ui.theme.LcarsDialogFrame
+import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsOrange
+import com.example.timecard.ui.theme.LcarsRed
+import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LcarsPurple
+import com.example.timecard.ui.theme.LcarsAnakiwa
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.border
+
 @Composable
 fun UserProfileSheet(
     entry: LeaderboardEntry,
@@ -48,53 +58,66 @@ fun UserProfileSheet(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(16.dp)
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
-        ) {
+        val sheetContent = @Composable {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colors.surface, timecardShape(RoundedCornerShape(20.dp)))
-                    .padding(24.dp)
+                    .background(if (colors.isLcars) Color.Black else colors.surface)
+                    .then(if (!colors.isLcars) Modifier.padding(24.dp) else Modifier.padding(16.dp))
                     .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Avatar
                 val avatarBytes = entry.avatarBytes
                 if (avatarBytes != null) {
-                    Image(
-                        bitmap = remember(avatarBytes) {
-                            BitmapFactory.decodeByteArray(avatarBytes, 0, avatarBytes.size).asImageBitmap()
-                        },
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(72.dp).clip(CircleShape)
-                    )
-                } else {
-                    val initials = (entry.displayName ?: entry.name).take(2).uppercase()
-                    Box(
-                        modifier = Modifier.size(72.dp).background(colors.accent, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(initials, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    val bitmap = remember(avatarBytes) {
+                        BitmapFactory.decodeByteArray(avatarBytes, 0, avatarBytes.size)?.asImageBitmap()
+                    }
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(72.dp).clip(
+                                if (colors.isLcars) RectangleShape else CircleShape
+                            )
+                        )
+                    } else {
+                        val initials = (entry.displayName ?: entry.name).take(2).uppercase()
+                        Box(
+                            modifier = Modifier.size(72.dp).background(
+                                if (colors.isLcars) LcarsTan else colors.accent,
+                                if (colors.isLcars) RectangleShape else CircleShape
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = initials,
+                                color = Color.Black,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null
+                            )
+                        }
                     }
                 }
 
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    entry.displayName ?: entry.name,
+                    text = if (colors.isLcars) (entry.displayName ?: entry.name).uppercase() else (entry.displayName ?: entry.name),
                     fontSize = 18.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
                     textAlign = TextAlign.Center
                 )
                 if (entry.displayName != null) {
-                    Text(entry.name, fontSize = 12.sp, color = colors.textSecondary)
+                    Text(
+                        text = if (colors.isLcars) entry.name.uppercase() else entry.name,
+                        fontSize = 12.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        color = colors.textSecondary
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -103,11 +126,28 @@ fun UserProfileSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colors.hover, timecardShape(RoundedCornerShape(12.dp)))
+                        .background(
+                            if (colors.isLcars) Color.Black else colors.hover,
+                            if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(12.dp))
+                        )
+                        .then(
+                            if (colors.isLcars) Modifier.border(1.dp, LcarsOrange, RectangleShape) else Modifier
+                        )
                         .padding(16.dp)
                 ) {
-                    CoinAmount(amount = entry.coins, fontSize = 22.sp, iconSize = 26.dp)
-                    Text("Kustom Kash", fontSize = 12.sp, color = colors.textSecondary)
+                    CoinAmount(
+                        amount = entry.coins,
+                        fontSize = 22.sp,
+                        iconSize = 26.dp,
+                        color = if (colors.isLcars) LcarsOrange else CoinAmber
+                    )
+                    Text(
+                        text = if (colors.isLcars) "KUSTOM KASH" else "Kustom Kash",
+                        fontSize = 12.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
+                        color = colors.textSecondary
+                    )
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -117,35 +157,76 @@ fun UserProfileSheet(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    val dailyStreak = entry.currentStreak
+                    val displayDaily = if (colors.isLcars) dailyStreak.toString() else "🔥 $dailyStreak"
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .background(colors.hover, timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color.Black else colors.hover,
+                                if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(10.dp)
                     ) {
-                        Text("Daily Streak", fontSize = 11.sp, color = colors.textSecondary)
                         Text(
-                            "🔥 ${entry.currentStreak}",
+                            text = if (colors.isLcars) "DAILY STREAK" else "Daily Streak",
+                            fontSize = 11.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = if (colors.isLcars) displayDaily.uppercase() else displayDaily,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textPrimary
                         )
-                        Text("Best: ${entry.bestDailyStreak}", fontSize = 10.sp, color = colors.textSecondary)
+                        Text(
+                            text = if (colors.isLcars) "BEST: ${entry.bestDailyStreak}" else "Best: ${entry.bestDailyStreak}",
+                            fontSize = 10.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            color = colors.textSecondary
+                        )
                     }
+
+                    val weeklyStreak = entry.currentWeeklyStreak
+                    val displayWeekly = if (colors.isLcars) weeklyStreak.toString() else "📆 $weeklyStreak"
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .background(colors.hover, timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color.Black else colors.hover,
+                                if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(10.dp)
                     ) {
-                        Text("Weekly Streak", fontSize = 11.sp, color = colors.textSecondary)
                         Text(
-                            "📆 ${entry.currentWeeklyStreak}",
+                            text = if (colors.isLcars) "WEEKLY STREAK" else "Weekly Streak",
+                            fontSize = 11.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = if (colors.isLcars) displayWeekly.uppercase() else displayWeekly,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textPrimary
                         )
-                        Text("Best: ${entry.bestWeeklyStreak}", fontSize = 10.sp, color = colors.textSecondary)
+                        Text(
+                            text = if (colors.isLcars) "BEST: ${entry.bestWeeklyStreak}" else "Best: ${entry.bestWeeklyStreak}",
+                            fontSize = 10.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            color = colors.textSecondary
+                        )
                     }
                 }
 
@@ -153,8 +234,9 @@ fun UserProfileSheet(
 
                 // Personal Records
                 Text(
-                    "🏅 Personal Records",
+                    text = if (colors.isLcars) "PERSONAL RECORDS" else "🏅 Personal Records",
                     fontSize = 15.sp,
+                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
                     modifier = Modifier.fillMaxWidth()
@@ -167,28 +249,54 @@ fun UserProfileSheet(
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .background(colors.hover, timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color.Black else colors.hover,
+                                if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(10.dp)
                     ) {
-                        Text("Best Week", fontSize = 11.sp, color = colors.textSecondary)
                         Text(
-                            "${String.format("%.2f", entry.bestWeekHours)} hrs",
+                            text = if (colors.isLcars) "BEST WEEK" else "Best Week",
+                            fontSize = 11.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = "${String.format("%.2f", entry.bestWeekHours)} HRS",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textPrimary
                         )
                     }
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .background(colors.hover, timecardShape(RoundedCornerShape(10.dp)))
+                            .background(
+                                if (colors.isLcars) Color.Black else colors.hover,
+                                if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(10.dp))
+                            )
+                            .then(
+                                if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                            )
                             .padding(10.dp)
                     ) {
-                        Text("Best Day", fontSize = 11.sp, color = colors.textSecondary)
                         Text(
-                            "${String.format("%.2f", entry.bestDayHours)} hrs",
+                            text = if (colors.isLcars) "BEST DAY" else "Best Day",
+                            fontSize = 11.sp,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Normal,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = "${String.format("%.2f", entry.bestDayHours)} HRS",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
+                            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                             color = colors.textPrimary
                         )
                     }
@@ -198,8 +306,9 @@ fun UserProfileSheet(
                 if (earnedBadges.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "🏆 Badges (${earnedBadges.size} earned)",
+                        text = if (colors.isLcars) "BADGES (${earnedBadges.size} EARNED)" else "🏆 Badges (${earnedBadges.size} earned)",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
                         modifier = Modifier.fillMaxWidth()
@@ -215,34 +324,50 @@ fun UserProfileSheet(
                     ) {
                         items(earnedBadges) { def ->
                             val imgBytes = badgeImages[def.id]
+                            val itemBg = if (colors.isLcars) Color.Black else colors.accent.copy(alpha = 0.12f)
+                            val itemShape = if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(10.dp))
+                            val itemBorder = if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        colors.accent.copy(alpha = 0.12f),
-                                        timecardShape(RoundedCornerShape(10.dp))
-                                    )
+                                    .background(itemBg, itemShape)
+                                    .then(itemBorder)
                                     .padding(6.dp)
                             ) {
                                 if (imgBytes != null) {
-                                    Image(
-                                        bitmap = remember(imgBytes) {
-                                            BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size).asImageBitmap()
-                                        },
-                                        contentDescription = def.name,
-                                        contentScale = ContentScale.Fit,
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(timecardShape(RoundedCornerShape(6.dp)))
-                                    )
-                                } else {
-                                    Text(def.emoji, fontSize = 22.sp)
+                                    val bitmap = remember(imgBytes) {
+                                        BitmapFactory.decodeByteArray(imgBytes, 0, imgBytes.size)?.asImageBitmap()
+                                    }
+                                    if (bitmap != null) {
+                                        Image(
+                                            bitmap = bitmap,
+                                            contentDescription = def.name,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(6.dp)))
+                                        )
+                                    } else {
+                                        if (colors.isLcars) {
+                                            Text(
+                                                text = def.name.take(3).uppercase(),
+                                                fontFamily = AntonioFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 14.sp,
+                                                color = LcarsTan
+                                            )
+                                        } else {
+                                            Text(def.emoji, fontSize = 22.sp)
+                                        }
+                                    }
                                 }
                                 Text(
-                                    def.name,
+                                    text = if (colors.isLcars) def.name.uppercase() else def.name,
                                     fontSize = 9.sp,
-                                    color = colors.accent,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                    color = if (colors.isLcars) LcarsTan else colors.accent,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 2,
                                     textAlign = TextAlign.Center
@@ -256,8 +381,9 @@ fun UserProfileSheet(
                 if (entry.purchaseHistory.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        "🛒 Purchases",
+                        text = if (colors.isLcars) "PURCHASES" else "🛒 Purchases",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
                         modifier = Modifier.fillMaxWidth()
@@ -271,33 +397,75 @@ fun UserProfileSheet(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(colors.hover, timecardShape(RoundedCornerShape(8.dp)))
+                                    .background(
+                                        if (colors.isLcars) Color.Black else colors.hover,
+                                        if (colors.isLcars) RectangleShape else timecardShape(RoundedCornerShape(8.dp))
+                                    )
+                                    .then(
+                                        if (colors.isLcars) Modifier.border(1.dp, LcarsTan, RectangleShape) else Modifier
+                                    )
                                     .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    purchase.itemTitle,
+                                    text = if (colors.isLcars) purchase.itemTitle.uppercase() else purchase.itemTitle,
                                     fontSize = 13.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                     color = colors.textPrimary,
                                     modifier = Modifier.weight(1f)
                                 )
-                                CoinAmount(amount = purchase.price, fontSize = 12.sp, color = CoinAmber)
+                                CoinAmount(
+                                    amount = purchase.price,
+                                    fontSize = 12.sp,
+                                    color = if (colors.isLcars) LcarsOrange else CoinAmber
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                if (!colors.isLcars) {
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
+                        shape = timecardShape(RoundedCornerShape(8.dp)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
 
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.hover),
-                    shape = timecardShape(RoundedCornerShape(8.dp)),
+        if (colors.isLcars) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .padding(16.dp)
+                    .safeDrawingPadding(),
+                contentAlignment = Alignment.Center
+            ) {
+                LcarsDialogFrame(
+                    title = "USER PROFILE",
+                    onDismiss = onDismiss,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Close", color = colors.textPrimary, fontWeight = FontWeight.Bold)
+                    sheetContent()
                 }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(16.dp)
+                    .safeDrawingPadding(),
+                contentAlignment = Alignment.Center
+            ) {
+                sheetContent()
             }
         }
     }

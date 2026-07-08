@@ -73,15 +73,15 @@ fun PieChart(
                         this.color = android.graphics.Color.WHITE
                         textAlign = Paint.Align.CENTER
                         textSize = 10.dp.toPx()
-                        typeface = Typeface.DEFAULT_BOLD
+                        typeface = if (colors.isLcars) Typeface.create("sans-serif-condensed", Typeface.BOLD) else Typeface.DEFAULT_BOLD
                         isAntiAlias = true
                     }
-                    canvas.nativeCanvas.drawText(job, lx, ly - 4.dp.toPx(), paint)
+                    canvas.nativeCanvas.drawText(if (colors.isLcars) job.uppercase() else job, lx, ly - 4.dp.toPx(), paint)
 
                     paint.textSize = 9.dp.toPx()
-                    paint.typeface = Typeface.DEFAULT
+                    paint.typeface = if (colors.isLcars) Typeface.create("sans-serif-condensed", Typeface.NORMAL) else Typeface.DEFAULT
                     canvas.nativeCanvas.drawText(
-                        String.format("%.2fh", hours),
+                        if (colors.isLcars) String.format("%.2fH", hours) else String.format("%.2fh", hours),
                         lx, ly + 10.dp.toPx(), paint
                     )
                 }
@@ -92,7 +92,7 @@ fun PieChart(
 
         // Center circle for donut effect
         drawCircle(
-            color = colors.surface,
+            color = if (colors.isLcars) Color.Black else colors.surface,
             radius = radius * 0.3f,
             center = center
         )
@@ -103,7 +103,7 @@ fun PieChart(
                 this.color = colors.textTotal.toArgb()
                 textAlign = Paint.Align.CENTER
                 textSize = 14.dp.toPx()
-                typeface = Typeface.DEFAULT_BOLD
+                typeface = if (colors.isLcars) Typeface.create("sans-serif-condensed", Typeface.BOLD) else Typeface.DEFAULT_BOLD
                 isAntiAlias = true
             }
             canvas.nativeCanvas.drawText(

@@ -15,6 +15,21 @@ class SafFileRepository(
     private val treeUri: Uri
 ) : FileRepository {
 
+    /**
+     * Writes [bytes] to the content at [uri], requiring a non-null OutputStream.
+     * Returns true only if the stream was obtained and the write completed.
+     * A null stream (a real, documented possible SAF outcome) returns false instead
+     * of silently no-op'ing, so callers never mistake an unwritten temp file for success.
+     */
+    private fun writeAllBytes(uri: Uri, bytes: ByteArray): Boolean {
+        val os = context.contentResolver.openOutputStream(uri) ?: return false
+        os.use { stream ->
+            stream.write(bytes)
+            stream.flush()
+        }
+        return true
+    }
+
     override fun loadFile(name: String, date: String): String? {
         val sName = PathSanitizer.sanitize(name)
         val sDate = PathSanitizer.sanitize(date)
@@ -26,7 +41,17 @@ class SafFileRepository(
         return try {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             val empDir = root.findFile(sName) ?: return null
-            val file = empDir.findFile("$sDate.json") ?: return null
+            var file = empDir.findFile("$sDate.json")
+            if (file == null) {
+                val tempFile = empDir.findFile("$sDate.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo("$sDate.json")) {
+                        Log.d("SafFileRepo", "Recovered timecard temp file: $sDate.tmp")
+                        file = empDir.findFile("$sDate.json")
+                    }
+                }
+            }
+            if (file == null) return null
             val content = readDocumentContent(file)
             if (content != null) {
                 FileCache.put(cacheKey, content)
@@ -58,9 +83,9 @@ class SafFileRepository(
             tempFile = empDir.createFile("application/json", tempFilename)
                 ?: return "Error: Could not create temp file"
 
-            context.contentResolver.openOutputStream(tempFile.uri)?.use { os ->
-                os.write(json.toByteArray(StandardCharsets.UTF_8))
-                os.flush()
+            if (!writeAllBytes(tempFile.uri, json.toByteArray(StandardCharsets.UTF_8))) {
+                tempFile.delete()
+                return "Error: Could not open output stream for write"
             }
 
             val finalFile = empDir.findFile(sFilenameFinal)
@@ -133,7 +158,17 @@ class SafFileRepository(
         return try {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             val empDir = root.findFile(sName) ?: return null
-            val file = empDir.findFile(sFilename) ?: return null
+            var file = empDir.findFile(sFilename)
+            if (file == null) {
+                val tempFile = empDir.findFile("$sFilename.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo(sFilename)) {
+                        Log.d("SafFileRepo", "Recovered generic temp file: $sFilename.tmp")
+                        file = empDir.findFile(sFilename)
+                    }
+                }
+            }
+            if (file == null) return null
             val content = readDocumentContent(file)
             if (content != null && useCache) {
                 FileCache.put(cacheKey, content)
@@ -163,9 +198,9 @@ class SafFileRepository(
             tempFile = empDir.createFile("application/json", tempFilename)
                 ?: return "Error: Could not create temp file"
 
-            context.contentResolver.openOutputStream(tempFile.uri)?.use { os ->
-                os.write(json.toByteArray(StandardCharsets.UTF_8))
-                os.flush()
+            if (!writeAllBytes(tempFile.uri, json.toByteArray(StandardCharsets.UTF_8))) {
+                tempFile.delete()
+                return "Error: Could not open output stream for write"
             }
 
             val finalFile = empDir.findFile(sFilename)
@@ -193,7 +228,17 @@ class SafFileRepository(
         }
         return try {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
-            val file = root.findFile(sFilename) ?: return null
+            var file = root.findFile(sFilename)
+            if (file == null) {
+                val tempFile = root.findFile("$sFilename.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo(sFilename)) {
+                        Log.d("SafFileRepo", "Recovered global temp file: $sFilename.tmp")
+                        file = root.findFile(sFilename)
+                    }
+                }
+            }
+            if (file == null) return null
             val content = readDocumentContent(file)
             if (content != null && useCache) {
                 FileCache.put(cacheKey, content)
@@ -207,9 +252,9 @@ class SafFileRepository(
     }
 
     override fun loadGlobalBinaryFile(relativePath: String): ByteArray? {
+        val sPath = PathSanitizer.sanitizePath(relativePath)
         return try {
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
-            val sPath = PathSanitizer.sanitizePath(relativePath)
             val segments = sPath.split("/").filter { it.isNotEmpty() }
             var doc: DocumentFile = root
             for (segment in segments) {
@@ -223,9 +268,9 @@ class SafFileRepository(
     }
 
     override fun loadEmployeeBinaryFile(name: String, filename: String): ByteArray? {
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sFilename = PathSanitizer.sanitize(filename)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             val empDir = root.findFile(sName) ?: return null
             // Support wildcard extension: find first file matching prefix
@@ -244,9 +289,9 @@ class SafFileRepository(
     }
 
     override fun saveEmployeeBinaryFile(name: String, filename: String, data: ByteArray): Boolean {
+        val sName = PathSanitizer.sanitize(name)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sFilename = PathSanitizer.sanitize(filename)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return false
             var empDir = root.findFile(sName)
             if (empDir == null) empDir = root.createDirectory(sName)
@@ -256,9 +301,9 @@ class SafFileRepository(
                 empDir.listFiles().filter { it.name?.startsWith(".avatar") == true }.forEach { it.delete() }
             }
             val newFile = empDir.createFile("image/jpeg", sFilename) ?: return false
-            context.contentResolver.openOutputStream(newFile.uri)?.use { os ->
-                os.write(data)
-                os.flush()
+            if (!writeAllBytes(newFile.uri, data)) {
+                newFile.delete()
+                return false
             }
             true
         } catch (e: Exception) {
@@ -280,9 +325,9 @@ class SafFileRepository(
     }
 
     override fun listFilesInDir(name: String, subdirectory: String): List<String> {
+        val sName = PathSanitizer.sanitize(name)
+        val sSub = PathSanitizer.sanitize(subdirectory)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
             val empDir = root.findFile(sName) ?: return emptyList()
             val subDir = empDir.findFile(sSub) ?: return emptyList()
@@ -313,9 +358,9 @@ class SafFileRepository(
             tempFile = subDir.createFile("application/json", tempFilename)
                 ?: return "Error: Could not create temp file"
 
-            context.contentResolver.openOutputStream(tempFile.uri)?.use { os ->
-                os.write(json.toByteArray(StandardCharsets.UTF_8))
-                os.flush()
+            if (!writeAllBytes(tempFile.uri, json.toByteArray(StandardCharsets.UTF_8))) {
+                tempFile.delete()
+                return "Error: Could not open output stream for write"
             }
 
             val finalFile = subDir.findFile(sFilename)
@@ -328,14 +373,24 @@ class SafFileRepository(
     }
 
     override fun loadFromDir(name: String, subdirectory: String, filename: String): String? {
+        val sName = PathSanitizer.sanitize(name)
+        val sSub = PathSanitizer.sanitize(subdirectory)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sName = PathSanitizer.sanitize(name)
-            val sSub = PathSanitizer.sanitize(subdirectory)
-            val sFilename = PathSanitizer.sanitize(filename)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             val empDir = root.findFile(sName) ?: return null
             val subDir = empDir.findFile(sSub) ?: return null
-            val file = subDir.findFile(sFilename) ?: return null
+            var file = subDir.findFile(sFilename)
+            if (file == null) {
+                val tempFile = subDir.findFile("$sFilename.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo(sFilename)) {
+                        Log.d("SafFileRepo", "Recovered dir temp file: $sFilename.tmp")
+                        file = subDir.findFile(sFilename)
+                    }
+                }
+            }
+            if (file == null) return null
             readDocumentContent(file)
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error loading $sName/$sSub/$sFilename", e)
@@ -393,7 +448,20 @@ class SafFileRepository(
         }
         
         renewLock(sName, sDate, deviceId)
-        return true
+        // Best-effort narrowing of the check-then-act race: SAF has no atomic create-if-absent
+        // primitive, so two devices can still both reach this point concurrently. Writing then
+        // reading back means only whichever write physically landed last will see its own
+        // deviceId on read-back, so at most one caller returns true. This does not make the
+        // operation atomic (a device could still read back its own id before a concurrent
+        // writer's write lands), it only shrinks the window versus trusting the pre-write state.
+        return verifyLockOwnership(empDir, sDate, deviceId)
+    }
+
+    private fun verifyLockOwnership(empDir: DocumentFile, sDate: String, deviceId: String): Boolean {
+        val lockFile = empDir.findFile("$sDate.json.lock") ?: return false
+        val content = readDocumentContent(lockFile) ?: return false
+        val parts = content.split(",")
+        return parts.size == 2 && parts[1] == deviceId
     }
 
     override fun renewLock(name: String, date: String, deviceId: String) {
@@ -413,9 +481,8 @@ class SafFileRepository(
             if (lockFile == null) return
             
             val timestamp = System.currentTimeMillis()
-            context.contentResolver.openOutputStream(lockFile.uri)?.use { os ->
-                os.write("$timestamp,$deviceId".toByteArray(StandardCharsets.UTF_8))
-                os.flush()
+            if (!writeAllBytes(lockFile.uri, "$timestamp,$deviceId".toByteArray(StandardCharsets.UTF_8))) {
+                Log.e("SafFileRepo", "Error renewing lock: could not open output stream for $sLockFilename")
             }
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error renewing lock", e)
@@ -450,11 +517,21 @@ class SafFileRepository(
     }
 
     override fun loadEmployeeActivityEvents(name: String): List<com.example.timecard.data.model.ActivityEvent> {
+        val sName = PathSanitizer.sanitize(name)
         return try {
-            val sName = PathSanitizer.sanitize(name)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
             val empDir = root.findFile(sName) ?: return emptyList()
-            val file = empDir.findFile("activity_events.json") ?: return emptyList()
+            var file = empDir.findFile("activity_events.json")
+            if (file == null) {
+                val tempFile = empDir.findFile("activity_events.json.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo("activity_events.json")) {
+                        Log.d("SafFileRepo", "Recovered activity events temp file")
+                        file = empDir.findFile("activity_events.json")
+                    }
+                }
+            }
+            if (file == null) return emptyList()
             val json = readDocumentContent(file) ?: return emptyList()
             com.google.gson.Gson().fromJson(json, com.example.timecard.data.model.ActivityFeed::class.java)?.events ?: emptyList()
         } catch (e: Exception) {
@@ -464,16 +541,32 @@ class SafFileRepository(
     }
 
     override fun saveEmployeeActivityEvents(name: String, events: List<com.example.timecard.data.model.ActivityEvent>) {
+        val sName = PathSanitizer.sanitize(name)
         try {
-            val sName = PathSanitizer.sanitize(name)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return
-            var empDir = root.findFile(sName) ?: root.createDirectory(sName) ?: return
+            var empDir = root.findFile(sName)
+            if (empDir == null) empDir = root.createDirectory(sName)
+            if (empDir == null) return
+
             val feed = com.example.timecard.data.model.ActivityFeed(events.take(50))
             val json = com.google.gson.Gson().toJson(feed)
             val bytes = json.toByteArray(StandardCharsets.UTF_8)
-            val existing = empDir.findFile("activity_events.json")
-            val file = existing ?: empDir.createFile("application/json", "activity_events.json") ?: return
-            context.contentResolver.openOutputStream(file.uri, "wt")?.use { it.write(bytes) }
+
+            val tempFilename = "activity_events.json.tmp"
+            var tempFile = empDir.findFile(tempFilename)
+            if (tempFile != null) tempFile.delete()
+            tempFile = empDir.createFile("application/json", tempFilename) ?: return
+
+            if (!writeAllBytes(tempFile.uri, bytes)) {
+                Log.e("SafFileRepo", "Error saving activity events for $sName: could not open output stream")
+                tempFile.delete()
+                return
+            }
+
+            val finalFile = empDir.findFile("activity_events.json")
+            if (finalFile != null) finalFile.delete()
+
+            tempFile.renameTo("activity_events.json")
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error saving activity events for $sName", e)
         }
@@ -495,9 +588,9 @@ class SafFileRepository(
             tempFile = subDir.createFile("application/json", tempFilename)
                 ?: return "Error: Could not create temp file"
 
-            context.contentResolver.openOutputStream(tempFile.uri)?.use { os ->
-                os.write(json.toByteArray(StandardCharsets.UTF_8))
-                os.flush()
+            if (!writeAllBytes(tempFile.uri, json.toByteArray(StandardCharsets.UTF_8))) {
+                tempFile.delete()
+                return "Error: Could not open output stream for write"
             }
 
             val finalFile = subDir.findFile(sFilename)
@@ -510,12 +603,22 @@ class SafFileRepository(
     }
 
     override fun loadGlobalDir(subdirectory: String, filename: String): String? {
+        val sSub = PathSanitizer.sanitize(subdirectory)
+        val sFilename = PathSanitizer.sanitize(filename)
         return try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
-            val sFilename = PathSanitizer.sanitize(filename)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return null
             val subDir = root.findFile(sSub) ?: return null
-            val file = subDir.findFile(sFilename) ?: return null
+            var file = subDir.findFile(sFilename)
+            if (file == null) {
+                val tempFile = subDir.findFile("$sFilename.tmp")
+                if (tempFile != null) {
+                    if (tempFile.renameTo(sFilename)) {
+                        Log.d("SafFileRepo", "Recovered global dir temp file: $sFilename.tmp")
+                        file = subDir.findFile(sFilename)
+                    }
+                }
+            }
+            if (file == null) return null
             readDocumentContent(file)
         } catch (e: Exception) {
             Log.e("SafFileRepo", "Error loading $sSub/$sFilename", e)
@@ -525,14 +628,23 @@ class SafFileRepository(
 
     override fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?> {
         val result = mutableMapOf<String, String?>()
+        val sSub = PathSanitizer.sanitize(subdirectory)
         return try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyMap()
             val subDir = root.findFile(sSub) ?: return emptyMap()
             for (f in filenames) {
+                val sFilename = PathSanitizer.sanitize(f)
                 try {
-                    val sFilename = PathSanitizer.sanitize(f)
-                    val file = subDir.findFile(sFilename)
+                    var file = subDir.findFile(sFilename)
+                    if (file == null) {
+                        val tempFile = subDir.findFile("$sFilename.tmp")
+                        if (tempFile != null) {
+                            if (tempFile.renameTo(sFilename)) {
+                                Log.d("SafFileRepo", "Recovered global dir temp file: $sFilename.tmp")
+                                file = subDir.findFile(sFilename)
+                            }
+                        }
+                    }
                     if (file != null && file.isFile) {
                         result[f] = readDocumentContent(file)
                     }
@@ -548,8 +660,8 @@ class SafFileRepository(
     }
 
     override fun listGlobalDir(subdirectory: String): List<String> {
+        val sSub = PathSanitizer.sanitize(subdirectory)
         return try {
-            val sSub = PathSanitizer.sanitize(subdirectory)
             val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
             val subDir = root.findFile(sSub) ?: return emptyList()
             subDir.listFiles().filter { it.isFile }.mapNotNull { it.name }

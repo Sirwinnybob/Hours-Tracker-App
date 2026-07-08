@@ -16,6 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.font.FontWeight
 
+import com.example.timecard.ui.theme.LocalTimecardColors
+import com.example.timecard.ui.theme.AntonioFontFamily
+
 @Composable
 fun InitialsAvatar(
     name: String,
@@ -30,6 +33,8 @@ fun InitialsAvatar(
         .joinToString("") { it.first().uppercaseChar().toString() }
         .ifEmpty { "?" }
     val textColor = if (bgColor.luminance() > 0.5f) Color.Black else Color.White
+    val colors = LocalTimecardColors.current
+    
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -37,6 +42,12 @@ fun InitialsAvatar(
             .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
             .background(bgColor)
     ) {
-        Text(initials, fontSize = fontSize, color = textColor, fontWeight = FontWeight.Bold)
+        Text(
+            text = initials,
+            fontSize = fontSize,
+            color = textColor,
+            fontWeight = FontWeight.Bold,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else null
+        )
     }
 }

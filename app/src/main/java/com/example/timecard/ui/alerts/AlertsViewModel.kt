@@ -65,25 +65,25 @@ class AlertsViewModel : ViewModel() {
         
         val responseText = alertResponse.trim().ifEmpty { null }
         
-        // Read our profile to get display name
-        val myProfileRaw = repo.loadGenericJSON(employeeName, "profile.json", useCache = true)
-        var myDisplayName = employeeName
-        if (myProfileRaw != null) {
-            try {
-                val prof = gson.fromJson(myProfileRaw, com.example.timecard.data.model.PlayerProfile::class.java)
-                if (prof.displayName != null) myDisplayName = prof.displayName
-            } catch(e: Exception) {}
-        }
-
-        val ackRecord = Acknowledgement(
-            id = current.id,
-            acknowledgedAt = Instant.now().toString(),
-            response = responseText,
-            responderName = myDisplayName,
-            originalMessage = current.message
-        )
-
         viewModelScope.launch(Dispatchers.IO) {
+            // Read our profile to get display name
+            val myProfileRaw = repo.loadGenericJSON(employeeName, "profile.json", useCache = true)
+            var myDisplayName = employeeName
+            if (myProfileRaw != null) {
+                try {
+                    val prof = gson.fromJson(myProfileRaw, com.example.timecard.data.model.PlayerProfile::class.java)
+                    if (prof.displayName != null) myDisplayName = prof.displayName
+                } catch(e: Exception) {}
+            }
+
+            val ackRecord = Acknowledgement(
+                id = current.id,
+                acknowledgedAt = Instant.now().toString(),
+                response = responseText,
+                responderName = myDisplayName,
+                originalMessage = current.message
+            )
+
             // A. Save locally (Seen Flag)
             saveAcknowledgementLocally(ackRecord)
             

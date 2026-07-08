@@ -1,10 +1,12 @@
 package com.example.timecard.ui.theme
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,7 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -24,205 +25,224 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ── LCARS chrome dimensions ───────────────────────────────────────────────────
-val LCARS_SIDEBAR_WIDTH: Dp  = 68.dp
+val LCARS_SIDEBAR_WIDTH: Dp  = 108.dp
 val LCARS_TOP_BAR_HEIGHT: Dp = 40.dp
 val LCARS_BOTTOM_BAR_HEIGHT: Dp = 30.dp
 val LCARS_GAP: Dp = 6.dp
 
-// Legacy alias kept so callers that haven't been updated yet still compile
+// Legacy alias kept so callers compile
 val LCARS_ELBOW_HEIGHT: Dp = LCARS_TOP_BAR_HEIGHT
 
 /**
  * Full-frame LCARS chrome wrapper.
  *
- * Renders an authentic LCARS interface frame around [content]:
- *   • Top horizontal orange bar with title (full width)
- *   • Left sidebar of coloured block towers
- *   • Bottom tan bar with status text (full width)
- *   • Black "content cutout" in the middle-right area
- *   • Concave quarter-circle elbows at each inner corner
- *
- * Usage: Replace the standard Box/Column root with LcarsFrame when isLcars is true.
+ * Renders an authentic, contiguous LCARS interface frame around [content]:
+ *   • Left spine: top-left elbow, vertical sidebar buttons, bottom-left elbow.
+ *   • Right side: top header, content cutout, bottom footer.
+ *   • Gaps only separate the right-side components and the left-side spine,
+ *     ensuring the left spine remains a single continuous piece.
  */
 @Composable
 fun LcarsFrame(
-    title: String = "",
-    statusText: String = "",
     modifier: Modifier = Modifier,
+    headerContent: @Composable RowScope.() -> Unit = {},
+    footerContent: @Composable RowScope.() -> Unit = {},
+    sidebarContent: @Composable ColumnScope.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // ── Top bar ───────────────────────────────────────────────────────────
-        LcarsTopBar(title = title)
+        // ── Left Column: Unbroken Spine ──────────────────────────────────────
+        Column(
+            modifier = Modifier
+                .width(LCARS_SIDEBAR_WIDTH) // 108.dp
+                .fillMaxHeight()
+        ) {
+            // Top Left Elbow (w = 80.dp, r = 28.dp)
+            LcarsTopLeftElbow(
+                color = LcarsOrange,
+                w = 80.dp,
+                r = 28.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+            )
 
-        Spacer(Modifier.height(LCARS_GAP))
+            Spacer(Modifier.height(LCARS_GAP))
 
-        // ── Middle: sidebar + content cutout ─────────────────────────────────
-        Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            LcarsSidebarColumn()
+            // Sidebar stack (Buttons are 80.dp wide)
+            Column(
+                modifier = Modifier
+                    .width(80.dp)
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(LCARS_GAP)
+            ) {
+                sidebarContent()
+            }
 
-            Spacer(Modifier.width(LCARS_GAP))
+            Spacer(Modifier.height(LCARS_GAP))
 
+            // Bottom Left Elbow (w = 80.dp, r = 28.dp)
+            LcarsBottomLeftElbow(
+                color = LcarsTan,
+                w = 80.dp,
+                r = 28.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(LCARS_GAP))
+
+        // ── Right Column: Content + Headers ──────────────────────────────────
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            // Header Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp) // aligns with horizontal arm of Top Left Elbow
+                    .background(LcarsOrange),
+                verticalAlignment = Alignment.CenterVertically,
+                content = headerContent
+            )
+
+            Spacer(Modifier.height(LCARS_GAP))
+
+            // Middle Content Cutout
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
+                    .fillMaxWidth()
                     .background(Color.Black)
             ) {
                 content()
             }
-        }
 
-        Spacer(Modifier.height(LCARS_GAP))
+            Spacer(Modifier.height(LCARS_GAP))
 
-        // ── Bottom bar ────────────────────────────────────────────────────────
-        LcarsBottomBar(statusText = statusText)
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Top bar: orange full-width bar.
-//   Left LCARS_SIDEBAR_WIDTH = the elbow's horizontal arm (with concave cutout).
-//   Right portion = title bar.
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun LcarsTopBar(title: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(LCARS_TOP_BAR_HEIGHT),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Elbow horizontal arm — orange with concave bite at bottom-right
-        Canvas(
-            modifier = Modifier
-                .width(LCARS_SIDEBAR_WIDTH)
-                .fillMaxHeight()
-        ) {
-            drawRect(LcarsOrange)
-            // Black circle centered at bottom-right corner creates the concave arc
-            drawCircle(
-                color = Color.Black,
-                radius = size.height * 1.15f,
-                center = Offset(size.width, size.height)
+            // Footer Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp) // aligns with horizontal arm of Bottom Left Elbow
+                    .background(LcarsTan)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                content = footerContent
             )
         }
-
-        // Title bar — solid orange, full remaining width
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(LcarsOrange),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            if (title.isNotEmpty()) {
-                Text(
-                    text = title.uppercase(),
-                    fontFamily = AntonioFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    letterSpacing = 1.5.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(end = 14.dp)
-                )
-            }
-        }
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sidebar column: coloured block towers separated by black gaps.
-// The blocks use weight() so they scale naturally with screen height.
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun LcarsSidebarColumn() {
-    Column(
-        modifier = Modifier
-            .width(LCARS_SIDEBAR_WIDTH)
-            .fillMaxHeight()
-    ) {
-        // Tier 1 — orange cap
-        Box(Modifier.fillMaxWidth().weight(2.5f).background(LcarsOrange))
-        Spacer(Modifier.height(5.dp))
-        Box(Modifier.fillMaxWidth().weight(0.8f).background(LcarsTan))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(0.7f).background(LcarsRed))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(0.7f).background(LcarsPurple))
-        Spacer(Modifier.height(5.dp))
-        // Tier 2 — blue block
-        Box(Modifier.fillMaxWidth().weight(1.4f).background(LcarsBlueBell))
-        Spacer(Modifier.height(8.dp))
-        // Tier 3 — orange main section
-        Box(Modifier.fillMaxWidth().weight(0.9f).background(LcarsOrange))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(0.6f).background(LcarsTan))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(3.5f).background(LcarsOrange))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(0.5f).background(LcarsMelrose))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(0.5f).background(LcarsRed))
-        Spacer(Modifier.height(6.dp))
-        // Tier 4 — lower accents
-        Box(Modifier.fillMaxWidth().weight(0.9f).background(LcarsTan))
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().weight(1.3f).background(LcarsOrange))
-    }
-}
+fun LcarsTopLeftElbow(
+    color: Color,
+    modifier: Modifier = Modifier,
+    w: Dp = 80.dp,
+    h: Dp = 28.dp,
+    r: Dp = 28.dp,
+    rOuter: Dp = 20.dp
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val wPx = w.toPx()
+        val hPx = h.toPx()
+        val rPx = r.toPx()
+        val rOuterPx = rOuter.toPx()
+        val W = size.width
+        val H = size.height
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bottom bar: tan full-width bar.
-//   Left LCARS_SIDEBAR_WIDTH = elbow base arm (with concave bite at top-right).
-//   Right portion = status text bar.
-// ─────────────────────────────────────────────────────────────────────────────
-@Composable
-private fun LcarsBottomBar(statusText: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(LCARS_BOTTOM_BAR_HEIGHT),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Elbow base arm — tan with concave bite at top-right
-        Canvas(
-            modifier = Modifier
-                .width(LCARS_SIDEBAR_WIDTH)
-                .fillMaxHeight()
-        ) {
-            drawRect(LcarsTan)
-            // Black circle centered at top-right corner
-            drawCircle(
-                color = Color.Black,
-                radius = size.height * 1.15f,
-                center = Offset(size.width, 0f)
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, H)
+            lineTo(0f, rOuterPx)
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    left = 0f,
+                    top = 0f,
+                    right = rOuterPx * 2f,
+                    bottom = rOuterPx * 2f
+                ),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
             )
+            lineTo(W, 0f)
+            lineTo(W, hPx)
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    left = wPx,
+                    top = hPx,
+                    right = wPx + rPx * 2f,
+                    bottom = hPx + rPx * 2f
+                ),
+                startAngleDegrees = 270f,
+                sweepAngleDegrees = -90f,
+                forceMoveTo = false
+            )
+            lineTo(wPx, H)
+            lineTo(0f, H)
+            close()
         }
+        drawPath(path = path, color = color)
+    }
+}
 
-        // Status bar — solid tan, full remaining width
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .background(LcarsTan),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            if (statusText.isNotEmpty()) {
-                Text(
-                    text = statusText.uppercase(),
-                    fontFamily = AntonioFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    letterSpacing = 1.0.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(start = 14.dp)
-                )
-            }
+@Composable
+fun LcarsBottomLeftElbow(
+    color: Color,
+    modifier: Modifier = Modifier,
+    w: Dp = 80.dp,
+    h: Dp = 20.dp,
+    r: Dp = 28.dp,
+    rOuter: Dp = 20.dp
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val wPx = w.toPx()
+        val hPx = h.toPx()
+        val rPx = r.toPx()
+        val rOuterPx = rOuter.toPx()
+        val W = size.width
+        val H = size.height
+
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, 0f)
+            lineTo(wPx, 0f)
+            lineTo(wPx, H - hPx - rPx)
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    left = wPx,
+                    top = H - hPx - rPx * 2f,
+                    right = wPx + rPx * 2f,
+                    bottom = H - hPx
+                ),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = -90f,
+                forceMoveTo = false
+            )
+            lineTo(W, H - hPx)
+            lineTo(W, H)
+            lineTo(rOuterPx, H)
+            arcTo(
+                rect = androidx.compose.ui.geometry.Rect(
+                    left = 0f,
+                    top = H - rOuterPx * 2f,
+                    right = rOuterPx * 2f,
+                    bottom = H
+                ),
+                startAngleDegrees = 90f,
+                sweepAngleDegrees = 90f,
+                forceMoveTo = false
+            )
+            lineTo(0f, 0f)
+            close()
         }
+        drawPath(path = path, color = color)
     }
 }

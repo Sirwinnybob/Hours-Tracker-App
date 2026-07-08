@@ -92,7 +92,7 @@ object DateUtils {
             cal.set(Calendar.DAY_OF_MONTH, parts[2].toInt())
             return cal
         } catch (e: Exception) {
-            return Calendar.getInstance()
+            throw IllegalArgumentException("Malformed date string: '$dateStr'", e)
         }
     }
 }

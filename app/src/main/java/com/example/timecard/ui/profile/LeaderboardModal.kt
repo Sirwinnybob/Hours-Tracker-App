@@ -41,6 +41,8 @@ import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LcarsPurple
+import com.example.timecard.ui.theme.LcarsAnakiwa
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.ui.graphics.RectangleShape
 
@@ -97,17 +99,18 @@ fun LeaderboardModal(
         )
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    val modalContent = @Composable {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
+            modifier = if (colors.isLcars) {
+                Modifier.fillMaxSize().background(Color.Black)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
+                    .safeDrawingPadding()
+            },
+            contentAlignment = if (colors.isLcars) Alignment.TopCenter else Alignment.Center
         ) {
             Column(
                 modifier = Modifier
@@ -159,39 +162,62 @@ fun LeaderboardModal(
                     Spacer(Modifier.height(16.dp))
                 }
 
+                val isLcars = colors.isLcars
+                val activeColor = LcarsAnakiwa
+                val inactiveColors = listOf(LcarsTan, LcarsPurple)
+
                 // Tab bar — 5 tabs: Week / Month / Streak / Coins / Feed
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Tab 0–2: text labels
-                    listOf("Week", "Month", "🔥 Streak").forEachIndexed { index, label ->
+                    listOf("Week", "Month", if (isLcars) "Streak" else "🔥 Streak").forEachIndexed { index, label ->
                         val selected = tab == index
+                        val tabBg = if (isLcars) {
+                            if (selected) activeColor else inactiveColors[index % inactiveColors.size]
+                        } else {
+                            if (selected) colors.accent else colors.hover
+                        }
+                        val tabTextCol = if (isLcars) Color.Black else (if (selected) Color.White else colors.textSecondary)
+                        val tabShape = if (isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                        val tabFont = if (isLcars) AntonioFontFamily else null
+                        val tabLabel = if (isLcars) label.uppercase() else label
+
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .weight(1f)
-                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                                .background(if (selected) colors.accent else colors.hover)
+                                .clip(tabShape)
+                                .background(tabBg)
                                 .clickable { tab = index }
                                 .padding(horizontal = 6.dp, vertical = 10.dp)
                         ) {
                             Text(
-                                label,
+                                tabLabel,
                                 fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selected) Color.White else colors.textSecondary
+                                fontFamily = tabFont,
+                                fontWeight = if (isLcars || selected) FontWeight.Bold else FontWeight.Normal,
+                                color = tabTextCol
                             )
                         }
                     }
                     // Tab 3: Coins (icon + label)
                     val coinsSelected = tab == 3
+                    val coinsBg = if (isLcars) {
+                        if (coinsSelected) activeColor else inactiveColors[3 % inactiveColors.size]
+                    } else {
+                        if (coinsSelected) colors.accent else colors.hover
+                    }
+                    val coinsTextCol = if (isLcars) Color.Black else (if (coinsSelected) Color.White else colors.textSecondary)
+                    val coinsShape = if (isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                            .background(if (coinsSelected) colors.accent else colors.hover)
+                            .clip(coinsShape)
+                            .background(coinsBg)
                             .clickable { tab = 3 }
                             .padding(horizontal = 6.dp, vertical = 10.dp)
                     ) {
@@ -199,31 +225,41 @@ fun LeaderboardModal(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            CoinIcon(size = 13.dp)
+                            if (!isLcars) CoinIcon(size = 13.dp)
                             Text(
-                                "KK Coins",
+                                text = if (isLcars) "COINS" else "KK Coins",
                                 fontSize = 11.sp,
-                                fontWeight = if (coinsSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (coinsSelected) Color.White else colors.textSecondary
+                                fontFamily = if (isLcars) AntonioFontFamily else null,
+                                fontWeight = if (isLcars || coinsSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = coinsTextCol
                             )
                         }
                     }
                     // Tab 4: Feed
                     val feedSelected = tab == 4
+                    val feedBg = if (isLcars) {
+                        if (feedSelected) activeColor else inactiveColors[4 % inactiveColors.size]
+                    } else {
+                        if (feedSelected) colors.accent else colors.hover
+                    }
+                    val feedTextCol = if (isLcars) Color.Black else (if (feedSelected) Color.White else colors.textSecondary)
+                    val feedShape = if (isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .weight(1f)
-                            .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                            .background(if (feedSelected) colors.accent else colors.hover)
+                            .clip(feedShape)
+                            .background(feedBg)
                             .clickable { tab = 4 }
                             .padding(horizontal = 6.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            "📰 Feed",
+                            text = if (isLcars) "FEED" else "📰 Feed",
                             fontSize = 11.sp,
-                            fontWeight = if (feedSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (feedSelected) Color.White else colors.textSecondary
+                            fontFamily = if (isLcars) AntonioFontFamily else null,
+                            fontWeight = if (isLcars || feedSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = feedTextCol
                         )
                     }
                 }
@@ -252,43 +288,93 @@ fun LeaderboardModal(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             items(viewModel.feedEvents) { event ->
-                                Row(
-                                    verticalAlignment = Alignment.Top,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                                ) {
-                                    Text(event.detailIcon, fontSize = 20.sp)
-                                    Spacer(Modifier.width(10.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                event.displayName,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (event.employeeName == myName) colors.accent else colors.textPrimary
-                                            )
-                                            Text(
-                                                " ${activityEventDescription(event)}",
-                                                fontSize = 13.sp,
-                                                color = colors.textPrimary
-                                            )
-                                            if (event.type == "badge_granted") {
-                                                Spacer(Modifier.width(4.dp))
+                                if (isLcars) {
+                                    val isMe = event.employeeName == myName
+                                    val spineColor = if (isMe) LcarsAnakiwa else LcarsTan
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(Color.Black)
+                                            .height(IntrinsicSize.Min)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(6.dp)
+                                                .fillMaxHeight()
+                                                .background(spineColor)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(Color(0xFF111111))
+                                                .padding(10.dp)
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Text(
-                                                    "🎁",
+                                                    text = event.displayName.uppercase(),
+                                                    fontSize = 13.sp,
+                                                    fontFamily = AntonioFontFamily,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isMe) LcarsAnakiwa else Color.White
+                                                )
+                                                Text(
+                                                    text = " ${activityEventDescription(event).uppercase()}",
+                                                    fontSize = 13.sp,
+                                                    fontFamily = AntonioFontFamily,
+                                                    color = Color.White
+                                                )
+                                            }
+                                            val timeStr = relativeTime(event.timestamp)
+                                            if (timeStr.isNotEmpty()) {
+                                                Text(
+                                                    text = timeStr.uppercase(),
                                                     fontSize = 11.sp,
-                                                    color = CoinAmber,
-                                                    modifier = Modifier
-                                                        .background(CoinAmber.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
-                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    fontFamily = AntonioFontFamily,
+                                                    color = colors.textSecondary
                                                 )
                                             }
                                         }
-                                        val timeStr = relativeTime(event.timestamp)
-                                        if (timeStr.isNotEmpty()) {
-                                            Text(timeStr, fontSize = 11.sp, color = colors.textSecondary)
+                                    }
+                                } else {
+                                    Row(
+                                        verticalAlignment = Alignment.Top,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(colors.hover, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp)))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(event.detailIcon, fontSize = 20.sp)
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    event.displayName,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (event.employeeName == myName) colors.accent else colors.textPrimary
+                                                )
+                                                Text(
+                                                    " ${activityEventDescription(event)}",
+                                                    fontSize = 13.sp,
+                                                    color = colors.textPrimary
+                                                )
+                                                if (event.type == "badge_granted") {
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text(
+                                                        "🎁",
+                                                        fontSize = 11.sp,
+                                                        color = CoinAmber,
+                                                        modifier = Modifier
+                                                            .background(CoinAmber.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    )
+                                                }
+                                            }
+                                            val timeStr = relativeTime(event.timestamp)
+                                            if (timeStr.isNotEmpty()) {
+                                                Text(timeStr, fontSize = 11.sp, color = colors.textSecondary)
+                                            }
                                         }
                                     }
                                 }
@@ -340,75 +426,173 @@ fun LeaderboardModal(
                                 else -> null // coins tab uses CoinAmount composable
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        if (isMe) colors.accent.copy(alpha = 0.12f) else colors.hover,
-                                        com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
-                                    )
-                                    .clickable { selectedEntry = entry }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Text(rankEmoji, fontSize = 18.sp)
-                                Spacer(Modifier.width(8.dp))
-
-                                // Avatar
-                                val avatarBytes = entry.avatarBytes
-                                if (avatarBytes != null) {
-                                    Image(
-                                        bitmap = remember(avatarBytes) {
-                                            BitmapFactory.decodeByteArray(avatarBytes, 0, avatarBytes.size).asImageBitmap()
-                                        },
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                    )
-                                } else {
-                                    val initials = displayedName.take(2).uppercase()
+                            if (isLcars) {
+                                val rankText = String.format("%02d", rank)
+                                val rowSpineColor = if (isMe) LcarsAnakiwa else LcarsTan
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.Black)
+                                        .clickable { selectedEntry = entry }
+                                        .height(IntrinsicSize.Min)
+                                ) {
+                                    // Rank block on the left
                                     Box(
+                                        contentAlignment = Alignment.Center,
                                         modifier = Modifier
-                                            .size(32.dp)
-                                            .background(colors.accent, CircleShape),
-                                        contentAlignment = Alignment.Center
+                                            .width(26.dp)
+                                            .fillMaxHeight()
+                                            .background(rowSpineColor)
                                     ) {
                                         Text(
-                                            initials,
-                                            color = Color.White,
+                                            text = rankText,
+                                            fontFamily = AntonioFontFamily,
+                                            fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
+                                            color = Color.Black
                                         )
                                     }
+                                    Spacer(Modifier.width(6.dp))
+                                    // Content container
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(Color(0xFF111111))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        // Avatar preview (only if custom and bytes exist)
+                                        val avatarBytes = entry.avatarBytes
+                                        val decodedAvatarBitmap = remember(avatarBytes) {
+                                            avatarBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                                        }
+                                        if (decodedAvatarBitmap != null) {
+                                            Image(
+                                                bitmap = decodedAvatarBitmap.asImageBitmap(),
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                        } else {
+                                            val initials = displayedName.take(2).uppercase()
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .background(rowSpineColor, CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = initials,
+                                                    color = Color.Black,
+                                                    fontFamily = AntonioFontFamily,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            text = displayedName.uppercase(),
+                                            fontFamily = AntonioFontFamily,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isMe) LcarsAnakiwa else Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        if (valueText != null) {
+                                            Text(
+                                                text = valueText.uppercase(),
+                                                fontSize = 14.sp,
+                                                fontFamily = AntonioFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isMe) LcarsAnakiwa else Color.White
+                                            )
+                                        } else {
+                                            CoinAmount(
+                                                amount = entry.allTimeCoins,
+                                                fontSize = 14.sp,
+                                                color = if (isMe) LcarsAnakiwa else CoinAmber
+                                            )
+                                        }
+                                    }
                                 }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (isMe) colors.accent.copy(alpha = 0.12f) else colors.hover,
+                                            com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(10.dp))
+                                        )
+                                        .clickable { selectedEntry = entry }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(rankEmoji, fontSize = 18.sp)
+                                    Spacer(Modifier.width(8.dp))
 
-                                Spacer(Modifier.width(10.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        displayedName,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (isMe) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isMe) colors.accent else colors.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                if (valueText != null) {
-                                    Text(
-                                        valueText,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = com.example.timecard.ui.theme.JetBrainsMonoFontFamily,
-                                        color = if (isMe) colors.accent else colors.textPrimary
-                                    )
-                                } else {
-                                    CoinAmount(
-                                        amount = entry.allTimeCoins,
-                                        fontSize = 14.sp,
-                                        color = if (isMe) colors.accent else CoinAmber
-                                    )
+                                    // Avatar
+                                    val avatarBytes = entry.avatarBytes
+                                    val decodedAvatarBitmap2 = remember(avatarBytes) {
+                                        avatarBytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                                    }
+                                    if (decodedAvatarBitmap2 != null) {
+                                        Image(
+                                            bitmap = decodedAvatarBitmap2.asImageBitmap(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                        )
+                                    } else {
+                                        val initials = displayedName.take(2).uppercase()
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .background(colors.accent, CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                initials,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(Modifier.width(10.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            displayedName,
+                                            fontSize = 14.sp,
+                                            fontWeight = if (isMe) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isMe) colors.accent else colors.textPrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (valueText != null) {
+                                        Text(
+                                            valueText,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = com.example.timecard.ui.theme.JetBrainsMonoFontFamily,
+                                            color = if (isMe) colors.accent else colors.textPrimary
+                                        )
+                                    } else {
+                                        CoinAmount(
+                                            amount = entry.allTimeCoins,
+                                            fontSize = 14.sp,
+                                            color = if (isMe) colors.accent else CoinAmber
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -433,6 +617,17 @@ fun LeaderboardModal(
                     Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
                 }
             }
+        }
+    }
+
+    if (colors.isLcars) {
+        modalContent()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            modalContent()
         }
     }
 }

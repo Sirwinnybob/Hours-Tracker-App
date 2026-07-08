@@ -115,12 +115,21 @@ object BadgeEngine {
 
         // Consistent — 4 consecutive complete weeks (one-time)
         if (allWeekData.size >= 4) {
-            val allComplete = allWeekData.take(4).all { w ->
-                GamificationConfig.DAY_TARGETS.indices.all { i ->
-                    w.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+            var contiguous = true
+            for (idx in 0 until 3) {
+                if (allWeekData[idx + 1].weekStarting != DateUtils.getPreviousMonday(allWeekData[idx].weekStarting)) {
+                    contiguous = false
+                    break
                 }
             }
-            if (allComplete) award("consistent")
+            if (contiguous) {
+                val allComplete = allWeekData.take(4).all { w ->
+                    GamificationConfig.DAY_TARGETS.indices.all { i ->
+                        w.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+                    }
+                }
+                if (allComplete) award("consistent")
+            }
         }
 
         // Server-defined badges with triggers (any badge not in the built-in ID set)
@@ -165,11 +174,20 @@ object BadgeEngine {
         "distinct_delivery_jobs_over" -> if (profile.runningStats.deliveryJobsSeen.size >= def.threshold) 1 else 0
         "consecutive_complete_weeks"  -> {
             val n = def.threshold.toInt()
-            if (allWeekData.size >= n && allWeekData.take(n).all { w ->
-                GamificationConfig.DAY_TARGETS.indices.all { i ->
-                    w.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+            if (n > 0 && allWeekData.size >= n) {
+                var contiguous = true
+                for (idx in 0 until n - 1) {
+                    if (allWeekData[idx + 1].weekStarting != DateUtils.getPreviousMonday(allWeekData[idx].weekStarting)) {
+                        contiguous = false
+                        break
+                    }
                 }
-            }) 1 else 0
+                if (contiguous && allWeekData.take(n).all { w ->
+                    GamificationConfig.DAY_TARGETS.indices.all { i ->
+                        w.rows.sumOf { row -> row.getHours(DAYS[i]).toDoubleOrNull() ?: 0.0 } >= GamificationConfig.DAY_TARGETS[i]
+                    }
+                }) 1 else 0
+            } else 0
         }
         else -> 0
     }

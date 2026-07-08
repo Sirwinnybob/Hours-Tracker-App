@@ -10,15 +10,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.timecard.data.model.Employee
 import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.data.repository.FileRepositoryFactory
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.io.BufferedReader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
-import java.io.InputStreamReader
 
 class LoginViewModel : ViewModel() {
 
@@ -65,9 +66,10 @@ class LoginViewModel : ViewModel() {
         restoreUri()
         if (syncFolderUri == null) {
             autoDetectSyncFolder(context)
+        } else {
+            updateConnectionStatus()
+            loadEmployees(context)
         }
-        updateConnectionStatus()
-        loadEmployees(context)
     }
 
     fun getRepository(context: Context): FileRepository? {
@@ -122,7 +124,7 @@ class LoginViewModel : ViewModel() {
         val repo = getRepository(context) ?: return employee.name
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val json = repo.loadGenericJSON(employee.name, "profile.json")
+                val json = repo.loadGenericJSON(employee.name, "profile.json", useCache = false)
                 if (json != null) {
                     val jsonObj = com.google.gson.JsonParser.parseString(json).asJsonObject
                     if (jsonObj.has("displayName") && !jsonObj.get("displayName").isJsonNull) {
@@ -161,77 +163,97 @@ class LoginViewModel : ViewModel() {
     }
 
     private fun autoDetectSyncFolder(context: Context) {
-        val storageRoot = Environment.getExternalStorageDirectory()
-        for (jobFolder in JOB_FOLDER_NAMES) {
-            val jobDir = File(storageRoot, jobFolder)
-            if (jobDir.exists() && jobDir.isDirectory) {
-                val timeCardsDir = File(jobDir, ".time_cards")
-                if (timeCardsDir.exists() && timeCardsDir.isDirectory) {
-                    try {
-                        val fileUri = Uri.fromFile(timeCardsDir)
-                        saveUri(fileUri)
-                        syncFolderUri = fileUri
-                        repository = null
-                        updateConnectionStatus()
-                        Toast.makeText(context, "Auto-connected: $jobFolder/.time_cards", Toast.LENGTH_SHORT).show()
-                        Log.d("LoginVM", "Auto-detected time_cards at: ${timeCardsDir.absolutePath}")
-                        return
-                    } catch (e: Exception) {
-                        Log.e("LoginVM", "Failed to auto-connect: ${e.message}")
+        viewModelScope.launch {
+            val detectionResult = withContext(Dispatchers.IO) {
+                val storageRoot = Environment.getExternalStorageDirectory()
+                for (jobFolder in JOB_FOLDER_NAMES) {
+                    val jobDir = File(storageRoot, jobFolder)
+                    if (jobDir.exists() && jobDir.isDirectory) {
+                        val timeCardsDir = File(jobDir, ".time_cards")
+                        if (timeCardsDir.exists() && timeCardsDir.isDirectory) {
+                            try {
+                                return@withContext Uri.fromFile(timeCardsDir) to jobFolder
+                            } catch (e: Exception) {
+                                Log.e("LoginVM", "Failed to auto-connect: ${e.message}")
+                            }
+                        }
                     }
                 }
+                null
+            }
+
+            if (detectionResult != null) {
+                val (fileUri, jobFolder) = detectionResult
+                saveUri(fileUri)
+                syncFolderUri = fileUri
+                repository = null
+                updateConnectionStatus()
+                Toast.makeText(context, "Auto-connected: $jobFolder/.time_cards", Toast.LENGTH_SHORT).show()
+                Log.d("LoginVM", "Auto-detected time_cards at: ${fileUri.path}")
+                loadEmployees(context)
+            } else {
+                Log.d("LoginVM", "Could not auto-detect .time_cards folder")
+                updateConnectionStatus()
+                loadEmployees(context)
             }
         }
-        Log.d("LoginVM", "Could not auto-detect .time_cards folder")
+    }
+
+    private fun parseName(fullName: String): String {
+        val parts = fullName.split(",").map { it.trim() }
+        return if (parts.size == 2) {
+            "${parts[1]} ${parts[0]}"
+        } else {
+            fullName
+        }
+    }
+
+    private fun parseEmployeesJson(json: String): List<Employee> {
+        val type = object : TypeToken<List<Employee>>() {}.type
+        return Gson().fromJson<List<Employee>>(json, type)
+            .map { it.copy(name = parseName(it.name)) }
     }
 
     private fun loadEmployees(context: Context) {
-        // Load from cache first
         if (!prefs.contains(KEY_EMPLOYEES)) {
             val defaultJson = Gson().toJson(DEFAULT_EMPLOYEES)
             prefs.edit().putString(KEY_EMPLOYEES, defaultJson).apply()
         }
 
+        if (syncFolderUri != null) {
+            Thread {
+                try {
+                    val fileContent = getRepository(context)?.loadEmployeeList()
+                    if (fileContent != null) {
+                        val cachedContent = prefs.getString(KEY_EMPLOYEES, "")
+                        if (fileContent != cachedContent) {
+                            Log.d("LoginVM", "Employee list changed, updating cache")
+                            prefs.edit().putString(KEY_EMPLOYEES, fileContent).apply()
+                        }
+                        employees = parseEmployeesJson(fileContent)
+                        return@Thread
+                    }
+                } catch (e: Exception) {
+                    Log.e("LoginVM", "Error in employee sync", e)
+                }
+
+                val cachedJson = prefs.getString(KEY_EMPLOYEES, "[]")!!
+                try {
+                    employees = parseEmployeesJson(cachedJson)
+                } catch (e: Exception) {
+                    Log.e("LoginVM", "Failed to parse cached employees", e)
+                    employees = DEFAULT_EMPLOYEES
+                }
+            }.start()
+            return
+        }
+
         val cachedJson = prefs.getString(KEY_EMPLOYEES, "[]")!!
         try {
-            val type = object : TypeToken<List<Employee>>() {}.type
-            employees = Gson().fromJson(cachedJson, type)
+            employees = parseEmployeesJson(cachedJson)
         } catch (e: Exception) {
             Log.e("LoginVM", "Failed to parse cached employees", e)
             employees = DEFAULT_EMPLOYEES
         }
-
-        // Try to sync from file system in background
-        Thread {
-            try {
-                val uri = syncFolderUri ?: return@Thread
-                if ("file" == uri.scheme) {
-                    val baseDir = File(uri.path!!)
-                    if (baseDir.exists()) {
-                        val empFile = File(baseDir, "employees.json")
-                        if (empFile.exists()) {
-                            FileInputStream(empFile).use { fis ->
-                                val reader = BufferedReader(InputStreamReader(fis))
-                                val sb = StringBuilder()
-                                var line: String?
-                                while (reader.readLine().also { line = it } != null) {
-                                    sb.append(line)
-                                }
-                                val fileContent = sb.toString()
-                                val cachedContent = prefs.getString(KEY_EMPLOYEES, "")
-                                if (fileContent != cachedContent) {
-                                    Log.d("LoginVM", "Employee list changed, updating cache")
-                                    prefs.edit().putString(KEY_EMPLOYEES, fileContent).apply()
-                                    val type = object : TypeToken<List<Employee>>() {}.type
-                                    employees = Gson().fromJson(fileContent, type)
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("LoginVM", "Error in background employee sync", e)
-            }
-        }.start()
     }
 }

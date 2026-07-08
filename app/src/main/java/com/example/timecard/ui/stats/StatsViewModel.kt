@@ -5,6 +5,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.example.timecard.data.model.TimecardData
 import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.domain.DateUtils
@@ -56,8 +60,10 @@ class StatsViewModel : ViewModel() {
 
     fun loadStats(period: StatsPeriod) {
         selectedPeriod = period
-        val weeks = loadStatsData(period)
-        stats = StatsCalculator.calculateStats(weeks)
+        viewModelScope.launch {
+            val weeks = withContext(Dispatchers.IO) { loadStatsData(period) }
+            stats = StatsCalculator.calculateStats(weeks)
+        }
     }
 
     fun searchJob() {
@@ -65,16 +71,24 @@ class StatsViewModel : ViewModel() {
         if (query.isEmpty()) return
 
         val tsVm = timesheetViewModel ?: return
-        val (results, total) = StatsCalculator.searchJob(
-            query = query,
-            employeeName = employeeName,
-            activeWeekDate = tsVm.uiState.value.activeWeekDate,
-            isViewingPrevious = tsVm.uiState.value.isViewingPrevious,
-            currentData = if (!tsVm.uiState.value.isViewingPrevious) tsVm.collectTimecardData() else null,
-            loadFile = { name, date -> repository?.loadFile(name, date) }
-        )
-        searchResults = results
-        searchTotalHours = total
+        // Snapshot UI state on the calling (main) thread before switching to IO
+        val activeWeekDate = tsVm.uiState.value.activeWeekDate
+        val isViewingPrevious = tsVm.uiState.value.isViewingPrevious
+        val currentData = if (!isViewingPrevious) tsVm.collectTimecardData() else null
+        viewModelScope.launch {
+            val (results, total) = withContext(Dispatchers.IO) {
+                StatsCalculator.searchJob(
+                    query = query,
+                    employeeName = employeeName,
+                    activeWeekDate = activeWeekDate,
+                    isViewingPrevious = isViewingPrevious,
+                    currentData = currentData,
+                    loadFile = { name, date -> repository?.loadFile(name, date) }
+                )
+            }
+            searchResults = results
+            searchTotalHours = total
+        }
     }
 
     private fun loadStatsData(period: StatsPeriod): List<TimecardData> {

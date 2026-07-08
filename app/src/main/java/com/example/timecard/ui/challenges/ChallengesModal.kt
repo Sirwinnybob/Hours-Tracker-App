@@ -27,6 +27,8 @@ import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
+import com.example.timecard.ui.theme.LcarsPurple
+import com.example.timecard.ui.theme.LcarsBlueBell
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.RectangleShape
@@ -41,17 +43,18 @@ fun ChallengesModal(
 
     LaunchedEffect(Unit) { onLoad() }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    val modalContent = @Composable {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
-                .safeDrawingPadding(),
-            contentAlignment = Alignment.Center
+            modifier = if (colors.isLcars) {
+                Modifier.fillMaxSize().background(Color.Black)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
+                    .safeDrawingPadding()
+            },
+            contentAlignment = if (colors.isLcars) Alignment.TopCenter else Alignment.Center
         ) {
             Column(
                 modifier = Modifier
@@ -104,7 +107,8 @@ fun ChallengesModal(
                     }
 
                     Text(
-                        "Complete challenges to earn bonus KK Coins!",
+                        text = if (colors.isLcars) "COMPLETE CHALLENGES TO EARN BONUS KK COINS!" else "Complete challenges to earn bonus KK Coins!",
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontSize = 13.sp,
                         color = colors.textSecondary
                     )
@@ -124,7 +128,8 @@ fun ChallengesModal(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "No challenges this week",
+                                text = if (colors.isLcars) "NO ACTIVE CHALLENGES THIS WEEK" else "No challenges this week",
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 color = colors.textSecondary,
                                 fontSize = 14.sp
                             )
@@ -162,83 +167,191 @@ fun ChallengesModal(
             }
         }
     }
+
+    if (colors.isLcars) {
+        modalContent()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            modalContent()
+        }
+    }
 }
 
 @Composable
 private fun ChallengeCard(cp: ChallengeProgress) {
     val colors = LocalTimecardColors.current
-    val bgColor = when {
-        cp.isComplete -> colors.accent.copy(alpha = 0.12f)
-        else          -> colors.hover
-    }
+    val isLcars = colors.isLcars
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(bgColor, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)))
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(cp.challenge.icon, fontSize = 22.sp)
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    cp.challenge.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (cp.isComplete) colors.accent else colors.textPrimary
-                )
-                Text(
-                    cp.challenge.description,
-                    fontSize = 12.sp,
-                    color = colors.textSecondary
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            if (cp.isComplete) {
-                Text("✅", fontSize = 20.sp)
-            } else {
+    if (isLcars) {
+        val spineColor = if (cp.isComplete) LcarsTan else LcarsBlueBell
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black)
+                .height(IntrinsicSize.Min)
+        ) {
+            // Left colored spine
+            Box(
+                modifier = Modifier
+                    .width(8.dp)
+                    .fillMaxHeight()
+                    .background(spineColor)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            // Content Box
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Color(0xFF111111))
+                    .padding(12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    CoinIcon(size = 14.dp)
-                    Spacer(Modifier.width(3.dp))
-                    Text(
-                        "+${cp.challenge.reward}",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CoinAmber
+                    Text(cp.challenge.icon, fontSize = 22.sp)
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = cp.challenge.title.uppercase(),
+                            fontFamily = AntonioFontFamily,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (cp.isComplete) LcarsTan else colors.textPrimary
+                        )
+                        Text(
+                            text = cp.challenge.description.uppercase(),
+                            fontFamily = AntonioFontFamily,
+                            fontSize = 12.sp,
+                            color = colors.textSecondary
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    if (cp.isComplete) {
+                        Text("COMPLETE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = LcarsTan)
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CoinIcon(size = 14.dp)
+                            Spacer(Modifier.width(3.dp))
+                            Text(
+                                text = "+${cp.challenge.reward}",
+                                fontFamily = AntonioFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CoinAmber
+                            )
+                        }
+                    }
+                }
+
+                if (!cp.isComplete) {
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { cp.progress.toFloat().coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RectangleShape),
+                        color = LcarsOrange,
+                        trackColor = Color(0xFF222222)
                     )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "${(cp.progress * 100).toInt()}% COMPLETE",
+                        fontFamily = AntonioFontFamily,
+                        fontSize = 11.sp,
+                        color = colors.textSecondary
+                    )
+                } else {
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CoinIcon(size = 12.dp)
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            text = "+${cp.challenge.reward} KK COINS EARNED!",
+                            fontFamily = AntonioFontFamily,
+                            fontSize = 11.sp,
+                            color = LcarsTan,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
+    } else {
+        val bgColor = when {
+            cp.isComplete -> colors.accent.copy(alpha = 0.12f)
+            else          -> colors.hover
+        }
 
-        if (!cp.isComplete) {
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { cp.progress.toFloat().coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp)),
-                color = colors.accent,
-                trackColor = colors.surface
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                "${(cp.progress * 100).toInt()}%",
-                fontSize = 11.sp,
-                color = colors.textSecondary
-            )
-        } else {
-            Spacer(Modifier.height(4.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(bgColor, com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)))
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                CoinIcon(size = 12.dp)
-                Spacer(Modifier.width(3.dp))
-                Text(
-                    "+${cp.challenge.reward} KK Coins earned!",
-                    fontSize = 11.sp,
+                Text(cp.challenge.icon, fontSize = 22.sp)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        cp.challenge.title,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (cp.isComplete) colors.accent else colors.textPrimary
+                    )
+                    Text(
+                        cp.challenge.description,
+                        fontSize = 12.sp,
+                        color = colors.textSecondary
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                if (cp.isComplete) {
+                    Text("✅", fontSize = 20.sp)
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CoinIcon(size = 14.dp)
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            "+${cp.challenge.reward}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CoinAmber
+                        )
+                    }
+                }
+            }
+
+            if (!cp.isComplete) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { cp.progress.toFloat().coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
                     color = colors.accent,
-                    fontWeight = FontWeight.Medium
+                    trackColor = colors.surface
                 )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "${(cp.progress * 100).toInt()}%",
+                    fontSize = 11.sp,
+                    color = colors.textSecondary
+                )
+            } else {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CoinIcon(size = 12.dp)
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        "+${cp.challenge.reward} KK Coins earned!",
+                        fontSize = 11.sp,
+                        color = colors.accent,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

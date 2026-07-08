@@ -16,8 +16,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UpdateManager(private val activity: Activity) {
+
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
 
     companion object {
         private const val TAG = "UpdateManager"
@@ -37,70 +44,78 @@ class UpdateManager(private val activity: Activity) {
         pendingUpdateApk?.let { installApk(it) }
     }
 
-    fun checkForUpdates(): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                requestStoragePermission()
-                return true
+    fun checkForUpdates() {
+        scope.launch {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                if (!Environment.isExternalStorageManager()) {
+                    requestStoragePermission()
+                    return@launch
+                }
             }
-        }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!activity.packageManager.canRequestPackageInstalls()) {
-                requestInstallPermission()
-                return true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!activity.packageManager.canRequestPackageInstalls()) {
+                    requestInstallPermission()
+                    return@launch
+                }
             }
-        }
 
-        val updateDir = findUpdateDirectory()
-        if (updateDir == null) {
-            showManualPathDialog()
-            return true
-        }
+            val updateDir = withContext(Dispatchers.IO) { findUpdateDirectory() }
+            if (updateDir == null) {
+                showManualPathDialog()
+                return@launch
+            }
 
-        return checkForUpdatesInDirectory(updateDir)
+            checkForUpdatesInDirectory(updateDir)
+        }
     }
 
     fun reinstallLatest() {
-        val updateDir = if (resolvedUpdatePath != null) {
-            File(resolvedUpdatePath!!)
-        } else {
-            findUpdateDirectory()
-        }
-
-        if (updateDir == null || !updateDir.exists()) {
-            Toast.makeText(activity, "Update folder not found", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val apkFiles = updateDir.listFiles { _, name ->
-            name.lowercase().endsWith(".apk")
-        }
-
-        if (apkFiles.isNullOrEmpty()) {
-            Toast.makeText(activity, "No APK files found", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Find newest APK by version code (regardless of current version)
-        var newestApk: File? = null
-        var newestVersionCode = -1L
-
-        for (apk in apkFiles) {
-            val apkVersion = getApkVersionCode(apk)
-            if (apkVersion > newestVersionCode ||
-                (apkVersion == newestVersionCode && apkVersion >= 0 &&
-                 (newestApk == null || apk.lastModified() > newestApk!!.lastModified()))) {
-                newestVersionCode = apkVersion
-                newestApk = apk
+        scope.launch {
+            val updateDir = withContext(Dispatchers.IO) {
+                if (resolvedUpdatePath != null) {
+                    File(resolvedUpdatePath!!)
+                } else {
+                    findUpdateDirectory()
+                }
             }
-        }
 
-        if (newestApk != null) {
-            Log.d(TAG, "Reinstalling: ${newestApk!!.name} (v$newestVersionCode, modified ${newestApk!!.lastModified()})")
-            installApk(newestApk!!)
-        } else {
-            Toast.makeText(activity, "No valid APK found", Toast.LENGTH_SHORT).show()
+            if (updateDir == null || !updateDir.exists()) {
+                Toast.makeText(activity, "Update folder not found", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            val newestApk = withContext(Dispatchers.IO) {
+                val apkFiles = updateDir.listFiles { _, name ->
+                    name.lowercase().endsWith(".apk")
+                }
+
+                if (apkFiles.isNullOrEmpty()) return@withContext null
+
+                // Find newest APK by version code (regardless of current version)
+                var newestApkFile: File? = null
+                var newestVersionCode = -1L
+
+                for (apk in apkFiles) {
+                    val apkVersion = getApkVersionCode(apk)
+                    if (apkVersion > newestVersionCode ||
+                        (apkVersion == newestVersionCode && apkVersion >= 0 &&
+                         (newestApkFile == null || apk.lastModified() > newestApkFile.lastModified()))) {
+                        newestVersionCode = apkVersion
+                        newestApkFile = apk
+                    }
+                }
+                newestApkFile to newestVersionCode
+            }
+
+            if (newestApk != null && newestApk.first != null) {
+                val file = newestApk.first!!
+                val code = newestApk.second
+                Log.d(TAG, "Reinstalling: ${file.name} (v$code, modified ${file.lastModified()})")
+                installApk(file)
+            } else {
+                Toast.makeText(activity, "No valid APK found", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -155,28 +170,37 @@ class UpdateManager(private val activity: Activity) {
         return null
     }
 
-    private fun checkForUpdatesInDirectory(updateDir: File): Boolean {
+    private suspend fun checkForUpdatesInDirectory(updateDir: File): Boolean {
         if (!updateDir.exists() || !updateDir.isDirectory) return false
 
-        val apkFiles = updateDir.listFiles { _, name ->
-            name.lowercase().endsWith(".apk")
-        }
-
-        if (apkFiles.isNullOrEmpty()) return false
-
-        val currentVersionCode = getCurrentVersionCode()
-        var newestApk: File? = null
-        var newestVersionCode = -1L
-
-        for (apk in apkFiles) {
-            val apkVersion = getApkVersionCode(apk)
-            if (apkVersion > currentVersionCode &&
-                (apkVersion > newestVersionCode ||
-                 (apkVersion == newestVersionCode &&
-                  (newestApk == null || apk.lastModified() > newestApk!!.lastModified())))) {
-                newestVersionCode = apkVersion
-                newestApk = apk
+        val newestApk = withContext(Dispatchers.IO) {
+            val apkFiles = updateDir.listFiles { _, name ->
+                name.lowercase().endsWith(".apk")
             }
+
+            if (apkFiles.isNullOrEmpty()) return@withContext null
+
+            val currentVersionCode = getCurrentVersionCode()
+            // L03: If we could not determine our own version code (sentinel -1),
+            // do not compare — any APK's version ≥ 0 would incorrectly appear newer.
+            if (currentVersionCode < 0) {
+                Log.w(TAG, "Cannot determine current version code; skipping update check")
+                return@withContext null
+            }
+            var newestApkFile: File? = null
+            var newestVersionCode = -1L
+
+            for (apk in apkFiles) {
+                val apkVersion = getApkVersionCode(apk)
+                if (apkVersion > currentVersionCode &&
+                    (apkVersion > newestVersionCode ||
+                     (apkVersion == newestVersionCode &&
+                      (newestApkFile == null || apk.lastModified() > newestApkFile.lastModified())))) {
+                    newestVersionCode = apkVersion
+                    newestApkFile = apk
+                }
+            }
+            newestApkFile
         }
 
         if (newestApk != null) {
@@ -218,7 +242,9 @@ class UpdateManager(private val activity: Activity) {
                             .edit().putString(PREF_CUSTOM_UPDATE_PATH, enteredPath).apply()
                         resolvedUpdatePath = enteredPath
                         Log.d(TAG, "User set custom update path: $enteredPath")
-                        checkForUpdatesInDirectory(customDir)
+                        scope.launch {
+                            checkForUpdatesInDirectory(customDir)
+                        }
                     } else {
                         Toast.makeText(activity, "Folder not found: $enteredPath", Toast.LENGTH_LONG).show()
                     }

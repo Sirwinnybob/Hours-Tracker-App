@@ -56,16 +56,18 @@ fun DailyTotalsBar(
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = DAY_LABELS[day] ?: day,
+                    text = if (colors.isLcars) (DAY_LABELS[day] ?: day).uppercase() else (DAY_LABELS[day] ?: day),
                     fontSize = 12.sp,
+                    fontFamily = if (colors.isLcars) com.example.timecard.ui.theme.AntonioFontFamily else null,
                     color = colors.textSecondary,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Medium
                 )
                 
                 Text(
                     text = if (total > 0) String.format("%.2f", total) else "-",
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = if (colors.isLcars) com.example.timecard.ui.theme.AntonioFontFamily else null,
+                    fontWeight = if (colors.isLcars) FontWeight.ExtraBold else FontWeight.Bold,
                     color = if (total > 0) {
                         if (isGood) colors.textGreen else colors.textOrange
                     } else colors.textSecondary

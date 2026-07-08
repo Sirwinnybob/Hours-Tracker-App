@@ -726,6 +726,6 @@ fun timecardShape(base: Shape): Shape {
     return when {
         colors.isLcars -> androidx.compose.foundation.shape.RoundedCornerShape(50)  // pill buttons
         colors.isTerminal -> RectangleShape
-        else -> androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+        else -> base
     }
 }

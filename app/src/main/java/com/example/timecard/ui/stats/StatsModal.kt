@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -47,12 +48,14 @@ import com.example.timecard.data.model.DAYS
 import com.example.timecard.domain.DateUtils
 import com.example.timecard.domain.StatsPeriod
 import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.LcarsAnakiwa
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.StatsBlue
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.BorderStroke
 import com.example.timecard.ui.theme.StatsGreen
 import com.example.timecard.ui.theme.StatsPurple
 import com.example.timecard.ui.charts.PieChart
@@ -69,16 +72,17 @@ fun StatsModal(
     
     var showDatePicker by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
+    val modalContent = @Composable {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
-                .safeDrawingPadding(),
+            modifier = if (colors.isLcars) {
+                Modifier.fillMaxSize().background(Color.Black)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
+                    .safeDrawingPadding()
+            },
             contentAlignment = Alignment.TopCenter
         ) {
             Column(
@@ -173,12 +177,24 @@ fun StatsModal(
                             period.label
                         }
 
+                        val tabBg = if (colors.isLcars) {
+                            if (isActive) LcarsAnakiwa else LcarsTan
+                        } else {
+                            if (isActive) colors.accent else colors.surface
+                        }
+                        val tabTextColor = if (colors.isLcars) {
+                            Color.Black
+                        } else {
+                            if (isActive) Color.White else colors.textSecondary
+                        }
+                        val tabShape = if (colors.isLcars) RoundedCornerShape(50) else RoundedCornerShape(20.dp)
+                        val tabFont = if (colors.isLcars) AntonioFontFamily else null
+                        val tabLabel = if (colors.isLcars) label.uppercase() else label
+
                         Box(
                             modifier = Modifier
-                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp)))
-                                .background(
-                                    if (isActive) colors.accent else colors.surface
-                                )
+                                .clip(tabShape)
+                                .background(tabBg)
                                 .clickable {
                                     if (isCustomBtn) {
                                         showDatePicker = true
@@ -189,10 +205,11 @@ fun StatsModal(
                                 .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                label,
+                                tabLabel,
                                 fontSize = 12.sp,
-                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isActive) Color.White else colors.textSecondary
+                                fontFamily = tabFont,
+                                fontWeight = if (colors.isLcars || isActive) FontWeight.Bold else FontWeight.Normal,
+                                color = tabTextColor
                             )
                         }
                     }
@@ -280,8 +297,9 @@ fun StatsModal(
 
                     // Pie chart
                     Text(
-                        "Job Breakdown",
+                        text = if (colors.isLcars) "JOB BREAKDOWN" else "Job Breakdown",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textHeading
                     )
@@ -297,8 +315,9 @@ fun StatsModal(
 
                     // Job bars - breakdown list
                     Text(
-                        "Hours by Job",
+                        text = if (colors.isLcars) "HOURS BY JOB" else "Hours by Job",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textHeading
                     )
@@ -320,37 +339,46 @@ fun StatsModal(
                             label = "barWidth"
                         )
 
+                        val barShape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
                         ) {
-                            Text(job, fontSize = 12.sp, color = colors.textPrimary, modifier = Modifier.width(60.dp))
+                            Text(
+                                text = if (colors.isLcars) job.uppercase() else job,
+                                fontSize = 12.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                color = colors.textPrimary,
+                                modifier = Modifier.width(60.dp)
+                            )
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(16.dp)
-                                    .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
-                                    .background(colors.border)
+                                    .clip(barShape)
+                                    .background(if (colors.isLcars) Color(0xFF222222) else colors.border)
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth(animatedWidth.value)
                                         .height(16.dp)
-                                        .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(4.dp)))
+                                        .clip(barShape)
                                         .background(barColor)
                                 )
                             }
                             Text(
-                                String.format("%.2fh", hours),
+                                text = String.format("%.2fh", hours),
                                 fontSize = 11.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 color = colors.textPrimary,
                                 modifier = Modifier.width(50.dp).padding(start = 6.dp)
                             )
                             Text(
-                                "${pct.toInt()}%",
+                                text = "${pct.toInt()}%",
                                 fontSize = 11.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 color = colors.textSecondary,
                                 modifier = Modifier.width(32.dp)
                             )
@@ -361,8 +389,9 @@ fun StatsModal(
 
                     // Daily averages
                     Text(
-                        "Daily Averages",
+                        text = if (colors.isLcars) "DAILY AVERAGES" else "Daily Averages",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textHeading
                     )
@@ -377,10 +406,16 @@ fun StatsModal(
                                 (stats.dailyTotals[day] ?: 0.0) / stats.weekCount
                             } else 0.0
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(DAY_LABELS[day] ?: day, fontSize = 11.sp, color = colors.textSecondary)
                                 Text(
-                                    String.format("%.2f", avg),
+                                    text = if (colors.isLcars) (DAY_LABELS[day] ?: day).uppercase() else (DAY_LABELS[day] ?: day),
+                                    fontSize = 11.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                    color = colors.textSecondary
+                                )
+                                Text(
+                                    text = String.format("%.2f", avg),
                                     fontSize = 13.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textPrimary
                                 )
@@ -392,8 +427,9 @@ fun StatsModal(
 
                     // Job search
                     Text(
-                        "Job Search",
+                        text = if (colors.isLcars) "JOB SEARCH" else "Job Search",
                         fontSize = 15.sp,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
                         color = colors.textHeading
                     )
@@ -403,26 +439,41 @@ fun StatsModal(
                         TextField(
                             value = viewModel.searchQuery,
                             onValueChange = { viewModel.searchQuery = it },
-                            placeholder = { Text("Enter job number...", color = colors.textSecondary) },
+                            placeholder = { 
+                                Text(
+                                    text = if (colors.isLcars) "ENTER JOB NUMBER..." else "Enter job number...", 
+                                    color = colors.textSecondary,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null
+                                ) 
+                            },
                             singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(color = colors.textPrimary),
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = colors.textPrimary,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null
+                            ),
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = colors.input,
-                                unfocusedContainerColor = colors.input,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                                focusedContainerColor = if (colors.isLcars) Color(0xFF151515) else colors.input,
+                                unfocusedContainerColor = if (colors.isLcars) Color(0xFF111111) else colors.input,
+                                focusedIndicatorColor = if (colors.isLcars) LcarsOrange else Color.Transparent,
+                                unfocusedIndicatorColor = if (colors.isLcars) LcarsTan.copy(alpha = 0.5f) else Color.Transparent
                             ),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = { viewModel.searchJob() }),
-                            shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                            shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
                             modifier = Modifier.weight(1f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Button(
                             onClick = { viewModel.searchJob() },
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                            colors = ButtonDefaults.buttonColors(containerColor = if (colors.isLcars) LcarsTan else colors.accent),
+                            shape = if (colors.isLcars) RoundedCornerShape(50) else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp))
                         ) {
-                            Text("Search")
+                            Text(
+                                text = if (colors.isLcars) "SEARCH" else "Search",
+                                color = if (colors.isLcars) Color.Black else Color.White,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 
@@ -442,36 +493,51 @@ fun StatsModal(
                                     .padding(vertical = 4.dp)
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text(label, fontSize = 13.sp, color = colors.textPrimary)
-                                    Text(dayDetail, fontSize = 11.sp, color = colors.textSecondary)
+                                    Text(
+                                        text = if (colors.isLcars) label.uppercase() else label, 
+                                        fontSize = 13.sp, 
+                                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                        color = colors.textPrimary
+                                    )
+                                    Text(
+                                        text = if (colors.isLcars) dayDetail.uppercase() else dayDetail, 
+                                        fontSize = 11.sp, 
+                                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                                        color = colors.textSecondary
+                                    )
                                 }
                                 Text(
-                                    String.format("%.2fh", result.hours),
+                                    text = String.format("%.2fh", result.hours),
                                     fontSize = 13.sp,
+                                    fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.textTotal
                                 )
                             }
                         }
 
+                        val totalBoxShape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
-                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)))
-                                .background(colors.hover)
+                                .clip(totalBoxShape)
+                                .background(if (colors.isLcars) Color.Black else colors.hover)
+                                .then(if (colors.isLcars) Modifier.border(1.dp, LcarsOrange.copy(alpha = 0.5f), totalBoxShape) else Modifier)
                                 .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                "Total (${viewModel.searchResults.size} week${if (viewModel.searchResults.size != 1) "s" else ""})",
+                                text = if (colors.isLcars) "TOTAL (${viewModel.searchResults.size} WEEK${if (viewModel.searchResults.size != 1) "S" else ""})" else "Total (${viewModel.searchResults.size} week${if (viewModel.searchResults.size != 1) "s" else ""})",
                                 fontSize = 13.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary
                             )
                             Text(
-                                String.format("%.2fh", viewModel.searchTotalHours),
+                                text = String.format("%.2fh", viewModel.searchTotalHours),
                                 fontSize = 14.sp,
+                                fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = colors.textTotal
                             )
@@ -505,6 +571,17 @@ fun StatsModal(
             }
         }
     }
+
+    if (colors.isLcars) {
+        modalContent()
+    } else {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            modalContent()
+        }
+    }
 }
 
 @Composable
@@ -526,18 +603,30 @@ private fun StatCard(
         )
     }
 
+    val cardShape = if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp))
+    val cardBackground = if (colors.isLcars) Color.Black else colors.hover
+    val cardBorder = if (colors.isLcars) BorderStroke(1.dp, valueColor.copy(alpha = 0.5f)) else null
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
-            .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)))
-            .background(colors.hover)
+            .clip(cardShape)
+            .background(cardBackground)
+            .then(if (cardBorder != null) Modifier.border(cardBorder, cardShape) else Modifier)
             .padding(12.dp)
     ) {
-        Text(label, fontSize = 10.sp, color = colors.textSecondary, fontWeight = FontWeight.Medium)
+        Text(
+            text = if (colors.isLcars) label.uppercase() else label,
+            fontSize = 10.sp,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+            color = colors.textSecondary,
+            fontWeight = if (colors.isLcars) FontWeight.Bold else FontWeight.Medium
+        )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = format(animatedValue.value.toDouble()),
-            fontSize = 18.sp,
+            fontSize = 20.sp,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
             fontWeight = FontWeight.Bold,
             color = valueColor
         )

@@ -12,6 +12,7 @@ import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.domain.DateUtils
 import com.example.timecard.domain.JobValidator
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 
 enum class SaveStatus { SAVED, SYNCING, ERROR }
@@ -141,10 +143,10 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
 
-    fun initialize(name: String, repo: FileRepository?) {
+    suspend fun initialize(name: String, repo: FileRepository?) {
         repository = repo
         val startWeek = DateUtils.getWeekStartingMonday()
-        
+
         _uiState.update { it.copy(
             employeeName = name,
             currentWeekDate = startWeek,
@@ -346,7 +348,9 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             )
         }
         
-        loadWeekData(_uiState.value.isViewingPrevious)
+        viewModelScope.launch(Dispatchers.IO) {
+            loadWeekData(_uiState.value.isViewingPrevious)
+        }
 
         viewModelScope.launch {
             delay(550)
@@ -395,16 +399,21 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         autosaveJob?.cancel()
         lockRenewJob?.cancel()
         val state = _uiState.value
-        if (state.employeeName.isNotEmpty() && state.activeWeekDate.isNotEmpty()) {
-            repository?.releaseLock(state.employeeName, state.activeWeekDate, deviceId)
+        val empName = state.employeeName
+        val activeWeek = state.activeWeekDate
+        if (empName.isNotEmpty() && activeWeek.isNotEmpty()) {
+            val repo = repository
+            viewModelScope.launch(Dispatchers.IO) {
+                repo?.releaseLock(empName, activeWeek, deviceId)
+            }
         }
-        
-        _uiState.update { 
+
+        _uiState.update {
             TimesheetUiState() // Reset to defaults
         }
     }
 
-    private fun loadWeekData(usePrevious: Boolean) {
+    private suspend fun loadWeekData(usePrevious: Boolean) {
         val state = _uiState.value
         val loadDate = if (usePrevious) {
             DateUtils.getPreviousMonday(state.currentWeekDate)
@@ -413,12 +422,16 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         if (state.activeWeekDate.isNotEmpty() && state.employeeName.isNotEmpty()) {
-            repository?.releaseLock(state.employeeName, state.activeWeekDate, deviceId)
+            withContext(Dispatchers.IO) {
+                repository?.releaseLock(state.employeeName, state.activeWeekDate, deviceId)
+            }
             lockRenewJob?.cancel()
         }
 
-        val lockAcquired = repository?.acquireLock(state.employeeName, loadDate, deviceId) ?: true
-        
+        val lockAcquired = withContext(Dispatchers.IO) {
+            repository?.acquireLock(state.employeeName, loadDate, deviceId) ?: true
+        }
+
         _uiState.update { it.copy(
             activeWeekDate = loadDate,
             isLockedByAnotherUser = !lockAcquired
@@ -439,12 +452,16 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
                     _uiState.update { it.copy(triggerAutoLogout = true) }
                     break
                 } else {
-                    repository?.renewLock(_uiState.value.employeeName, _uiState.value.activeWeekDate, deviceId)
+                    withContext(Dispatchers.IO) {
+                        repository?.renewLock(_uiState.value.employeeName, _uiState.value.activeWeekDate, deviceId)
+                    }
                 }
             }
         }
 
-        val json = repository?.loadFile(_uiState.value.employeeName, loadDate)
+        val json = withContext(Dispatchers.IO) {
+            repository?.loadFile(_uiState.value.employeeName, loadDate)
+        }
         if (json != null) {
             try {
                 val data = gson.fromJson(json, TimecardData::class.java)
@@ -502,9 +519,11 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         pushHistory(_uiState.value)
     }
 
-    private fun checkPreviousWeek() {
+    private suspend fun checkPreviousWeek() {
         val prevDate = DateUtils.getPreviousMonday(_uiState.value.currentWeekDate)
-        val prevJson = repository?.loadFile(_uiState.value.employeeName, prevDate)
+        val prevJson = withContext(Dispatchers.IO) {
+            repository?.loadFile(_uiState.value.employeeName, prevDate)
+        }
         val prevData = if (prevJson != null) {
             try { gson.fromJson(prevJson, TimecardData::class.java) } catch (_: Exception) { null }
         } else null
@@ -523,13 +542,15 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    fun getAvailableDates(): List<String> = repository?.getAvailableDates(_uiState.value.employeeName) ?: emptyList()
+    suspend fun getAvailableDates(): List<String> = withContext(Dispatchers.IO) {
+        repository?.getAvailableDates(_uiState.value.employeeName) ?: emptyList()
+    }
 
     private fun performSave() {
         _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
         val lunchOnly = isLunchOnlySave
         isLunchOnlySave = false
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
                 val data = collectTimecardData()
                 val json = gson.toJson(data)
