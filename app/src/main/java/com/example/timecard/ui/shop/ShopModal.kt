@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -372,7 +371,7 @@ fun ShopModal(
                 val regularItems = items.filter { !it.isSpecial }
 
                 val groupedItems = regularItems.groupBy {
-                    val cat = it.category?.lowercase() ?: ""
+                    val cat = it.category.lowercase()
                     when {
                         cat == "accent" -> "theme"
                         cat.isNotBlank() -> cat
@@ -404,7 +403,7 @@ fun ShopModal(
                             val isConsumable = item.id.startsWith("consumable_")
                             val isOwned = if (isConsumable) false else inventory.contains(item.id)
                             val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
-                            val rawCat = item.category?.lowercase() ?: ""
+                            val rawCat = item.category.lowercase()
                             val isThemeCat = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
                             val accentKeyForItem = if (isThemeCat) ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.first ?: "" else ""
                             ShopItemCard(
@@ -448,7 +447,7 @@ fun ShopModal(
                             val isConsumable = item.id.startsWith("consumable_")
                             val isOwned = if (isConsumable) false else inventory.contains(item.id)
                             val missingCoins = if (userCoins < item.price) item.price - userCoins else 0
-                            val rawCat = item.category?.lowercase() ?: ""
+                            val rawCat = item.category.lowercase()
                             val isThemeCat = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
                             val accentKeyForItem = if (isThemeCat) ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), ignoreCase = true) }?.first ?: "" else ""
                             ShopItemCard(
@@ -506,7 +505,7 @@ fun ShopItemCard(
     val isLcars = colors.isLcars
     val canAfford = missingCoins == 0
 
-    val rawCat = item.category?.lowercase() ?: ""
+    val rawCat = item.category.lowercase()
     val isTheme = rawCat == "theme" || rawCat == "accent" || (rawCat.isBlank() && item.id.startsWith("accent_"))
 
     val themeColor = if (isTheme) {
@@ -617,9 +616,9 @@ fun ShopItemCard(
                                     )
                                     .padding(horizontal = 5.dp, vertical = 2.dp)
                             ) {
-                                val quantityText = if (item.quantity!! <= 0) "SOLD OUT" else "${item.quantity} LEFT"
+                                val quantityText = if (item.quantity <= 0) "SOLD OUT" else "${item.quantity} LEFT"
                                 Text(
-                                    text = if (isLcars) quantityText else (if (item.quantity!! <= 0) "SOLD OUT" else "⚡ ${item.quantity} left"),
+                                    text = if (isLcars) quantityText else (if (item.quantity <= 0) "SOLD OUT" else "⚡ ${item.quantity} left"),
                                     fontSize = 10.sp,
                                     fontFamily = if (isLcars) AntonioFontFamily else JetBrainsMonoFontFamily,
                                     fontWeight = FontWeight.Bold,
@@ -958,7 +957,7 @@ fun SendNoteDialog(
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                     textStyle = androidx.compose.ui.text.TextStyle(
                         fontFamily = if (colors.isLcars) AntonioFontFamily else com.example.timecard.ui.theme.OutfitFontFamily,
                         fontSize = 15.sp,

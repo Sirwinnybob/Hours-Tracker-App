@@ -94,7 +94,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            if (isPeerNote) "NOTE FROM ${alert.sentBy?.uppercase() ?: ""}" else "SYSTEM ALERT",
+                            if (isPeerNote) "NOTE FROM ${alert.sentBy.uppercase()}" else "SYSTEM ALERT",
                             fontFamily = AntonioFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
