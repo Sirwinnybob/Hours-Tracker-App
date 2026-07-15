@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -82,6 +83,7 @@ fun NameCard(
     avatar: String? = null,       // Emoji avatar shown when collapsed
     avatarImage: ByteArray? = null, // Custom image avatar bytes (when avatar == "custom")
     headerTarget: () -> HeaderMetrics?,
+    launchedByKkc: Boolean = false,
     onLoginSuccess: (Employee) -> Unit,
     onCollapseComplete: () -> Unit,
     onExpandComplete: () -> Unit,
@@ -281,7 +283,29 @@ fun NameCard(
     val cardBackground = if (colors.isLcars) Color.Black else colors.surface
     val cardShape = if (colors.isLcars) RectangleShape else resolvedShape
 
+    val activity = LocalContext.current as? android.app.Activity
+
     Box(modifier = Modifier.fillMaxSize()) {
+        // KKC navigation button — shown just above the login modal when launched by KKC and expanded
+        if (launchedByKkc && (p > 0.01f || !hasEnteredOnce)) {
+            Button(
+                onClick = { activity?.finish() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accent
+                ),
+                shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = (-150).dp)
+                    .zIndex(15f)
+                    .graphicsLayer {
+                        alpha = if (!hasEnteredOnce) entryCardAlpha.value else p
+                    }
+            ) {
+                Text("← KKC", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
         // Title — only visible when expanded
         if (p > 0.01f || titleAlpha.value > 0.01f) {
             Box(

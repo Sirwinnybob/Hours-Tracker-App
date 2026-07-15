@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_AUTO_LOGIN = "extra_auto_login"
         const val EXTRA_JOB_NUMBER = "extra_job_number"
         const val EXTRA_HOURS = "extra_hours"
+        const val EXTRA_LAUNCHED_BY_KKC = "extra_launched_by_kkc"
     }
 
     private lateinit var updateManager: UpdateManager
@@ -66,6 +67,7 @@ class MainActivity : ComponentActivity() {
         val autoLoginInput = intent?.getStringExtra(EXTRA_AUTO_LOGIN)
         val jobNumberInput = intent?.getStringExtra(EXTRA_JOB_NUMBER)
         val hoursInput = intent?.getStringExtra(EXTRA_HOURS)?.toDoubleOrNull()
+        val launchedByKkc = intent?.getBooleanExtra(EXTRA_LAUNCHED_BY_KKC, false) == true || autoLoginInput != null
 
         setContent {
             TimecardApp(
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
                 autoLoginInput = autoLoginInput,
                 jobNumberInput = jobNumberInput,
                 hoursInput = hoursInput,
+                launchedByKkc = launchedByKkc,
                 onReinstallLatest = { updateManager.reinstallLatest() },
                 pendingUpdate = updateManager.pendingUpdateApk,
                 onInstallUpdate = { updateManager.installPendingUpdate() }

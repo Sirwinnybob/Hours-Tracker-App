@@ -71,6 +71,7 @@ fun TimecardApp(
     autoLoginInput: String? = null,
     jobNumberInput: String? = null,
     hoursInput: Double? = null,
+    launchedByKkc: Boolean = false,
     onReinstallLatest: () -> Unit,
     pendingUpdate: java.io.File? = null,
     onInstallUpdate: () -> Unit = {}
@@ -97,7 +98,7 @@ fun TimecardApp(
         val scope = rememberCoroutineScope()
         val colors = LocalTimecardColors.current
 
-        var showSplash by remember { mutableStateOf(autoLoginInput == null) }
+        var showSplash by remember { mutableStateOf(autoLoginInput == null && !launchedByKkc) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
         // Start collapsed when launched by KKC so the NameCard entry animation is skipped
         var isExpanded by remember { mutableStateOf(autoLoginInput == null) }
@@ -121,17 +122,19 @@ fun TimecardApp(
 
         // Splash screen state
 
-        LaunchedEffect(autoLoginInput) {
+        LaunchedEffect(autoLoginInput, loginViewModel.employees) {
             val input = autoLoginInput?.trim() ?: return@LaunchedEffect
             if (input.isEmpty()) return@LaunchedEffect
             if (loginViewModel.employees.isEmpty()) {
                 loginViewModel.initialize(context)
+                return@LaunchedEffect
             }
             val employee = loginViewModel.employees.find { it.id == input }
                 ?: loginViewModel.employees.find { it.name.equals(input, ignoreCase = true) }
             if (employee != null) {
                 loginViewModel.loginInput = employee.name
                 loggedInEmployee = employee
+                isExpanded = false
             } else {
                 isExpanded = true  // show login form if name not recognized
             }
@@ -256,7 +259,7 @@ fun TimecardApp(
                         employeeName = employee.name,
                         repository = repository,
                         themeState = themeState,
-                        launchedByKkc = autoLoginInput != null,
+                        launchedByKkc = launchedByKkc,
                         timesheetViewModel = timesheetViewModel,
                         alertsViewModel = alertsViewModel,
                         statsViewModel = statsViewModel,
@@ -362,6 +365,7 @@ fun TimecardApp(
                 avatar = profileViewModel.profile.avatar,
                 avatarImage = profileViewModel.avatarImage,
                 headerTarget = { nameMetrics },
+                launchedByKkc = launchedByKkc,
                 onLoginSuccess = { emp ->
                     loggedInEmployee = emp
                     isExpanded = false
