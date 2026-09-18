@@ -76,14 +76,19 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
     private var lockRenewJob: kotlinx.coroutines.Job? = null
 
+    /** PIN — the stable identity key used for every per-employee file path. */
     var employeeName = ""
+        private set
+    /** Human-readable name (or shop-set displayName) — for records/UI text only, never a path key. */
+    var employeeDisplayName = ""
         private set
     private var repository: FileRepository? = null
     private val gson = Gson()
 
-    fun initialize(name: String, repo: FileRepository?) {
-        if (employeeName == name && repo == repository) return
-        employeeName = name
+    fun initialize(id: String, displayName: String, repo: FileRepository?) {
+        if (employeeName == id && repo == repository) return
+        employeeName = id
+        employeeDisplayName = displayName
         repository = repo
         viewModelScope.launch {
             loadBadgesConfig(repo)
@@ -246,7 +251,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         // Delegate all gamification logic to the engine
         val result = GamificationEngine.processTimecardSave(
             current = current,
-            employeeName = employeeName,
+            employeeName = employeeDisplayName,
             weekData = weekData,
             monthWeeks = monthWeeks,
             recentWeeks = recentWeeks,
@@ -672,8 +677,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                                 val entry = serverGrantedMap[id] ?: return@mapNotNull null
                                 com.example.timecard.data.model.ActivityEvent(
                                     type = "badge_granted",
-                                    employeeName = employeeName,
-                                    displayName = profile.displayName ?: employeeName,
+                                    employeeName = employeeDisplayName,
+                                    displayName = profile.displayName ?: employeeDisplayName,
                                     detail = entry.name,
                                     detailIcon = entry.emoji,
                                     timestamp = now
