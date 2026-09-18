@@ -158,7 +158,8 @@ fun TimecardApp(
             val emp = loggedInEmployee
             if (emp != null) {
                 val repo = loginViewModel.getRepository(context)
-                profileViewModel.initialize(emp.name, repo)
+                val effectiveDisplayName = emp.displayName.ifBlank { emp.name }
+                profileViewModel.initialize(emp.id, effectiveDisplayName, repo)
                 shopViewModel.initialize(repo, profileViewModel)
                 alertsViewModel.onAcknowledged = { profileViewModel.onAlertAcknowledged() }
             } else {
