@@ -13,7 +13,7 @@ data class Employee(
     // silently ignored for fields missing from JSON (they come back null/0/false instead).
     // This no-arg constructor gives Gson one to find, so legacy JSON without the newer
     // fields still gets the intended defaults.
-    constructor() : this(
+    private constructor() : this(
         id = "",
         name = "",
         excluded = false,
