@@ -236,7 +236,7 @@ fun NameCard(
         focusManager.clearFocus()
         
         // Fetch custom display name if available
-        val displayNameToType = viewModel.getDisplayName(match, context)
+        val displayNameToType = viewModel.getDisplayName(match)
         
         delay(400)
 

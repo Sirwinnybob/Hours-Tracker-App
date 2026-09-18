@@ -120,23 +120,11 @@ class LoginViewModel : ViewModel() {
         return null
     }
 
-    suspend fun getDisplayName(employee: Employee, context: Context): String {
-        val repo = getRepository(context) ?: return employee.name
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                val json = repo.loadGenericJSON(employee.name, "profile.json", useCache = false)
-                if (json != null) {
-                    val jsonObj = com.google.gson.JsonParser.parseString(json).asJsonObject
-                    if (jsonObj.has("displayName") && !jsonObj.get("displayName").isJsonNull) {
-                        val displayName = jsonObj.get("displayName").asString
-                        if (displayName.isNotBlank()) return@withContext displayName
-                    }
-                }
-            } catch (e: Exception) {
-                // ignore
-            }
-            employee.name
-        }
+    /** Reads the shared, admin/shop-set display name straight off the already-loaded
+     * roster entry -- no network-share round-trip needed, unlike the old version which
+     * fetched profile.json on every login-screen render. */
+    fun getDisplayName(employee: Employee): String {
+        return employee.displayName.ifBlank { employee.name }
     }
 
     val filteredEmployees: List<String>
