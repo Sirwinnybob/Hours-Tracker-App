@@ -58,6 +58,15 @@ android {
     lint {
         abortOnError = false
     }
+
+    testOptions {
+        unitTests {
+            // Android SDK stub methods (Settings.Secure, Log, etc.) return default
+            // values instead of throwing "not mocked" — needed to construct
+            // AndroidViewModel subclasses in plain JVM unit tests without Robolectric.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -104,6 +113,7 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
 }
 
 kotlin {

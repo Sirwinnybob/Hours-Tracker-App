@@ -86,9 +86,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val gson = Gson()
 
     fun initialize(id: String, displayName: String, repo: FileRepository?) {
+        employeeDisplayName = displayName
         if (employeeName == id && repo == repository) return
         employeeName = id
-        employeeDisplayName = displayName
         repository = repo
         viewModelScope.launch {
             loadBadgesConfig(repo)
