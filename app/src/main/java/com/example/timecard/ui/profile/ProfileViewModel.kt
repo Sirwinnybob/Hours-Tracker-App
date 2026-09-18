@@ -134,8 +134,14 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setDisplayName(name: String) {
-        profile = profile.copy(displayName = name.trim().ifBlank { null })
+        val trimmed = name.trim()
+        profile = profile.copy(displayName = trimmed.ifBlank { null })
         saveProfile()
+        if (employeeName.isNotBlank()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                com.example.timecard.data.network.HoursTrackerApi.setEmployeeDisplayName(employeeName, trimmed)
+            }
+        }
     }
 
     fun processPurchase(itemId: String, itemTitle: String = "", price: Int): Boolean {
