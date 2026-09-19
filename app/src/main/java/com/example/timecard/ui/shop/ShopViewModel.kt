@@ -116,15 +116,6 @@ class ShopViewModel : ViewModel() {
         }
     }
 
-    private fun employeeDisplayNameFor(id: String, repo: FileRepository): String {
-        val json = repo.loadEmployeeList() ?: return ""
-        return try {
-            val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
-            val employees: List<Employee> = Gson().fromJson(json, type)
-            employees.firstOrNull { it.id == id }?.let { parseName(it.name) } ?: ""
-        } catch (e: Exception) { "" }
-    }
-
     private fun loadCatalog(markSeenOnLoad: Boolean) {
         val repo = repository ?: return
         val currentEmployeeId = profileViewModel?.employeeName ?: ""
@@ -175,18 +166,33 @@ class ShopViewModel : ViewModel() {
                 val list = mutableListOf<EmployeeRecipient>()
                 val gson = Gson()
                 try {
-                    // Load valid employee folders from employees.json, filtering out excluded entries
+                    // Load valid employee folders from employees.json, filtering out excluded entries.
+                    // Also resolves the current employee's own folder name (for self-exclusion below)
+                    // from this SAME parsed list, rather than re-reading/re-parsing the file a second
+                    // time — one file read, one parse, both derived values.
                     val employeeJson = repo.loadEmployeeList()
-                    val validFolders: Set<String> = if (employeeJson != null) {
+                    var validFolders: Set<String> = emptySet()
+                    var currentEmployeeFolder = ""
+                    if (employeeJson != null) {
                         try {
                             val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
                             var employees: List<Employee> = gson.fromJson(employeeJson, type)
                             employees = employees.map { it.copy(name = parseName(it.name)) }
-                            employees.filter { !it.excluded || it.id == "389" }.map { it.name }.toSet()
-                        } catch (e: Exception) { emptySet() }
-                    } else emptySet()
+                            validFolders = employees.filter { !it.excluded || it.id == "389" }.map { it.name }.toSet()
+                            currentEmployeeFolder = employees.firstOrNull { it.id == currentEmployeeId }?.name ?: ""
+                        } catch (e: Exception) {
+                            // Same failure mode as before: if employees.json is unreadable/malformed,
+                            // validFolders falls back to emptySet() (permissive — no folder filtering),
+                            // and currentEmployeeFolder falls back to "" for consistency with that same
+                            // philosophy, rather than being an independent point of failure.
+                        }
+                    }
 
-                    val currentEmployeeFolder = employeeDisplayNameFor(currentEmployeeId, repo)
+                    // NOTE: this comparison intentionally stays name-based — employee folders on disk
+                    // are still keyed by display name, not PIN, even though the rest of this file has
+                    // moved to PIN-based (id) comparison. Whoever runs the not-yet-executed employee
+                    // directory PIN-migration script needs to come back here and switch this to an
+                    // id-based comparison once folders are renamed to PINs.
                     val targetFolders = repo.listEmployeeFolders().filter { folder ->
                         !folder.equals(currentEmployeeFolder, ignoreCase = true) &&
                         (validFolders.isEmpty() || validFolders.any { it.equals(folder, ignoreCase = true) })
