@@ -57,7 +57,7 @@ fun ShopModal(
     val items = shopViewModel.items
     val userCoins = shopViewModel.userCoins
     val inventory = profileViewModel.profile.inventory
-    val isWinston = profileViewModel.employeeName.equals("Winston Ferguson", ignoreCase = true)
+    val isWinston = profileViewModel.employeeName == "389" // Winston's PIN — full unfiltered shop catalog
     val recipients = shopViewModel.recipients
     val itemImages = shopViewModel.itemImages
     val triedThemes = profileViewModel.profile.triedThemes

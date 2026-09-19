@@ -116,11 +116,20 @@ class ShopViewModel : ViewModel() {
         }
     }
 
+    private fun employeeDisplayNameFor(id: String, repo: FileRepository): String {
+        val json = repo.loadEmployeeList() ?: return ""
+        return try {
+            val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
+            val employees: List<Employee> = Gson().fromJson(json, type)
+            employees.firstOrNull { it.id == id }?.let { parseName(it.name) } ?: ""
+        } catch (e: Exception) { "" }
+    }
+
     private fun loadCatalog(markSeenOnLoad: Boolean) {
         val repo = repository ?: return
-        val currentEmployee = profileViewModel?.employeeName ?: ""
+        val currentEmployeeId = profileViewModel?.employeeName ?: ""
 
-        val isWinston = currentEmployee.equals("Winston Ferguson", ignoreCase = true)
+        val isWinston = currentEmployeeId == "389" // Winston's PIN — full unfiltered shop catalog
 
         viewModelScope.launch {
             val loadedItems = withContext(Dispatchers.IO) {
@@ -173,12 +182,13 @@ class ShopViewModel : ViewModel() {
                             val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
                             var employees: List<Employee> = gson.fromJson(employeeJson, type)
                             employees = employees.map { it.copy(name = parseName(it.name)) }
-                            employees.filter { !it.excluded || it.name.equals("Winston Ferguson", ignoreCase = true) }.map { it.name }.toSet()
+                            employees.filter { !it.excluded || it.id == "389" }.map { it.name }.toSet()
                         } catch (e: Exception) { emptySet() }
                     } else emptySet()
 
+                    val currentEmployeeFolder = employeeDisplayNameFor(currentEmployeeId, repo)
                     val targetFolders = repo.listEmployeeFolders().filter { folder ->
-                        !folder.equals(currentEmployee, ignoreCase = true) &&
+                        !folder.equals(currentEmployeeFolder, ignoreCase = true) &&
                         (validFolders.isEmpty() || validFolders.any { it.equals(folder, ignoreCase = true) })
                     }
 
