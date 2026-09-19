@@ -100,7 +100,7 @@ class HoursTrackerApiTest {
             val captured = getCaptured()
             assertEquals("POST /api/employees/7/display-name HTTP/1.1", captured.requestLine)
             assertEquals("application/json", captured.headers["Content-Type"])
-            assertEquals("{\"displayName\": \"Winnie\"}", captured.body)
+            assertEquals("{\"displayName\":\"Winnie\"}", captured.body)
         } finally {
             serverSocket.close()
         }

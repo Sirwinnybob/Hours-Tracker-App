@@ -1,5 +1,6 @@
 package com.example.timecard.data.network
 
+import com.google.gson.Gson
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
@@ -45,7 +46,7 @@ object HoursTrackerApi {
                 connectTimeout = 5000
                 readTimeout = 5000
             }
-            val body = """{"displayName": ${jsonStringEscape(displayName)}}"""
+            val body = gson.toJson(mapOf("displayName" to displayName))
             OutputStreamWriter(connection.outputStream).use { it.write(body) }
             connection.responseCode == 200
         } catch (e: Exception) {
@@ -55,8 +56,5 @@ object HoursTrackerApi {
         }
     }
 
-    private fun jsonStringEscape(value: String): String {
-        val escaped = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
-        return "\"$escaped\""
-    }
+    private val gson = Gson()
 }
