@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.timecard.data.model.ActivityEvent
 import com.example.timecard.data.model.DAYS
+import com.example.timecard.data.model.Employee
 import com.example.timecard.data.model.PlayerProfile
 import com.example.timecard.data.model.PurchaseRecord
 import com.example.timecard.data.model.TimecardData
@@ -18,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class LeaderboardEntry(
+    val id: String,
     val name: String,
     val displayName: String?,
     val weekHours: Double,
@@ -50,16 +52,16 @@ class LeaderboardViewModel : ViewModel() {
     var isFeedLoading by mutableStateOf(false)
         private set
 
-    fun loadFeed(employeeNames: List<String>, repository: FileRepository?) {
+    fun loadFeed(employees: List<Employee>, repository: FileRepository?) {
         if (repository == null || isFeedLoading) return
         viewModelScope.launch {
             isFeedLoading = true
             try {
                 val sortedEvents = withContext(Dispatchers.IO) {
                     val allEvents = mutableListOf<ActivityEvent>()
-                    for (empName in employeeNames) {
+                    for (emp in employees) {
                         try {
-                            allEvents += repository.loadEmployeeActivityEvents(empName)
+                            allEvents += repository.loadEmployeeActivityEvents(emp.id)
                         } catch (_: Exception) {}
                     }
                     allEvents.sortedByDescending { it.timestamp }.take(100)
@@ -74,7 +76,7 @@ class LeaderboardViewModel : ViewModel() {
     private val gson = Gson()
 
     fun load(
-        employeeNames: List<String>,
+        employees: List<Employee>,
         currentWeekDate: String,
         repository: FileRepository?
     ) {
@@ -86,22 +88,22 @@ class LeaderboardViewModel : ViewModel() {
                     val list = mutableListOf<LeaderboardEntry>()
                     val currentMonth = currentWeekDate.substring(0, 7)
 
-                    for (empName in employeeNames) {
+                    for (emp in employees) {
                         try {
                             // Load profile for level / displayName / XP
-                            val profileJson = repository.loadGenericJSON(empName, "profile.json")
+                            val profileJson = repository.loadGenericJSON(emp.id, "profile.json")
                             val profile = if (profileJson != null) {
                                 try { gson.fromJson(profileJson, PlayerProfile::class.java) ?: PlayerProfile() }
                                 catch (_: Exception) { PlayerProfile() }
                             } else PlayerProfile()
 
                             // Load avatar (try wildcard first, then explicit extensions)
-                            val avatarBytes = repository.loadEmployeeBinaryFile(empName, ".avatar.jpg")
-                                ?: repository.loadEmployeeBinaryFile(empName, ".avatar.png")
-                                ?: repository.loadEmployeeBinaryFile(empName, ".avatar.jpeg")
+                            val avatarBytes = repository.loadEmployeeBinaryFile(emp.id, ".avatar.jpg")
+                                ?: repository.loadEmployeeBinaryFile(emp.id, ".avatar.png")
+                                ?: repository.loadEmployeeBinaryFile(emp.id, ".avatar.jpeg")
 
                             // Current week hours
-                            val weekJson = repository.loadFile(empName, currentWeekDate)
+                            val weekJson = repository.loadFile(emp.id, currentWeekDate)
                             val weekData = weekJson?.let {
                                 try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
                             }
@@ -110,12 +112,12 @@ class LeaderboardViewModel : ViewModel() {
                             } ?: 0.0
 
                             // Month hours across all weeks that fall in the current month
-                            val dates = repository.getAvailableDates(empName)
+                            val dates = repository.getAvailableDates(emp.id)
                             var monthHours = weekHours
                             for (date in dates) {
                                 if (date == currentWeekDate) continue
                                 if (!date.startsWith(currentMonth)) continue
-                                val json = repository.loadFile(empName, date) ?: continue
+                                val json = repository.loadFile(emp.id, date) ?: continue
                                 try {
                                     val data = gson.fromJson(json, TimecardData::class.java)
                                     monthHours += data.rows.sumOf { row ->
@@ -126,8 +128,9 @@ class LeaderboardViewModel : ViewModel() {
 
                             list.add(
                                 LeaderboardEntry(
-                                    name = empName,
-                                    displayName = profile.displayName,
+                                    id = emp.id,
+                                    name = emp.name,
+                                    displayName = profile.displayName ?: emp.displayName.ifBlank { null },
                                     weekHours = weekHours,
                                     monthHours = monthHours,
                                     allTimeCoins = profile.allTimeCoinsEarned,
@@ -145,7 +148,7 @@ class LeaderboardViewModel : ViewModel() {
                                 )
                             )
                         } catch (e: Exception) {
-                            Log.e("LeaderboardVM", "Error for $empName", e)
+                            Log.e("LeaderboardVM", "Error for ${emp.name} (${emp.id})", e)
                         }
                     }
                     list

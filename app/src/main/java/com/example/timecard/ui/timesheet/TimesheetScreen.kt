@@ -92,7 +92,8 @@ import com.example.timecard.ui.theme.ThemeState
 
 @Composable
 fun TimesheetScreen(
-    employeeName: String,
+    employeeId: String,
+    employeeDisplayName: String,
     repository: FileRepository?,
     themeState: ThemeState,
     timesheetViewModel: TimesheetViewModel,
@@ -118,10 +119,10 @@ fun TimesheetScreen(
     var showCharts by remember { mutableStateOf(false) }
     var activeLcarsTab by remember { mutableStateOf("timesheet") }
 
-    LaunchedEffect(employeeName) {
-        timesheetViewModel.initialize(employeeName, repository)
-        alertsViewModel.initialize(employeeName, repository)
-        statsViewModel.initialize(employeeName, repository, timesheetViewModel)
+    LaunchedEffect(employeeId) {
+        timesheetViewModel.initialize(employeeId, repository)
+        alertsViewModel.initialize(employeeId, employeeDisplayName, repository)
+        statsViewModel.initialize(employeeId, repository, timesheetViewModel)
     }
 
     NavHost(navController = navController, startDestination = "main", modifier = Modifier.fillMaxSize()) {
@@ -134,7 +135,7 @@ fun TimesheetScreen(
                     modifier = Modifier.statusBarsPadding(),
                     headerContent = {
                         val namePlaceholderMin = if (isCompact) 100.dp else 120.dp
-                        val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeName
+                        val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
                         Box(
                             modifier = Modifier
                                 .widthIn(min = namePlaceholderMin)
@@ -221,7 +222,7 @@ fun TimesheetScreen(
                     },
                     footerContent = {
                         Text(
-                            text = "TIMECARD SYSTEM  //  ${employeeName.uppercase()}",
+                            text = "TIMECARD SYSTEM  //  ${employeeDisplayName.uppercase()}",
                             color = Color.Black,
                             fontFamily = AntonioFontFamily,
                             fontWeight = FontWeight.Bold,
@@ -256,7 +257,7 @@ fun TimesheetScreen(
                                         activeLcarsTab = "timesheet"
                                     } else {
                                         leaderboardViewModel.load(
-                                            employees.filter { !it.excluded }.map { it.name },
+                                            employees.filter { !it.excluded },
                                             uiState.activeWeekDate,
                                             repository
                                         )
@@ -405,15 +406,16 @@ fun TimesheetScreen(
                                     }
                                     "leaderboard" -> {
                                         if (leaderboardViewModel != null) {
-                                            val feedNames = remember(employees) {
-                                                employees.filter { !it.excluded }.map { it.name }
+                                            val feedEmployees = remember(employees) {
+                                                employees.filter { !it.excluded }
                                             }
                                             com.example.timecard.ui.profile.LeaderboardModal(
                                                 viewModel = leaderboardViewModel,
-                                                myName = employeeName,
+                                                myId = employeeId,
+                                                myDisplayName = employeeDisplayName,
                                                 badgeImages = profileViewModel?.badgeImages ?: emptyMap(),
-                                                feedEmployeeNames = feedNames,
-                                                onFeedTabSelected = { leaderboardViewModel.loadFeed(feedNames, repository) },
+                                                feedEmployeeNames = feedEmployees,
+                                                onFeedTabSelected = { leaderboardViewModel.loadFeed(feedEmployees, repository) },
                                                 onDismiss = { activeLcarsTab = "timesheet" }
                                             )
                                         }
@@ -424,7 +426,7 @@ fun TimesheetScreen(
                                                 viewModel = challengesViewModel,
                                                 onLoad = {
                                                     challengesViewModel.load(
-                                                        employeeName = employeeName,
+                                                        employeeName = employeeId,
                                                         weekDate = uiState.activeWeekDate,
                                                         profile = profileViewModel.profile,
                                                         repository = repository
@@ -447,7 +449,7 @@ fun TimesheetScreen(
                                         if (profileViewModel != null) {
                                             com.example.timecard.ui.profile.SettingsModal(
                                                 profileViewModel = profileViewModel,
-                                                actualName = employeeName,
+                                                actualName = employeeDisplayName,
                                                 onDismiss = { activeLcarsTab = "timesheet" },
                                                 onNavigateToAlerts = { activeLcarsTab = "alerts" },
                                                 onOpenShop = { activeLcarsTab = "shop" }
@@ -527,7 +529,7 @@ fun TimesheetScreen(
                                             onNameMeasured?.invoke(com.example.timecard.ui.login.HeaderMetrics(x = pos.x, centerY = pos.y + sz.height / 2f, widthPx = sz.width.toFloat(), heightPx = sz.height.toFloat()))
                                         }
                                 ) {
-                                    val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeName
+                                    val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
                                     Text(text = nameForMeasure, fontSize = 18.sp, maxLines = 1, softWrap = false, color = Color.Transparent, modifier = Modifier)
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -561,7 +563,7 @@ fun TimesheetScreen(
                                     Text("LOGOUT", color = colors.textOrange, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
                                 }
                                 if (leaderboardViewModel != null) {
-                                    Button(onClick = { leaderboardViewModel.load(employees.filter { !it.excluded }.map { it.name }, uiState.activeWeekDate, repository); navController.navigate("leaderboard") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
+                                    Button(onClick = { leaderboardViewModel.load(employees.filter { !it.excluded }, uiState.activeWeekDate, repository); navController.navigate("leaderboard") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
                                         Text("🏆", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
                                     }
                                 }
@@ -580,10 +582,10 @@ fun TimesheetScreen(
                                             if (bitmap != null) {
                                                 Image(bitmap = bitmap, contentDescription = "Profile", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                                             } else {
-                                                com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
+                                                com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeDisplayName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
                                             }
                                         } else {
-                                            com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
+                                            com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeDisplayName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
                                         }
                                         val badgeText = if (streak >= 3) "🔥$streak" else "⭐"
                                         Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
@@ -649,7 +651,7 @@ fun TimesheetScreen(
             if (profileViewModel != null) {
                 com.example.timecard.ui.profile.SettingsModal(
                     profileViewModel = profileViewModel,
-                    actualName = employeeName,
+                    actualName = employeeDisplayName,
                     onDismiss = { navController.popBackStack() },
                     onNavigateToAlerts = { navController.navigate("alerts") },
                     onOpenShop = { navController.navigate("shop") {
@@ -671,15 +673,16 @@ fun TimesheetScreen(
         
         dialog("leaderboard") {
             if (leaderboardViewModel != null) {
-                val feedNames = remember(employees) {
-                    employees.filter { !it.excluded }.map { it.name }
+                val feedEmployees = remember(employees) {
+                    employees.filter { !it.excluded }
                 }
                 com.example.timecard.ui.profile.LeaderboardModal(
                     viewModel = leaderboardViewModel,
-                    myName = employeeName,
+                    myId = employeeId,
+                    myDisplayName = employeeDisplayName,
                     badgeImages = profileViewModel?.badgeImages ?: emptyMap(),
-                    feedEmployeeNames = feedNames,
-                    onFeedTabSelected = { leaderboardViewModel.loadFeed(feedNames, repository) },
+                    feedEmployeeNames = feedEmployees,
+                    onFeedTabSelected = { leaderboardViewModel.loadFeed(feedEmployees, repository) },
                     onDismiss = { navController.popBackStack() }
                 )
             }
@@ -691,7 +694,7 @@ fun TimesheetScreen(
                     viewModel = challengesViewModel,
                     onLoad = {
                         challengesViewModel.load(
-                            employeeName = employeeName,
+                            employeeName = employeeId,
                             weekDate = uiState.activeWeekDate,
                             profile = profileViewModel.profile,
                             repository = repository

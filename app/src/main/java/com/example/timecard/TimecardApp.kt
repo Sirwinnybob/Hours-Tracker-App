@@ -255,9 +255,11 @@ fun TimecardApp(
             val employee = loggedInEmployee
             if (employee != null) {
                 val repository = remember(employee.name) { loginViewModel.getRepository(context) }
+                val effectiveDisplayName = employee.displayName.ifBlank { employee.name }
                 Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = timesheetAlpha.value }) {
                     TimesheetScreen(
-                        employeeName = employee.name,
+                        employeeId = employee.id,
+                        employeeDisplayName = effectiveDisplayName,
                         repository = repository,
                         themeState = themeState,
                         launchedByKkc = launchedByKkc,

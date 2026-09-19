@@ -35,6 +35,7 @@ class AlertsViewModel : ViewModel() {
         private set
 
     private var employeeName = ""
+    private var employeeDisplayName = ""
     private var repository: FileRepository? = null
     private val gson = Gson()
 
@@ -51,8 +52,9 @@ class AlertsViewModel : ViewModel() {
     val currentAlert: Alert?
         get() = alertQueue.getOrNull(alertQueueIndex)
 
-    fun initialize(name: String, repo: FileRepository?) {
-        employeeName = name
+    fun initialize(id: String, displayName: String, repo: FileRepository?) {
+        employeeName = id
+        employeeDisplayName = displayName
         repository = repo
         refreshAlerts()
     }
@@ -68,7 +70,7 @@ class AlertsViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             // Read our profile to get display name
             val myProfileRaw = repo.loadGenericJSON(employeeName, "profile.json", useCache = true)
-            var myDisplayName = employeeName
+            var myDisplayName = employeeDisplayName
             if (myProfileRaw != null) {
                 try {
                     val prof = gson.fromJson(myProfileRaw, com.example.timecard.data.model.PlayerProfile::class.java)
@@ -210,6 +212,7 @@ class AlertsViewModel : ViewModel() {
         alertResponse = ""
         allAlerts = emptyList()
         employeeName = ""
+        employeeDisplayName = ""
         repository = null
     }
 

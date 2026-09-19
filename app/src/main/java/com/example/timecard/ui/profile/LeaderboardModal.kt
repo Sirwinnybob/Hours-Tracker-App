@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.timecard.data.model.ActivityEvent
+import com.example.timecard.data.model.Employee
 import com.example.timecard.ui.common.CoinIcon
 import com.example.timecard.ui.common.CoinAmount
 import com.example.timecard.ui.theme.AntonioFontFamily
@@ -72,9 +73,10 @@ private fun relativeTime(timestamp: String): String {
 @Composable
 fun LeaderboardModal(
     viewModel: LeaderboardViewModel,
-    myName: String,
+    myId: String,
+    myDisplayName: String,
     badgeImages: Map<String, ByteArray> = emptyMap(),
-    feedEmployeeNames: List<String> = emptyList(),
+    feedEmployeeNames: List<Employee> = emptyList(),
     onFeedTabSelected: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
@@ -289,7 +291,7 @@ fun LeaderboardModal(
                         ) {
                             items(viewModel.feedEvents) { event ->
                                 if (isLcars) {
-                                    val isMe = event.employeeName == myName
+                                    val isMe = event.employeeName == myDisplayName
                                     val spineColor = if (isMe) LcarsAnakiwa else LcarsTan
                                     Row(
                                         modifier = Modifier
@@ -352,7 +354,7 @@ fun LeaderboardModal(
                                                     event.displayName,
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (event.employeeName == myName) colors.accent else colors.textPrimary
+                                                    color = if (event.employeeName == myDisplayName) colors.accent else colors.textPrimary
                                                 )
                                                 Text(
                                                     " ${activityEventDescription(event)}",
@@ -410,7 +412,7 @@ fun LeaderboardModal(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         itemsIndexed(sorted) { index, entry ->
-                            val isMe = entry.name == myName
+                            val isMe = entry.id == myId
                             val rank = index + 1
                             val rankEmoji = when (rank) {
                                 1 -> "🥇"
