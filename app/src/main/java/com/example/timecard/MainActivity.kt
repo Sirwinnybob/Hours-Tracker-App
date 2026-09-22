@@ -51,8 +51,6 @@ class MainActivity : ComponentActivity() {
         updateManager = UpdateManager(this)
         themeState = ThemeState.create(this)
 
-        updateManager.checkForUpdates()
-
         // Request POST_NOTIFICATIONS permission on Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -76,9 +74,7 @@ class MainActivity : ComponentActivity() {
                 jobNumberInput = jobNumberInput,
                 hoursInput = hoursInput,
                 launchedByKkc = launchedByKkc,
-                onReinstallLatest = { updateManager.reinstallLatest() },
-                pendingUpdate = updateManager.pendingUpdateApk,
-                onInstallUpdate = { updateManager.installPendingUpdate() }
+                onReinstallLatest = { updateManager.reinstallLatest() }
             )
         }
     }
