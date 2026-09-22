@@ -331,7 +331,7 @@ class ShopViewModel : ViewModel() {
         val vm = profileViewModel ?: return
         val repo = repository ?: return
         val myName = vm.employeeName
-        val myDisplayName = vm.profile.displayName ?: myName
+        val myDisplayName = vm.profile.displayName ?: vm.employeeDisplayName
         val gson = Gson()
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -342,7 +342,7 @@ class ShopViewModel : ViewModel() {
                         id = noteId,
                         message = message,
                         sentAt = Instant.now().toString(),
-                        sentBy = myName,
+                        sentBy = myDisplayName,
                         senderDisplayName = myDisplayName,
                         senderFolder = myName,
                         isAnonymous = false
