@@ -72,9 +72,7 @@ fun TimecardApp(
     jobNumberInput: String? = null,
     hoursInput: Double? = null,
     launchedByKkc: Boolean = false,
-    onReinstallLatest: () -> Unit,
-    pendingUpdate: java.io.File? = null,
-    onInstallUpdate: () -> Unit = {}
+    onReinstallLatest: () -> Unit
 ) {
     // ViewModels must be instantiated before TimecardTheme so we can read
     // the profile's accent color and pass it into the theme.
@@ -395,27 +393,6 @@ fun TimecardApp(
             }
         }
 
-        // Update dialog — shown when a newer APK is found on the network share
-        if (pendingUpdate != null) {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("Update Available") },
-                text = { Text("A new version of the app is available. Install now?") },
-                confirmButton = {
-                    Button(
-                        onClick = onInstallUpdate,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.accent
-                        )
-                    ) {
-                        Text("Install")
-                    }
-                },
-                containerColor = colors.surface,
-                titleContentColor = colors.textHeading,
-                textContentColor = colors.textPrimary
-            )
-        }
     }
 }
 
