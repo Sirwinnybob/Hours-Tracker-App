@@ -29,21 +29,24 @@ class LoginViewModel : ViewModel() {
         private const val KEY_EMPLOYEES = "cached_employees"
         private val JOB_FOLDER_NAMES = arrayOf("Ready Jobs", "Jobs", "JOBS")
 
+        // First-install seed only. Once employees.json has been read successfully, the
+        // cached copy in prefs is the last-known-good list and replaces this.
         private val DEFAULT_EMPLOYEES = listOf(
-            Employee("023", "Jonathan Thornton"),
-            Employee("067", "Jared Rosenburg"),
-            Employee("101", "Chris Tennent"),
-            Employee("189", "Kevin Leafdale"),
+            Employee("703", "Anthony Vetter"),
             Employee("223", "Barry Roper"),
+            Employee("501", "Cameron Baker"),
+            Employee("101", "Chris Tennent"),
             Employee("345", "Donald McEdward"),
-            Employee("389", "Winston Ferguson"),
+            Employee("067", "Jared Rosenburg"),
+            Employee("555", "John Ferguson"),
+            Employee("189", "Kevin Leafdale"),
+            Employee("901", "Kevin Olson"),
+            Employee("989", "Kevin Palmer"),
             Employee("423", "Michael Diekotto"),
             Employee("467", "Montgomery Blackburn"),
-            Employee("501", "Cameron Baker"),
-            Employee("623", "Tye Lewin"),
             Employee("701", "Nate Hoseteetter"),
-            Employee("901", "Kevin Olson"),
-            Employee("989", "Kevin Palmer")
+            Employee("623", "Tye Lewin"),
+            Employee("389", "Winston Ferguson")
         )
     }
 
@@ -213,13 +216,19 @@ class LoginViewModel : ViewModel() {
                 try {
                     val fileContent = getRepository(context)?.loadEmployeeList()
                     if (fileContent != null) {
-                        val cachedContent = prefs.getString(KEY_EMPLOYEES, "")
-                        if (fileContent != cachedContent) {
-                            Log.d("LoginVM", "Employee list changed, updating cache")
-                            prefs.edit().putString(KEY_EMPLOYEES, fileContent).apply()
+                        // Parse before caching so a corrupt or empty file never replaces
+                        // the last-known-good list.
+                        val parsed = parseEmployeesJson(fileContent)
+                        if (parsed.isNotEmpty()) {
+                            val cachedContent = prefs.getString(KEY_EMPLOYEES, "")
+                            if (fileContent != cachedContent) {
+                                Log.d("LoginVM", "Employee list changed, updating cache")
+                                prefs.edit().putString(KEY_EMPLOYEES, fileContent).apply()
+                            }
+                            employees = parsed
+                            return@Thread
                         }
-                        employees = parseEmployeesJson(fileContent)
-                        return@Thread
+                        Log.w("LoginVM", "employees.json parsed empty, keeping cached list")
                     }
                 } catch (e: Exception) {
                     Log.e("LoginVM", "Error in employee sync", e)
