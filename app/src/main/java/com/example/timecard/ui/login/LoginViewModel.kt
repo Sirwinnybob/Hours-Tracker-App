@@ -202,6 +202,7 @@ class LoginViewModel : ViewModel() {
     private fun parseEmployeesJson(json: String): List<Employee> {
         val type = object : TypeToken<List<Employee>>() {}.type
         return Gson().fromJson<List<Employee>>(json, type)
+            .filter { !it.timeclockInactive }
             .map { it.copy(name = parseName(it.name)) }
     }
 

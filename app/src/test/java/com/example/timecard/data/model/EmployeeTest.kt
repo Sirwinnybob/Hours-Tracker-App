@@ -29,4 +29,14 @@ class EmployeeTest {
         assertEquals(12345, employees[0].rtcId)
         assertEquals("rtc", employees[0].addedBy)
     }
+
+    @Test
+    fun `parses timeclockInactive and defaults it to false when missing`() {
+        val json = """[{"id":"067","name":"Jared Rosenburg","timeclockInactive":true},{"id":"389","name":"Winston Ferguson"}]"""
+        val type = object : TypeToken<List<Employee>>() {}.type
+        val employees: List<Employee> = Gson().fromJson(json, type)
+
+        assertEquals(true, employees[0].timeclockInactive)
+        assertEquals(false, employees[1].timeclockInactive)
+    }
 }

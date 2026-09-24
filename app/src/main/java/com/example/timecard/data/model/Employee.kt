@@ -6,7 +6,9 @@ data class Employee(
     val excluded: Boolean = false,
     val displayName: String = "",
     val rtcId: Int? = null,
-    val addedBy: String = "hours_tracker"
+    val addedBy: String = "hours_tracker",
+    // Set by the Hours Tracker backend when the employee is deactivated on the RTC time clock.
+    val timeclockInactive: Boolean = false
 ) {
     // Gson allocates instances via Unsafe (bypassing the primary constructor) unless a
     // no-arg constructor is present, which means Kotlin default values are otherwise
@@ -19,6 +21,7 @@ data class Employee(
         excluded = false,
         displayName = "",
         rtcId = null,
-        addedBy = "hours_tracker"
+        addedBy = "hours_tracker",
+        timeclockInactive = false
     )
 }

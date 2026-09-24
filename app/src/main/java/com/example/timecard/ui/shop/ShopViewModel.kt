@@ -178,7 +178,7 @@ class ShopViewModel : ViewModel() {
                             val type = object : com.google.gson.reflect.TypeToken<List<Employee>>() {}.type
                             var employees: List<Employee> = gson.fromJson(employeeJson, type)
                             employees = employees.map { it.copy(name = parseName(it.name)) }
-                            validFolders = employees.filter { !it.excluded || it.id == "389" }.map { it.name }.toSet()
+                            validFolders = employees.filter { !it.timeclockInactive && (!it.excluded || it.id == "389") }.map { it.name }.toSet()
                             currentEmployeeFolder = employees.firstOrNull { it.id == currentEmployeeId }?.name ?: ""
                         } catch (e: Exception) {
                             // Same failure mode as before: if employees.json is unreadable/malformed,
