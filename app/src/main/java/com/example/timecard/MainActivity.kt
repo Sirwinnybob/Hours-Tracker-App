@@ -4,21 +4,27 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.text.font.createFontFamilyResolver
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.timecard.data.cache.FileCache
+import com.example.timecard.kkcnav.KkcInterFontFamily
 import com.example.timecard.kkcnav.KkcNavBarPayload
 import com.example.timecard.ui.theme.ThemeState
 import com.example.timecard.update.NotificationWorker
 import com.example.timecard.update.UpdateManager
 import java.util.Calendar
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -69,6 +75,18 @@ class MainActivity : ComponentActivity() {
         val launchedByKkc = intent?.getBooleanExtra(EXTRA_LAUNCHED_BY_KKC, false) == true || autoLoginInput != null
         @Suppress("DEPRECATION") // Bundle.get(key): one generic read for every extra type in the contract
         val kkcNavBar = if (launchedByKkc) KkcNavBarPayload.parse { key -> intent?.extras?.get(key) } else null
+
+        if (kkcNavBar != null) {
+            // Warm the async Google Font so the mirrored navbar labels don't flash the fallback font.
+            lifecycleScope.launch {
+                try {
+                    createFontFamilyResolver(this@MainActivity).preload(KkcInterFontFamily)
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w("TimecardMain", "Inter font preload failed; navbar uses the fallback font", e)
+                }
+            }
+        }
 
         setContent {
             TimecardApp(
