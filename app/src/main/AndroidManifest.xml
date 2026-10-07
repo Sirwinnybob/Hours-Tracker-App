@@ -11,6 +11,11 @@
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- For daily hour reminder notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- KKC navbar mirror: start com.kkc.sheettracker.MainActivity when a KKC destination is tapped -->
+    <queries>
+        <package android:name="com.kkc.sheettracker" />
+    </queries>
     
     <application
         android:allowBackup="true"

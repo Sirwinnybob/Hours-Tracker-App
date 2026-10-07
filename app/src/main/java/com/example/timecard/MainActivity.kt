@@ -14,6 +14,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.timecard.data.cache.FileCache
+import com.example.timecard.kkcnav.KkcNavBarPayload
 import com.example.timecard.ui.theme.ThemeState
 import com.example.timecard.update.NotificationWorker
 import com.example.timecard.update.UpdateManager
@@ -66,6 +67,8 @@ class MainActivity : ComponentActivity() {
         val jobNumberInput = intent?.getStringExtra(EXTRA_JOB_NUMBER)
         val hoursInput = intent?.getStringExtra(EXTRA_HOURS)?.toDoubleOrNull()
         val launchedByKkc = intent?.getBooleanExtra(EXTRA_LAUNCHED_BY_KKC, false) == true || autoLoginInput != null
+        @Suppress("DEPRECATION") // Bundle.get(key): one generic read for every extra type in the contract
+        val kkcNavBar = if (launchedByKkc) KkcNavBarPayload.parse { key -> intent?.extras?.get(key) } else null
 
         setContent {
             TimecardApp(
@@ -74,6 +77,7 @@ class MainActivity : ComponentActivity() {
                 jobNumberInput = jobNumberInput,
                 hoursInput = hoursInput,
                 launchedByKkc = launchedByKkc,
+                kkcNavBar = kkcNavBar,
                 onReinstallLatest = { updateManager.reinstallLatest() }
             )
         }

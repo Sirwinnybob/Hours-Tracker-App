@@ -1,5 +1,6 @@
 package com.example.timecard
 
+import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.Animatable
@@ -14,11 +15,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import com.example.timecard.kkcnav.KkcNavBar
+import com.example.timecard.kkcnav.KkcNavBarPayload
+import com.example.timecard.kkcnav.KkcReturnNavigation
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 import com.example.timecard.ui.login.HeaderMetrics
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -60,6 +71,7 @@ fun TimecardApp(
     jobNumberInput: String? = null,
     hoursInput: Double? = null,
     launchedByKkc: Boolean = false,
+    kkcNavBar: KkcNavBarPayload? = null,
     onReinstallLatest: () -> Unit
 ) {
     // ViewModels must be instantiated before TimecardTheme so we can read
@@ -83,6 +95,9 @@ fun TimecardApp(
         val context = LocalContext.current
         val scope = rememberCoroutineScope()
         val colors = LocalTimecardColors.current
+        val kkcHazeState = remember { HazeState() }
+        var kkcNavBarHeightPx by remember { mutableIntStateOf(0) }
+        val kkcNavBarInset = if (kkcNavBar != null) with(LocalDensity.current) { kkcNavBarHeightPx.toDp() } else 0.dp
 
         var showSplash by remember { mutableStateOf(autoLoginInput == null && !launchedByKkc) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
@@ -220,9 +235,11 @@ fun TimecardApp(
             }
         }
 
+        Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(if (kkcNavBar != null) Modifier.hazeSource(kkcHazeState) else Modifier)
                 .background(colors.landingBrush)
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
@@ -235,6 +252,8 @@ fun TimecardApp(
                         }
                     }
                 }
+                // Background stays full-height (the glass frosts it); content stops above the KKC bar.
+                .padding(bottom = kkcNavBarInset)
         ) {
             if (!showSplash) {
                 // Layer 1: Timesheet
@@ -341,6 +360,20 @@ fun TimecardApp(
             }
         }
 
+            if (kkcNavBar != null) {
+                val activity = LocalContext.current as? Activity
+                KkcNavBar(
+                    payload = kkcNavBar,
+                    hazeState = kkcHazeState,
+                    onNavigate = { route ->
+                        activity?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar.animDisabled) }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .onSizeChanged { kkcNavBarHeightPx = it.height }
+                )
+            }
+        }
     }
 }
 
