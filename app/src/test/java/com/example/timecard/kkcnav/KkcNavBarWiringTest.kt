@@ -46,7 +46,10 @@ class KkcNavBarWiringTest {
     fun lcarsUsesTheFrameBandOnTheTimesheetAndAStandaloneBandOnLogin() {
         val app = read("java/com/example/timecard/TimecardApp.kt")
         assertTrue(app.contains("KkcLcarsNavBand("))
-        assertTrue(app.contains("kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars) kkcNavBar else null"))
+        assertTrue(app.contains("kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars && kkcShownLcars) kkcNavBar else null"))
+        // Theme is chosen in the Settings dialog (its own window): the navbar transition waits for focus
+        // so it isn't played hidden behind the dialog.
+        assertTrue(app.contains("LocalWindowInfo.current.isWindowFocused"))
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
         assertTrue(timesheet.contains("KkcLcarsNavButtons("))
         assertTrue(timesheet.contains("footerHeight = if (kkcNavBar != null) KKC_LCARS_NAV_HEIGHT"))

@@ -39,6 +39,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.material3.MaterialTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -119,16 +120,24 @@ fun TimecardApp(
         val kkcIsLcars = kkcNavSource == KkcNavBarSource.Lcars
         val kkcAnimate = kkcNavBar != null && !kkcNavBar.animDisabled
         val kkcSlotCount = kkcNavBar?.let { kkcNavSlots(it.destinations).size } ?: 0
-        var kkcWasLcars by remember { mutableStateOf(kkcIsLcars) }
+        // The theme is picked inside the Settings dialog (its own window, on top of this screen). If the
+        // navbar switched immediately the whole transition would play hidden behind it, so the navbar
+        // keeps showing its previous form until this window has focus again, then animates.
+        val kkcWindowFocused = LocalWindowInfo.current.isWindowFocused
+        var kkcShownLcars by remember { mutableStateOf(kkcIsLcars) }
+        LaunchedEffect(kkcIsLcars, kkcWindowFocused) {
+            if (kkcWindowFocused || !kkcAnimate) kkcShownLcars = kkcIsLcars
+        }
+        var kkcWasLcars by remember { mutableStateOf(kkcShownLcars) }
         var kkcLcarsAnim by remember { mutableStateOf(KkcLcarsBlockAnim.None) }
         var kkcLcarsRetracting by remember { mutableStateOf(false) }
-        LaunchedEffect(kkcIsLcars) {
-            if (kkcIsLcars == kkcWasLcars) return@LaunchedEffect
-            kkcWasLcars = kkcIsLcars
+        LaunchedEffect(kkcShownLcars) {
+            if (kkcShownLcars == kkcWasLcars) return@LaunchedEffect
+            kkcWasLcars = kkcShownLcars
             if (!kkcAnimate) {
                 kkcLcarsAnim = KkcLcarsBlockAnim.None
                 kkcLcarsRetracting = false
-            } else if (kkcIsLcars) {
+            } else if (kkcShownLcars) {
                 kkcLcarsRetracting = false
                 kkcLcarsAnim = KkcLcarsBlockAnim.Enter
                 kotlinx.coroutines.delay(kkcLcarsEnterTotalMs(kkcSlotCount).toLong())
@@ -144,9 +153,9 @@ fun TimecardApp(
         // The LaunchedEffect above only runs AFTER the frame where the theme flipped. Derive the
         // transition for that very first frame here, so the LCARS blocks compose already at 0 (Enter)
         // and the glass bar never flickers back in before the retract starts.
-        val kkcThemeJustFlipped = kkcIsLcars != kkcWasLcars && kkcAnimate
-        val kkcLcarsAnimNow = if (kkcThemeJustFlipped && kkcIsLcars) KkcLcarsBlockAnim.Enter else kkcLcarsAnim
-        val kkcRetractingNow = kkcLcarsRetracting || (kkcThemeJustFlipped && !kkcIsLcars)
+        val kkcThemeJustFlipped = kkcShownLcars != kkcWasLcars && kkcAnimate
+        val kkcLcarsAnimNow = if (kkcThemeJustFlipped && kkcShownLcars) KkcLcarsBlockAnim.Enter else kkcLcarsAnim
+        val kkcRetractingNow = kkcLcarsRetracting || (kkcThemeJustFlipped && !kkcShownLcars)
         // The glass bar keeps its last non-LCARS look while it slides out, so it doesn't flash
         // LCARS-theme colors on the way down.
         var kkcLastGlassStyle by remember { mutableStateOf<KkcNavBarStyle?>(null) }
@@ -320,7 +329,7 @@ fun TimecardApp(
                         repository = repository,
                         themeState = themeState,
                         launchedByKkc = launchedByKkc,
-                        kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars) kkcNavBar else null,
+                        kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars && kkcShownLcars) kkcNavBar else null,
                         onKkcNavigate = kkcOnNavigate,
                         kkcLcarsAnim = kkcLcarsAnimNow,
                         timesheetViewModel = timesheetViewModel,
@@ -435,7 +444,7 @@ fun TimecardApp(
                 // Standalone LCARS band: screens without the LCARS frame (login card / no employee) —
                 // the timesheet's frame carries the band itself — and the retract animation after
                 // leaving LCARS (the frame is already gone by then, so it plays over the new theme).
-                if ((kkcIsLcars && (loggedInEmployee == null || isExpanded)) || kkcRetractingNow) {
+                if ((kkcIsLcars && kkcShownLcars && (loggedInEmployee == null || isExpanded)) || kkcRetractingNow) {
                     KkcLcarsNavBand(
                         payload = kkcNavBar,
                         onNavigate = kkcOnNavigate,
@@ -466,7 +475,7 @@ fun TimecardApp(
                 // Initially-visible AnimatedVisibility doesn't animate, so opening Hours Tracker shows
                 // the bar as-is; only a theme change slides it out (→ LCARS) or back in (← LCARS).
                 AnimatedVisibility(
-                    visible = !kkcIsLcars && !kkcRetractingNow,
+                    visible = !kkcShownLcars && !kkcRetractingNow,
                     modifier = Modifier.align(Alignment.BottomCenter),
                     enter = if (kkcAnimate) {
                         slideInVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeIn(tween(KKC_GLASS_SWAP_MS))
