@@ -3,7 +3,7 @@ package com.example.timecard.kkcnav
 import androidx.compose.runtime.Immutable
 
 /**
- * KEEP IN SYNC — byte-identical keys, VERSION and payload fields with Hours Tracker
+ * KEEP IN SYNC — byte-identical keys, VERSION and payload fields with KKCSheetTracker
  * C:\Scripts\KKCSheetTracker\app\src\main\java\com\kkc\sheettracker\navigation\KkcNavBarContract.kt
  * Tests pin both sides to the same CANONICAL_KEYS list:
  *   KKC  app/src/test/java/com/kkc/sheettracker/navigation/KkcNavBarContractTest.kt
