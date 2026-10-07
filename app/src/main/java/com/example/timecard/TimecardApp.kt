@@ -29,6 +29,7 @@ import com.example.timecard.kkcnav.kkcNavBarSource
 import com.example.timecard.kkcnav.kkcNavBarStyle
 import com.example.timecard.kkcnav.kkcNavColorsFromHt
 import com.example.timecard.kkcnav.KKC_GLASS_SWAP_MS
+import com.example.timecard.kkcnav.KKC_LAUNCH_FADE_MS
 import com.example.timecard.kkcnav.KkcLcarsBlockAnim
 import com.example.timecard.kkcnav.KkcNavBarStyle
 import com.example.timecard.kkcnav.kkcLcarsEnterTotalMs
@@ -126,8 +127,9 @@ fun TimecardApp(
         val kkcOnNavigate: (String) -> Unit = { route ->
             (context as? Activity)?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar?.animDisabled == true) }
         }
-        // Normal ↔ LCARS navbar transition (kkcnav/KkcLcarsNav.kt timings). Only a CHANGE of theme while
-        // Hours Tracker is open animates; opening straight into LCARS shows the band as-is.
+        // Normal ↔ LCARS navbar transition (kkcnav/KkcLcarsNav.kt timings). Plays when the theme changes
+        // while Hours Tracker is open, AND on a launch from KKC straight into LCARS: the glass bar shows
+        // first (continuing KKC's bar), then turns into the LCARS band once the window fade-in is done.
         val kkcIsLcars = kkcNavSource == KkcNavBarSource.Lcars
         val kkcAnimate = kkcNavBar != null && !kkcNavBar.animDisabled
         val kkcSlotCount = kkcNavBar?.let { kkcNavSlots(it.destinations).size } ?: 0
@@ -135,9 +137,17 @@ fun TimecardApp(
         // navbar switched immediately the whole transition would play hidden behind it, so the navbar
         // keeps showing its previous form until this window has focus again, then animates.
         val kkcWindowFocused = LocalWindowInfo.current.isWindowFocused
-        var kkcShownLcars by remember { mutableStateOf(kkcIsLcars) }
+        var kkcShownLcars by remember { mutableStateOf(kkcIsLcars && !kkcAnimate) }
+        var kkcLaunchSettled by remember { mutableStateOf(false) }
         LaunchedEffect(kkcIsLcars, kkcWindowFocused) {
-            if (kkcWindowFocused || !kkcAnimate) kkcShownLcars = kkcIsLcars
+            if (!kkcWindowFocused && kkcAnimate) return@LaunchedEffect
+            if (!kkcLaunchSettled) {
+                // Let the KKC → Hours Tracker window cross-fade (android fade_in, ~500 ms) finish first,
+                // otherwise the glass → LCARS morph plays while the window is still fading in.
+                if (kkcAnimate && kkcIsLcars) kotlinx.coroutines.delay(KKC_LAUNCH_FADE_MS)
+                kkcLaunchSettled = true
+            }
+            kkcShownLcars = kkcIsLcars
         }
         var kkcWasLcars by remember { mutableStateOf(kkcShownLcars) }
         var kkcLcarsAnim by remember { mutableStateOf(KkcLcarsBlockAnim.None) }
@@ -265,7 +275,27 @@ fun TimecardApp(
             profileViewModel.onTimecardSaved(saved, dates)
         }
 
+        // Opened from KKC: an inactivity logout returns to the KKC page the user came from (Hours
+        // Tracker sits on top of KKC's MainActivity in KKC's task, so finishing reveals it unchanged)
+        // instead of dropping back to Hours Tracker's login screen.
+        suspend fun logoutBackToKkc(resetTrigger: () -> Unit) {
+            timesheetViewModel.logout()
+            alertsViewModel.logout()
+            statsViewModel.logout()
+            profileViewModel.logout()
+            resetTrigger()
+            android.widget.Toast.makeText(context, "Logged out of Hours Tracker due to inactivity", android.widget.Toast.LENGTH_LONG).show()
+            // logout() releases the week/profile locks on viewModelScope (IO); finishing clears the
+            // ViewModels and cancels that scope, so give the releases a moment to run first.
+            kotlinx.coroutines.delay(400)
+            (context as? Activity)?.finish()
+        }
+
         LaunchedEffect(tsState.triggerAutoLogout) {
+            if (tsState.triggerAutoLogout && launchedByKkc) {
+                logoutBackToKkc { timesheetViewModel.resetAutoLogout() }
+                return@LaunchedEffect
+            }
             if (tsState.triggerAutoLogout) {
                 launch { timesheetAlpha.animateTo(0f, tween(300)) }
                 launch { gradientAlpha.animateTo(1f, tween(300)) }
@@ -283,6 +313,10 @@ fun TimecardApp(
         }
 
         LaunchedEffect(profileViewModel.triggerAutoLogout) {
+            if (profileViewModel.triggerAutoLogout && launchedByKkc) {
+                logoutBackToKkc { profileViewModel.resetAutoLogout() }
+                return@LaunchedEffect
+            }
             if (profileViewModel.triggerAutoLogout) {
                 launch { timesheetAlpha.animateTo(0f, tween(300)) }
                 launch { gradientAlpha.animateTo(1f, tween(300)) }
@@ -492,7 +526,15 @@ fun TimecardApp(
                         canvas = colors.backgroundTo
                     ).also { style -> SideEffect { kkcLastGlassStyle = style } }
                 } else {
-                    kkcLastGlassStyle
+                    // LCARS from the start (launch from KKC): no previous glass look yet — show KKC's own
+                    // colors, the bar the user just came from, until it morphs into the LCARS band.
+                    kkcLastGlassStyle ?: kkcNavBarStyle(
+                        payload = kkcNavBar,
+                        source = KkcNavBarSource.KkcTheme,
+                        darkTheme = colors.isDark,
+                        htColors = kkcNavBar.colorsFor(colors.isDark),
+                        canvas = colors.backgroundTo
+                    )
                 }
                 // Initially-visible AnimatedVisibility doesn't animate, so opening Hours Tracker shows
                 // the bar as-is; only a theme change slides it out (→ LCARS) or back in (← LCARS).

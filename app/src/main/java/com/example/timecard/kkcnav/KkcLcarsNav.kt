@@ -69,6 +69,8 @@ internal fun kkcLcarsLabel(route: String): String = kkcNavLabel(route).uppercase
 const val KKC_GLASS_SWAP_MS = 220
 const val KKC_LCARS_STAGGER_MS = 45
 const val KKC_LCARS_BLOCK_MS = 170
+/** Launch from KKC into LCARS: wait for the window cross-fade (android.R.anim.fade_in = 500 ms). */
+const val KKC_LAUNCH_FADE_MS = 450L
 
 /** How the LCARS blocks are shown right now. */
 enum class KkcLcarsBlockAnim { None, Enter, Exit }
