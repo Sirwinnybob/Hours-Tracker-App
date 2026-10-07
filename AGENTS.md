@@ -27,10 +27,18 @@ This repository contains an Android application project.
 - Source of truth is KKCSheetTracker (`C:\Scripts\KKCSheetTracker`): `ui/components/AppScaffold.kt`
   (`MorphingNavBar`, `MorphingNavIconRow`, `NavDestination`), `ui/components/icons/NavIcons.kt` + `IconDsl.kt`,
   `ui/theme/Type.kt` (`labelSmall`), `ui/theme/Spacing.kt`, `navigation/KkcNavBarContract.kt`.
-- Never restyle `KkcNavBar` from Hours Tracker's theme — every color comes from `KkcNavBarPayload`. The payload
-  carries BOTH KKC's light and dark color sets (`*_light` / `*_dark` extras); `TimecardApp` passes
-  `darkTheme = themeState.mode != ThemeMode.Light` so the bar follows Hours Tracker's light/dark mode live
-  (the moon toggle re-colors it immediately). The mode only picks the set; it never supplies colors.
+- Layout, glass and animation always come from KKC. COLORS are chosen by `kkcnav/KkcNavBarStyle.kt`
+  (Hours Tracker-only, no KKC counterpart), keyed on the equipped theme (`kkcNavBarSource(accentKey)`):
+  - Standard HT theme (no immersive theme equipped) → KKC's colors. The payload carries BOTH KKC sets
+    (`*_light` / `*_dark` extras); `TimecardApp` picks with `darkTheme = colors.isDark` — HT's EFFECTIVE mode,
+    so the moon toggle re-colors live and immersive themes that force light/dark are respected.
+  - Any equipped HT theme (Sunrise, Twilight/Midnight, Isle/Ocean, Daybreak, Red, Hacker, Sunset, Star Wars) →
+    that theme's colors (`kkcNavColorsFromHt`: accent / textSecondary / hover pill / surface glass / error badge), never bold.
+  - LCARS → no glass bar. `kkcnav/KkcLcarsNav.kt`: the timesheet's `LcarsFrame` bottom band grows to
+    `KKC_LCARS_NAV_HEIGHT` and holds the destination blocks (`TimesheetScreen` `kkcNavBar` param); the login screen
+    (no frame) gets the standalone `KkcLcarsNavBand`.
+  - Bold-mode text/icon color is picked against Hours Tracker's own canvas (`kkcOnGlassColor`, `colors.backgroundTo`),
+    not KKC's background — KKC's `frostedContent` would be wrong over HT's canvas (dark-mode readability bug).
 - Taps call `KkcReturnNavigation.navigate`, which starts KKC `MainActivity` with `extra_kkc_nav_destination`
   (`CLEAR_TOP|SINGLE_TOP`) and finishes. Hours tap = no-op. The "← KKC" buttons stay as fallback.
 - Any change on the KKC side must be copied here in the same session. Contract changes update both

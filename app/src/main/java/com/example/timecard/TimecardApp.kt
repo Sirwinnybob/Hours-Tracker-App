@@ -20,9 +20,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.timecard.kkcnav.KkcLcarsNavBand
 import com.example.timecard.kkcnav.KkcNavBar
 import com.example.timecard.kkcnav.KkcNavBarPayload
+import com.example.timecard.kkcnav.KkcNavBarSource
 import com.example.timecard.kkcnav.KkcReturnNavigation
+import com.example.timecard.kkcnav.kkcNavBarSource
+import com.example.timecard.kkcnav.kkcNavBarStyle
+import com.example.timecard.kkcnav.kkcNavColorsFromHt
+import androidx.compose.material3.MaterialTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import com.example.timecard.ui.login.HeaderMetrics
@@ -48,7 +54,6 @@ import com.example.timecard.ui.shop.ShopViewModel
 import com.example.timecard.ui.stats.StatsViewModel
 
 import com.example.timecard.ui.theme.LocalTimecardColors
-import com.example.timecard.ui.theme.ThemeMode
 import com.example.timecard.ui.theme.ThemeState
 import com.example.timecard.ui.theme.TimecardTheme
 import com.example.timecard.ui.theme.accentColorFor
@@ -92,6 +97,12 @@ fun TimecardApp(
         val scope = rememberCoroutineScope()
         val colors = LocalTimecardColors.current
         val kkcHazeState = remember { HazeState() }
+        // KKC navbar styling (kkcnav/KkcNavBarStyle.kt): standard HT theme → KKC's colors in HT's
+        // effective light/dark; equipped HT theme → that theme's colors; LCARS → LCARS band.
+        val kkcNavSource = kkcNavBarSource(accentKey)
+        val kkcOnNavigate: (String) -> Unit = { route ->
+            (context as? Activity)?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar?.animDisabled == true) }
+        }
 
         var showSplash by remember { mutableStateOf(autoLoginInput == null && !launchedByKkc) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
@@ -262,6 +273,8 @@ fun TimecardApp(
                         repository = repository,
                         themeState = themeState,
                         launchedByKkc = launchedByKkc,
+                        kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars) kkcNavBar else null,
+                        onKkcNavigate = kkcOnNavigate,
                         timesheetViewModel = timesheetViewModel,
                         alertsViewModel = alertsViewModel,
                         statsViewModel = statsViewModel,
@@ -363,23 +376,48 @@ fun TimecardApp(
             //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
             //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
             //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-            // Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
-            // light/dark MODE only selects which of KKC's two color sets is shown (darkTheme = ...), live.
+            // Layout, glass and animation are KKC's; COLORS follow kkcNavBarSource (KkcNavBarStyle.kt, HT-only):
+            // standard HT theme → KKC's light/dark set for HT's effective mode (colors.isDark, live);
+            // equipped HT theme → that theme's colors; LCARS → LCARS band (KkcLcarsNav.kt), no glass bar.
             // Any change to the KKC files above must be copied here in the same session; any contract
             // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
             // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
             // ═══════════════════════════════════════════════════════════════════════════════════════════
             if (kkcNavBar != null) {
-                val activity = LocalContext.current as? Activity
-                KkcNavBar(
-                    payload = kkcNavBar,
-                    darkTheme = themeState.mode != ThemeMode.Light,
-                    hazeState = kkcHazeState,
-                    onNavigate = { route ->
-                        activity?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar.animDisabled) }
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
+                if (kkcNavSource == KkcNavBarSource.Lcars) {
+                    // The timesheet's LCARS frame carries the band itself; only screens without the
+                    // frame (login card / no employee) get the standalone band.
+                    if (loggedInEmployee == null || isExpanded) {
+                        KkcLcarsNavBand(
+                            payload = kkcNavBar,
+                            onNavigate = kkcOnNavigate,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
+                } else {
+                    val scheme = MaterialTheme.colorScheme
+                    val style = kkcNavBarStyle(
+                        payload = kkcNavBar,
+                        source = kkcNavSource,
+                        darkTheme = colors.isDark,
+                        htColors = kkcNavColorsFromHt(
+                            accent = colors.accent,
+                            textSecondary = colors.textSecondary,
+                            pill = colors.hover,
+                            surface = colors.surface,
+                            error = scheme.error,
+                            onError = scheme.onError
+                        ),
+                        canvas = colors.backgroundTo
+                    )
+                    KkcNavBar(
+                        payload = kkcNavBar,
+                        style = style,
+                        hazeState = kkcHazeState,
+                        onNavigate = kkcOnNavigate,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
             }
         }
     }

@@ -89,6 +89,8 @@ import com.example.timecard.ui.theme.LcarsMelrose
 import com.example.timecard.ui.theme.LcarsButton
 import com.example.timecard.ui.theme.LcarsButtonShape
 import com.example.timecard.ui.theme.ThemeState
+import com.example.timecard.kkcnav.KKC_LCARS_NAV_HEIGHT
+import com.example.timecard.kkcnav.KkcLcarsNavButtons
 
 @Composable
 fun TimesheetScreen(
@@ -106,7 +108,11 @@ fun TimesheetScreen(
     employees: List<com.example.timecard.data.model.Employee> = emptyList(),
     onLogout: () -> Unit,
     onNameMeasured: ((com.example.timecard.ui.login.HeaderMetrics) -> Unit)? = null,
-    launchedByKkc: Boolean = false
+    launchedByKkc: Boolean = false,
+    // Only set when the LCARS theme is equipped and KKC launched us: the KKC destinations then live
+    // in the LCARS frame's bottom band instead of the floating glass bar (kkcnav/KkcLcarsNav.kt).
+    kkcNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
+    onKkcNavigate: (String) -> Unit = {}
 ) {
     val uiState by timesheetViewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalTimecardColors.current
@@ -220,14 +226,21 @@ fun TimesheetScreen(
                             modifier = Modifier.padding(start = 16.dp, end = 8.dp)
                         )
                     },
+                    footerHeight = if (kkcNavBar != null) KKC_LCARS_NAV_HEIGHT else 20.dp,
+                    footerBackground = if (kkcNavBar != null) Color.Black else com.example.timecard.ui.theme.LcarsTan,
+                    footerPadding = if (kkcNavBar != null) 0.dp else 8.dp,
                     footerContent = {
-                        Text(
-                            text = "TIMECARD SYSTEM  //  ${employeeDisplayName.uppercase()}",
-                            color = Color.Black,
-                            fontFamily = AntonioFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
-                        )
+                        if (kkcNavBar != null) {
+                            KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate)
+                        } else {
+                            Text(
+                                text = "TIMECARD SYSTEM  //  ${employeeDisplayName.uppercase()}",
+                                color = Color.Black,
+                                fontFamily = AntonioFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
                     },
                     sidebarContent = {
                         val btnModifier = Modifier

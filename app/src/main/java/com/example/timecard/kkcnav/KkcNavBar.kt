@@ -9,8 +9,8 @@ package com.example.timecard.kkcnav
 //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
 //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
 //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
-// light/dark MODE only selects which of KKC's two color sets (payload.light / payload.dark) is shown.
+// Layout, glass and animation are KKC's. COLORS are picked by KkcNavBarStyle.kt (HT-only): standard HT
+// theme → KKC's light/dark set for HT's effective mode; equipped HT theme → its colors; LCARS → KkcLcarsNav.kt.
 // Any change to the KKC files above must be copied here in the same session; any contract
 // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
 // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
@@ -61,18 +61,19 @@ private val KkcNavSpringDp = spring<Dp>(dampingRatio = 0.82f, stiffness = Spring
 /**
  * Copy of KKCSheetTracker AppScaffold.kt MorphingNavBar + MorphingNavIconRow in the FULL state
  * (labels shown, not minimized, no decorations / extended controls). Hours is always the
- * selected destination. Colors come only from [payload]; [darkTheme] (Hours Tracker's own mode)
- * just picks which of the payload's light/dark color sets to draw, so toggling it re-colors live.
+ * selected destination. Layout, glass and animation come from KKC via [payload]; colors come from
+ * [style] (KkcNavBarStyle.kt): KKC's light or dark set for the standard Hours Tracker theme, or the
+ * equipped Hours Tracker theme's colors. LCARS never uses this bar (see KkcLcarsNav.kt).
  */
 @Composable
-fun KkcNavBar(
+internal fun KkcNavBar(
     payload: KkcNavBarPayload,
-    darkTheme: Boolean,
+    style: KkcNavBarStyle,
     hazeState: HazeState?,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = payload.colorsFor(darkTheme)
+    val colors = style.colors
     val navSpec = if (!payload.animDisabled) KkcNavSpringDp else snap()
     val iconSize by animateDpAsState(22.dp, navSpec, label = "kkcNavIconSize")
     val hPad by animateDpAsState(14.dp, navSpec, label = "kkcNavItemHPad")
@@ -107,7 +108,7 @@ fun KkcNavBar(
                 Modifier
             }
             Box(modifier = Modifier.fillMaxWidth().then(hazeModifier)) {
-                KkcNavIconRow(payload, colors, onNavigate, iconSize, hPad, vPad)
+                KkcNavIconRow(payload, style, onNavigate, iconSize, hPad, vPad)
             }
         }
     }
@@ -116,15 +117,16 @@ fun KkcNavBar(
 @Composable
 private fun KkcNavIconRow(
     payload: KkcNavBarPayload,
-    colors: KkcNavBarColors,
+    style: KkcNavBarStyle,
     onNavigate: (String) -> Unit,
     iconSize: Dp,
     hPad: Dp,
     vPad: Dp
 ) {
+    val colors = style.colors
     val indicatorShape = remember(payload.indicatorCornerDp) { RoundedCornerShape(payload.indicatorCornerDp.dp) }
-    val tints = kkcNavTints(colors, payload.boldMode)
-    val selectionFill = remember(colors, payload.boldMode) { kkcNavSelectionFill(colors, payload.boldMode) }
+    val tints = kkcNavTints(style)
+    val selectionFill = remember(colors, style.boldMode) { kkcNavSelectionFill(colors, style.boldMode) }
     fun Modifier.navSelectionBackground(active: Boolean): Modifier {
         if (!active) return this
         return when (val fill = selectionFill) {

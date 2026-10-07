@@ -32,10 +32,24 @@ class KkcNavBarWiringTest {
         assertTrue(src.contains("hazeSource(kkcHazeState)"))
         assertTrue(src.contains("KkcNavBar("))
         assertTrue(src.contains("KkcReturnNavigation.navigate("))
-        // The bar follows Hours Tracker's own light/dark mode, live.
-        assertTrue(src.contains("darkTheme = themeState.mode != ThemeMode.Light"))
-        val call = src.substring(src.indexOf("KkcNavBar("))
-        assertTrue(call.substringBefore("onNavigate").contains("darkTheme = "))
+        // Theme source: standard HT theme → KKC colors; equipped HT theme → HT colors; LCARS → band.
+        assertTrue(src.contains("kkcNavBarSource(accentKey)"))
+        // Light/dark is HT's EFFECTIVE mode (immersive themes can force it), not just the toggle.
+        assertTrue(src.contains("darkTheme = colors.isDark"))
+        // The call site (not the import): "KkcNavBar(" followed by a line break (LF or CRLF).
+        val callStart = Regex("KkcNavBar\\(\\s*\\r?\\n").find(src)?.range?.first ?: -1
+        assertTrue("KkcNavBar call site not found", callStart >= 0)
+        assertTrue(src.substring(callStart).substringBefore("onNavigate").contains("style = "))
+    }
+
+    @Test
+    fun lcarsUsesTheFrameBandOnTheTimesheetAndAStandaloneBandOnLogin() {
+        val app = read("java/com/example/timecard/TimecardApp.kt")
+        assertTrue(app.contains("KkcLcarsNavBand("))
+        assertTrue(app.contains("kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars) kkcNavBar else null"))
+        val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
+        assertTrue(timesheet.contains("KkcLcarsNavButtons("))
+        assertTrue(timesheet.contains("footerHeight = if (kkcNavBar != null) KKC_LCARS_NAV_HEIGHT"))
     }
 
     @Test

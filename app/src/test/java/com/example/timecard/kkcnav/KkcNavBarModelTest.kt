@@ -72,24 +72,24 @@ class KkcNavBarModelTest {
 
     @Test
     fun normalTintsUsePrimaryAndOnSurfaceVariantOfTheActiveSet() {
-        val light = kkcNavTints(payload.colorsFor(darkTheme = false), boldMode = false)
+        val light = kkcNavTints(KkcNavBarStyle(payload.colorsFor(darkTheme = false), boldMode = false, onGlass = Color.Black))
         assertEquals(Color(lightColors.primary), light.selected)
         assertEquals(Color(lightColors.onSurfaceVariant), light.unselected)
 
-        val dark = kkcNavTints(payload.colorsFor(darkTheme = true), boldMode = false)
+        val dark = kkcNavTints(KkcNavBarStyle(payload.colorsFor(darkTheme = true), boldMode = false, onGlass = Color.White))
         assertEquals(Color(darkColors.primary), dark.selected)
         assertEquals(Color(darkColors.onSurfaceVariant), dark.unselected)
     }
 
     @Test
-    fun boldTintsUseTheFrostedContentColorOfTheActiveSet() {
-        val light = kkcNavTints(lightColors, boldMode = true)
-        assertEquals(Color(lightColors.frostedContent), light.selected)
-        assertEquals(Color(lightColors.frostedContent).copy(alpha = 0.8f), light.unselected)
+    fun boldTintsUseTheOnGlassColorPickedAgainstHoursTrackersCanvas() {
+        val light = kkcNavTints(KkcNavBarStyle(lightColors, boldMode = true, onGlass = Color.Black))
+        assertEquals(Color.Black, light.selected)
+        assertEquals(Color.Black.copy(alpha = 0.8f), light.unselected)
 
-        val dark = kkcNavTints(darkColors, boldMode = true)
-        assertEquals(Color(darkColors.frostedContent), dark.selected)
-        assertEquals(Color(darkColors.frostedContent).copy(alpha = 0.8f), dark.unselected)
+        val dark = kkcNavTints(KkcNavBarStyle(darkColors, boldMode = true, onGlass = Color.White))
+        assertEquals(Color.White, dark.selected)
+        assertEquals(Color.White.copy(alpha = 0.8f), dark.unselected)
     }
 
     @Test

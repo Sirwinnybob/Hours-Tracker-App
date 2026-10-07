@@ -9,8 +9,8 @@ package com.example.timecard.kkcnav
 //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
 //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
 //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
-// light/dark MODE only selects which of KKC's two color sets (payload.light / payload.dark) is shown.
+// Layout, glass and animation are KKC's. COLORS are picked by KkcNavBarStyle.kt (HT-only): standard HT
+// theme → KKC's light/dark set for HT's effective mode; equipped HT theme → its colors; LCARS → KkcLcarsNav.kt.
 // Any change to the KKC files above must be copied here in the same session; any contract
 // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
 // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
@@ -65,15 +65,14 @@ internal fun kkcBadgeCount(route: String, payload: KkcNavBarPayload): Int = when
 internal data class KkcNavTints(val selected: Color, val unselected: Color)
 
 /**
- * MorphingNavIconRow tint rules for the ACTIVE theme's [colors]: bold mode uses the
- * contrast-picked frosted content color.
+ * MorphingNavIconRow tint rules: bold mode uses the contrast-picked on-glass color (picked against
+ * Hours Tracker's canvas — see KkcNavBarStyle.kt), otherwise primary / onSurfaceVariant.
  */
-internal fun kkcNavTints(colors: KkcNavBarColors, boldMode: Boolean): KkcNavTints =
-    if (boldMode) {
-        val onGlass = Color(colors.frostedContent)
-        KkcNavTints(selected = onGlass, unselected = onGlass.copy(alpha = 0.8f))
+internal fun kkcNavTints(style: KkcNavBarStyle): KkcNavTints =
+    if (style.boldMode) {
+        KkcNavTints(selected = style.onGlass, unselected = style.onGlass.copy(alpha = 0.8f))
     } else {
-        KkcNavTints(selected = Color(colors.primary), unselected = Color(colors.onSurfaceVariant))
+        KkcNavTints(selected = Color(style.colors.primary), unselected = Color(style.colors.onSurfaceVariant))
     }
 
 /** Fill behind the selected slot (MorphingNavIconRow navSelectionBackground), minus the 0.55 gradient alpha. */

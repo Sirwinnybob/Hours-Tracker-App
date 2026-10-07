@@ -48,6 +48,12 @@ fun LcarsFrame(
     headerContent: @Composable RowScope.() -> Unit = {},
     footerContent: @Composable RowScope.() -> Unit = {},
     sidebarContent: @Composable ColumnScope.() -> Unit = {},
+    // Bottom band: 20.dp tan strip by default. When KKC's navbar lives in it (kkcnav/KkcLcarsNav.kt)
+    // it grows to KKC_LCARS_NAV_HEIGHT on black so the destination blocks show LCARS gaps; the
+    // bottom-left elbow's arm grows with it so the spine stays one continuous piece.
+    footerHeight: Dp = 20.dp,
+    footerBackground: Color = LcarsTan,
+    footerPadding: Dp = 8.dp,
     content: @Composable () -> Unit
 ) {
     Row(
@@ -89,10 +95,11 @@ fun LcarsFrame(
             LcarsBottomLeftElbow(
                 color = LcarsTan,
                 w = 80.dp,
+                h = footerHeight,
                 r = 28.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(50.dp + (footerHeight - 20.dp))
             )
         }
 
@@ -132,9 +139,9 @@ fun LcarsFrame(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(20.dp) // aligns with horizontal arm of Bottom Left Elbow
-                    .background(LcarsTan)
-                    .padding(horizontal = 8.dp),
+                    .height(footerHeight) // aligns with horizontal arm of Bottom Left Elbow
+                    .background(footerBackground)
+                    .padding(horizontal = footerPadding),
                 verticalAlignment = Alignment.CenterVertically,
                 content = footerContent
             )

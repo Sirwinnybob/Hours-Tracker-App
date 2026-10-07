@@ -9,7 +9,7 @@ package com.example.timecard.kkcnav
 //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
 //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
 //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload.
+// Layout, glass and animation are KKC's; colors are picked by KkcNavBarStyle.kt (HT-only); LCARS → KkcLcarsNav.kt.
 // Any change to the KKC files above must be copied here in the same session; any contract
 // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
 // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
