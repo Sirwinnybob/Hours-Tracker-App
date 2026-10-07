@@ -75,6 +75,9 @@ class MainActivity : ComponentActivity() {
         val launchedByKkc = intent?.getBooleanExtra(EXTRA_LAUNCHED_BY_KKC, false) == true || autoLoginInput != null
         @Suppress("DEPRECATION") // Bundle.get(key): one generic read for every extra type in the contract
         val kkcNavBar = if (launchedByKkc) KkcNavBarPayload.parse { key -> intent?.extras?.get(key) } else null
+        if (launchedByKkc) {
+            Log.i("KkcNav", "navbar payload=${if (kkcNavBar == null) "none" else "v${com.example.timecard.kkcnav.KkcNavBarContract.VERSION} animDisabled=${kkcNavBar.animDisabled} blurDisabled=${kkcNavBar.blurDisabled}"}")
+        }
 
         if (kkcNavBar != null) {
             // Warm the async Google Font so the mirrored navbar labels don't flash the fallback font.

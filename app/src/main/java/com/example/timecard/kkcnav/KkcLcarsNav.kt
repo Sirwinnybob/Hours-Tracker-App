@@ -107,6 +107,7 @@ internal fun KkcLcarsNavButtons(
                 when (anim) {
                     KkcLcarsBlockAnim.None -> progress.snapTo(1f)
                     KkcLcarsBlockAnim.Enter -> {
+                        progress.snapTo(0f)
                         delay(kkcLcarsBlockDelayMs(index, slots.size, entering = true).toLong())
                         progress.animateTo(1f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
                     }
@@ -232,7 +233,10 @@ internal fun KkcLcarsNavBand(
     LaunchedEffect(anim) {
         when (anim) {
             KkcLcarsBlockAnim.None -> bandAlpha.snapTo(1f)
-            KkcLcarsBlockAnim.Enter -> bandAlpha.animateTo(1f, tween(KKC_GLASS_SWAP_MS))
+            KkcLcarsBlockAnim.Enter -> {
+                bandAlpha.snapTo(0f)
+                bandAlpha.animateTo(1f, tween(KKC_GLASS_SWAP_MS))
+            }
             KkcLcarsBlockAnim.Exit -> {
                 delay((kkcLcarsRetractTotalMs(count) - KKC_LCARS_BLOCK_MS).toLong())
                 bandAlpha.animateTo(0f, tween(KKC_LCARS_BLOCK_MS))
