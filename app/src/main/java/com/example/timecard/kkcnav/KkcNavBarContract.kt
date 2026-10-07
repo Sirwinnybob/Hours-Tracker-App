@@ -1,5 +1,7 @@
 package com.example.timecard.kkcnav
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Mirror of KKCSheetTracker navigation/KkcNavBarContract.kt. Keys, VERSION and the payload
  * fields must be identical on both sides. Sync header is expanded in Task 9.
@@ -45,6 +47,8 @@ object KkcNavBarContract {
 }
 
 /** Resolved KKC navbar look. Colors are ARGB ints. Same class exists in KKC. */
+// Stable so Compose can skip/recapture correctly; equality is data-class equals.
+@Immutable
 data class KkcNavBarPayload(
     val destinations: List<String>,
     val supplyCount: Int,
