@@ -163,23 +163,17 @@ private fun KkcNavIconRow(
                     } else {
                         iconContent()
                     }
-                    if (isCalculator) {
-                        Text(
-                            text = label,
-                            style = KkcNavLabelStyle,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = tint
-                        )
-                    } else {
-                        Text(
-                            text = label,
-                            style = KkcNavLabelStyle,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = tint,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    // Mirrors KKC MorphingNavIconRow: maxLines = 1 + ellipsis only in the animated
+                    // branch; the low-end (animationsDisabled) branch and the Calc label are unconstrained.
+                    val labelMaxLines = kkcLabelMaxLines(route, payload.animDisabled)
+                    Text(
+                        text = label,
+                        style = KkcNavLabelStyle,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        color = tint,
+                        maxLines = labelMaxLines,
+                        overflow = if (labelMaxLines == 1) TextOverflow.Ellipsis else TextOverflow.Clip
+                    )
                 }
             }
         }

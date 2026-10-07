@@ -57,5 +57,13 @@ internal fun kkcNavTints(payload: KkcNavBarPayload): KkcNavTints =
         KkcNavTints(selected = Color(payload.primary), unselected = Color(payload.onSurfaceVariant))
     }
 
+/**
+ * MorphingNavIconRow label line limit. KKC draws destination labels with maxLines = 1 + ellipsis
+ * only in the animated (AnimatedVisibility) branch; the low-end (animationsDisabled) branch and the
+ * Calc label have no limit.
+ */
+internal fun kkcLabelMaxLines(route: String, animDisabled: Boolean): Int =
+    if (route == KkcNavBarContract.DEST_CALCULATOR || animDisabled) Int.MAX_VALUE else 1
+
 /** MorphingNavBar: frostedTokens.backgroundAlpha.coerceIn(0.5f, 0.95f). */
 internal fun kkcFrostedFillAlpha(payload: KkcNavBarPayload): Float = payload.frostedAlpha.coerceIn(0.5f, 0.95f)

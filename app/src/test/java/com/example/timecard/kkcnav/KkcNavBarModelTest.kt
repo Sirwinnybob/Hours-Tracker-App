@@ -74,6 +74,15 @@ class KkcNavBarModelTest {
     }
 
     @Test
+    fun labelLineLimitMatchesKkcLowEndBranch() {
+        // KKC: animated path = maxLines 1 + ellipsis; low-end path = unconstrained; Calc = unconstrained.
+        assertEquals(1, kkcLabelMaxLines("jobs", animDisabled = false))
+        assertEquals(Int.MAX_VALUE, kkcLabelMaxLines("jobs", animDisabled = true))
+        assertEquals(Int.MAX_VALUE, kkcLabelMaxLines("calculator", animDisabled = false))
+        assertEquals(Int.MAX_VALUE, kkcLabelMaxLines("calculator", animDisabled = true))
+    }
+
+    @Test
     fun frostedAlphaIsClampedLikeKkc() {
         assertEquals(0.5f, kkcFrostedFillAlpha(payload.copy(frostedAlpha = 0.3f)))
         assertEquals(0.95f, kkcFrostedFillAlpha(payload.copy(frostedAlpha = 0.99f)))
