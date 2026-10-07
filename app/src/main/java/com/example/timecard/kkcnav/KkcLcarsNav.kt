@@ -8,9 +8,15 @@ package com.example.timecard.kkcnav
 // behavior still follow the KKC contract (kkcNavSlots / kkcBadgeCount / KkcReturnNavigation).
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,8 +37,6 @@ import androidx.compose.ui.unit.sp
 import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.LCARS_GAP
 import com.example.timecard.ui.theme.LcarsBlueBell
-import com.example.timecard.ui.theme.LcarsButton
-import com.example.timecard.ui.theme.LcarsButtonShape
 import com.example.timecard.ui.theme.LcarsOrange
 import com.example.timecard.ui.theme.LcarsPurple
 import com.example.timecard.ui.theme.LcarsRed
@@ -66,13 +70,13 @@ internal fun KkcLcarsNavButtons(
         slots.forEachIndexed { index, route ->
             val selected = route == KkcNavBarContract.DEST_HOURS
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                LcarsButton(
-                    onClick = { onNavigate(route) },
-                    label = kkcLcarsLabel(route),
+                KkcLcarsNavBlock(
+                    route = route,
+                    selected = selected,
                     code = (index + 1).toString().padStart(2, '0'),
                     color = kkcLcarsBlockColor(index, selected),
-                    shapeType = if (index == slots.lastIndex) LcarsButtonShape.RightCap else LcarsButtonShape.Rect,
-                    modifier = Modifier.fillMaxSize()
+                    rightCap = index == slots.lastIndex,
+                    onClick = { onNavigate(route) }
                 )
                 val badgeCount = kkcBadgeCount(route, payload)
                 if (badgeCount > 0) {
@@ -93,6 +97,61 @@ internal fun KkcLcarsNavButtons(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * One LCARS destination block: a flat palette-colored block (rounded right cap on the last one) with
+ * the KKC nav icon over the Antonio label in black, and the block code in the top-left corner like
+ * the frame's sidebar buttons (LcarsButton). LcarsButton itself has no icon slot, hence this block.
+ */
+@Composable
+private fun KkcLcarsNavBlock(
+    route: String,
+    selected: Boolean,
+    code: String,
+    color: Color,
+    rightCap: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = if (rightCap) RoundedCornerShape(topEndPercent = 100, bottomEndPercent = 100) else RectangleShape
+    val label = kkcLcarsLabel(route)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(shape)
+            .background(color)
+            .clickable(onClick = onClick)
+            .padding(end = if (rightCap) 12.dp else 0.dp)
+    ) {
+        Text(
+            text = code,
+            fontFamily = AntonioFontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 9.sp,
+            color = Color.Black.copy(alpha = 0.6f),
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 5.dp, top = 2.dp)
+        )
+        Column(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                kkcNavIcon(route, selected),
+                contentDescription = label,
+                tint = Color.Black,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                fontFamily = AntonioFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                letterSpacing = 0.5.sp,
+                color = Color.Black,
+                maxLines = 1
+            )
         }
     }
 }

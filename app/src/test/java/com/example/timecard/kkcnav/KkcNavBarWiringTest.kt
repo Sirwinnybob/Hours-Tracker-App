@@ -53,6 +53,12 @@ class KkcNavBarWiringTest {
     }
 
     @Test
+    fun lcarsBlocksShowTheKkcNavIcons() {
+        val lcars = read("java/com/example/timecard/kkcnav/KkcLcarsNav.kt")
+        assertTrue(lcars.contains("kkcNavIcon(route, selected)"))
+    }
+
+    @Test
     fun barFloatsOverFullHeightContentWithNoBottomInset() {
         val src = read("java/com/example/timecard/TimecardApp.kt")
         assertFalse(src.contains("padding(bottom = kkcNavBarInset)"))
