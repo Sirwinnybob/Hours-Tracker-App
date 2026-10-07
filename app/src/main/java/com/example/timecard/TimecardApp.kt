@@ -360,6 +360,20 @@ fun TimecardApp(
             }
         }
 
+            // ═══════════════════════════════════════════════════════════════════════════════════════════
+            // KEEP IN SYNC — THIS IS A COPY OF KKCSHEETTRACKER'S BOTTOM NAVBAR
+            // Source of truth: C:\Scripts\KKCSheetTracker\app\src\main\java\com\kkc\sheettracker\
+            //   ui/components/AppScaffold.kt   MorphingNavBar + MorphingNavIconRow (full state) → KkcNavBar.kt
+            //   ui/components/AppScaffold.kt   enum NavDestination labels / badge + tint rules → KkcNavBarModel.kt
+            //   ui/components/icons/NavIcons.kt + IconDsl.kt  → KkcNavIcons.kt + KkcIconDsl.kt (verbatim copies)
+            //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
+            //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
+            //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
+            // Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload.
+            // Any change to the KKC files above must be copied here in the same session; any contract
+            // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
+            // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
+            // ═══════════════════════════════════════════════════════════════════════════════════════════
             if (kkcNavBar != null) {
                 val activity = LocalContext.current as? Activity
                 KkcNavBar(

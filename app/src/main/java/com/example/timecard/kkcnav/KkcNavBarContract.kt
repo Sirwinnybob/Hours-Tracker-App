@@ -3,8 +3,14 @@ package com.example.timecard.kkcnav
 import androidx.compose.runtime.Immutable
 
 /**
- * Mirror of KKCSheetTracker navigation/KkcNavBarContract.kt. Keys, VERSION and the payload
- * fields must be identical on both sides. Sync header is expanded in Task 9.
+ * KEEP IN SYNC — byte-identical keys, VERSION and payload fields with Hours Tracker
+ * C:\Scripts\KKCSheetTracker\app\src\main\java\com\kkc\sheettracker\navigation\KkcNavBarContract.kt
+ * Tests pin both sides to the same CANONICAL_KEYS list:
+ *   KKC  app/src/test/java/com/kkc/sheettracker/navigation/KkcNavBarContractTest.kt
+ *   HT   app/src/test/java/com/example/timecard/kkcnav/KkcNavBarContractTest.kt
+ * Adding/removing/renaming a key or changing a value's type: update both files AND both tests,
+ * and bump VERSION on both sides (an HT build that sees an unknown VERSION shows no bar, so old
+ * and new builds stay safe in either order).
  */
 object KkcNavBarContract {
     const val VERSION = 1
