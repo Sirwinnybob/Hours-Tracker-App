@@ -40,6 +40,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalWindowInfo
+import com.example.timecard.ui.theme.LaunchAccentCache
 import androidx.compose.material3.MaterialTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -101,7 +102,17 @@ fun TimecardApp(
 
     // Pass the raw accent string to activate immersive themes.
     // If a theme trial is active in the shop, it temporarily overrides the stored accent.
-    val accentKey = shopViewModel.previewAccentKey ?: profileViewModel.profile.accentColor
+    // Until the profile loads (after login), a KKC auto-login uses the theme remembered for that
+    // employee on this tablet, so the first frame is already themed instead of default-then-switch.
+    val appContext = LocalContext.current.applicationContext
+    val launchAccentCache = remember { LaunchAccentCache(appContext) }
+    val rememberedLaunchAccent = remember(autoLoginInput) { autoLoginInput?.let { launchAccentCache.get(it) } }
+    val profileAccent = if (profileViewModel.loadedProfileFor != null || rememberedLaunchAccent == null) {
+        profileViewModel.profile.accentColor
+    } else {
+        rememberedLaunchAccent.accent
+    }
+    val accentKey = shopViewModel.previewAccentKey ?: profileAccent
 
     TimecardTheme(themeMode = themeState.mode, accentKey = accentKey) {
         val tsState by timesheetViewModel.uiState.collectAsStateWithLifecycle()
@@ -202,6 +213,13 @@ fun TimecardApp(
             } else {
                 isExpanded = true  // show login form if name not recognized
             }
+        }
+
+        // Remember the loaded profile's theme for the next KKC launch (see LaunchAccentCache).
+        LaunchedEffect(profileViewModel.loadedProfileFor, profileViewModel.profile.accentColor) {
+            val emp = loggedInEmployee ?: return@LaunchedEffect
+            if (profileViewModel.loadedProfileFor != emp.id) return@LaunchedEffect
+            launchAccentCache.put(listOf(emp.id, emp.name), profileViewModel.profile.accentColor)
         }
 
         LaunchedEffect(isExpanded, loggedInEmployee) {

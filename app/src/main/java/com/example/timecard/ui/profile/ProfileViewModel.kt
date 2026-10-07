@@ -33,6 +33,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     var profile by mutableStateOf(PlayerProfile())
         private set
 
+    /** Employee id whose profile.json has been loaded into [profile]; null until then / after logout. */
+    var loadedProfileFor by mutableStateOf<String?>(null)
+        private set
+
     /** Badge images loaded from server: badge ID → raw PNG/JPG bytes. */
     var badgeImages by mutableStateOf<Map<String, ByteArray>>(emptyMap())
         private set
@@ -106,6 +110,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             repository?.releaseLock(employeeName, "profile", deviceId)
         }
         profile = PlayerProfile()
+        loadedProfileFor = null
         employeeName = ""
         repository = null
         pendingBadges = emptyList()
@@ -468,6 +473,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             } else PlayerProfile()
 
             profile = loaded
+            loadedProfileFor = employeeName
 
             // Check if today's streak is at risk (active streak but no hours logged yet today)
             streakAtRisk = false
