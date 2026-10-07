@@ -179,7 +179,9 @@ fun TimecardApp(
         }
 
         val timesheetAlpha = remember { Animatable(0f) }
-        val gradientAlpha = remember { Animatable(1f) }
+        // KKC auto-login skips the landing screen: no landing gradient while the timesheet loads,
+        // so launching from KKC doesn't flash the login backdrop.
+        val gradientAlpha = remember { Animatable(if (autoLoginInput != null) 0f else 1f) }
         var nameMetrics by remember { mutableStateOf<HeaderMetrics?>(null) }
 
         // Splash screen state
@@ -301,7 +303,9 @@ fun TimecardApp(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (kkcNavBar != null) Modifier.hazeSource(kkcHazeState) else Modifier)
-                .background(colors.landingBrush)
+                // KKC auto-login (card collapsed from the start): paint the timesheet's background, not
+                // the login backdrop, while the timesheet loads — no backdrop flash on launch from KKC.
+                .background(if (autoLoginInput != null && !isExpanded) colors.backgroundBrush else colors.landingBrush)
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {

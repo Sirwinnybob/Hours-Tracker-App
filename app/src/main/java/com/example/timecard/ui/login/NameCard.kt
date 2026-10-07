@@ -113,6 +113,10 @@ fun NameCard(
 
     // Entry animation (first load only)
     var hasEnteredOnce by remember { mutableStateOf(false) }
+    // KKC auto-login starts collapsed: the compact card would sit, visible, in the middle of the
+    // screen until the timesheet header is measured and it can snap there (a white "text box"
+    // flash on launch). Keep it hidden until it has been positioned at the header.
+    var collapsedAtHeader by remember { mutableStateOf(isExpanded) }
     val entryCardAlpha = remember { Animatable(0f) }
     val entryCardOffsetY = remember { Animatable(60f) }
 
@@ -136,7 +140,9 @@ fun NameCard(
     }
 
     // Reposition when collapsed and layout changes (e.g., orientation change)
-    LaunchedEffect(headerTarget()) {
+    // Keyed on cardCenter too: whichever of the header / card is measured last triggers the snap, so
+    // the hidden KKC auto-login card can't get stuck un-positioned (and invisible).
+    LaunchedEffect(headerTarget(), cardCenter) {
         if (!isExpanded && hasEnteredOnce && progress.value < 0.01f) {
             val metrics = headerTarget()
             val current = cardCenter
@@ -145,6 +151,7 @@ fun NameCard(
                 val dy = metrics.centerY - current.y
                 flyX.snapTo(dx)
                 flyY.snapTo(dy)
+                collapsedAtHeader = true
             }
         }
     }
@@ -357,6 +364,8 @@ fun NameCard(
                         if (!hasEnteredOnce) {
                             alpha = entryCardAlpha.value
                             translationY = with(density) { entryCardOffsetY.value.dp.toPx() }
+                        } else if (!isExpanded && !collapsedAtHeader) {
+                            alpha = 0f
                         }
                     }
                     .background(cardBackground, cardShape)
