@@ -7,8 +7,16 @@ package com.example.timecard.kkcnav
 // standalone band (KkcLcarsNavBand). Destinations, Calc-before-Hours order, badges and tap
 // behavior still follow the KKC contract (kkcNavSlots / kkcBadgeCount / KkcReturnNavigation).
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,12 +62,36 @@ internal fun kkcLcarsBlockColor(index: Int, selected: Boolean): Color =
 
 internal fun kkcLcarsLabel(route: String): String = kkcNavLabel(route).uppercase()
 
+// ── Normal ↔ LCARS navbar transition (navbar only; the rest of the theme switch is instant) ──────
+// Normal → LCARS: the glass bar slides down + fades (KKC_GLASS_SWAP_MS), then the LCARS blocks power
+// up left → right, one every KKC_LCARS_STAGGER_MS. LCARS → normal: blocks retract right → left, then
+// the glass bar slides back up. Low-end (payload.animDisabled) swaps instantly. Driven by TimecardApp.
+const val KKC_GLASS_SWAP_MS = 220
+const val KKC_LCARS_STAGGER_MS = 45
+const val KKC_LCARS_BLOCK_MS = 170
+
+/** How the LCARS blocks are shown right now. */
+enum class KkcLcarsBlockAnim { None, Enter, Exit }
+
+internal fun kkcLcarsBlockDelayMs(index: Int, count: Int, entering: Boolean): Int =
+    if (entering) KKC_GLASS_SWAP_MS + index * KKC_LCARS_STAGGER_MS
+    else (count - 1 - index) * KKC_LCARS_STAGGER_MS
+
+/** Time until the last block has finished powering up. */
+internal fun kkcLcarsEnterTotalMs(count: Int): Int =
+    kkcLcarsBlockDelayMs(count - 1, count, entering = true) + KKC_LCARS_BLOCK_MS
+
+/** Time until the left-most block has finished retracting (the glass bar may then return). */
+internal fun kkcLcarsRetractTotalMs(count: Int): Int =
+    kkcLcarsBlockDelayMs(0, count, entering = false) + KKC_LCARS_BLOCK_MS
+
 /** The KKC destinations as LCARS blocks, filling the band they are placed in. */
 @Composable
 internal fun KkcLcarsNavButtons(
     payload: KkcNavBarPayload,
     onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None
 ) {
     val slots = kkcNavSlots(payload.destinations)
     Row(
@@ -69,7 +101,33 @@ internal fun KkcLcarsNavButtons(
     ) {
         slots.forEachIndexed { index, route ->
             val selected = route == KkcNavBarContract.DEST_HOURS
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+            // 0 = retracted (invisible, dropped, squeezed toward its left edge), 1 = fully shown.
+            val progress = remember { Animatable(if (anim == KkcLcarsBlockAnim.Enter) 0f else 1f) }
+            LaunchedEffect(anim) {
+                when (anim) {
+                    KkcLcarsBlockAnim.None -> progress.snapTo(1f)
+                    KkcLcarsBlockAnim.Enter -> {
+                        delay(kkcLcarsBlockDelayMs(index, slots.size, entering = true).toLong())
+                        progress.animateTo(1f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
+                    }
+                    KkcLcarsBlockAnim.Exit -> {
+                        delay(kkcLcarsBlockDelayMs(index, slots.size, entering = false).toLong())
+                        progress.animateTo(0f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        val p = progress.value
+                        alpha = p
+                        scaleX = 0.4f + 0.6f * p
+                        translationY = (1f - p) * size.height * 0.5f
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                    }
+            ) {
                 KkcLcarsNavBlock(
                     route = route,
                     selected = selected,
@@ -164,11 +222,27 @@ private fun KkcLcarsNavBlock(
 internal fun KkcLcarsNavBand(
     payload: KkcNavBarPayload,
     onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None
 ) {
+    // The band's own black backing + left cap: fades in as the glass bar leaves (before the blocks
+    // power up) and fades out only after the last block has retracted.
+    val count = kkcNavSlots(payload.destinations).size
+    val bandAlpha = remember { Animatable(if (anim == KkcLcarsBlockAnim.Enter) 0f else 1f) }
+    LaunchedEffect(anim) {
+        when (anim) {
+            KkcLcarsBlockAnim.None -> bandAlpha.snapTo(1f)
+            KkcLcarsBlockAnim.Enter -> bandAlpha.animateTo(1f, tween(KKC_GLASS_SWAP_MS))
+            KkcLcarsBlockAnim.Exit -> {
+                delay((kkcLcarsRetractTotalMs(count) - KKC_LCARS_BLOCK_MS).toLong())
+                bandAlpha.animateTo(0f, tween(KKC_LCARS_BLOCK_MS))
+            }
+        }
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { alpha = bandAlpha.value }
             .background(Color.Black)
             .navigationBarsPadding()
             .padding(LCARS_GAP)
@@ -181,6 +255,6 @@ internal fun KkcLcarsNavBand(
                 .fillMaxHeight()
                 .background(LcarsTan, shape = RoundedCornerShape(topStartPercent = 100, bottomStartPercent = 100))
         )
-        KkcLcarsNavButtons(payload, onNavigate, Modifier.weight(1f))
+        KkcLcarsNavButtons(payload, onNavigate, Modifier.weight(1f), anim)
     }
 }

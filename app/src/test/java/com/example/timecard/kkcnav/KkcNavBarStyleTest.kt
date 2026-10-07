@@ -117,6 +117,24 @@ class KkcNavBarStyleTest {
     }
 
     @Test
+    fun lcarsBlocksPowerUpLeftToRightAfterTheGlassBarLeaves() {
+        val delays = (0 until 7).map { kkcLcarsBlockDelayMs(it, count = 7, entering = true) }
+        assertEquals(KKC_GLASS_SWAP_MS, delays.first())
+        assertEquals(delays.sorted(), delays)
+        assertEquals(KKC_LCARS_STAGGER_MS, delays[1] - delays[0])
+    }
+
+    @Test
+    fun lcarsBlocksRetractRightToLeftThenTheGlassBarReturns() {
+        val delays = (0 until 7).map { kkcLcarsBlockDelayMs(it, count = 7, entering = false) }
+        assertEquals(0, delays.last())
+        assertEquals(delays.sortedDescending(), delays)
+        // The glass bar re-enters only once the left-most block has finished retracting.
+        assertEquals(delays.first() + KKC_LCARS_BLOCK_MS, kkcLcarsRetractTotalMs(count = 7))
+        assertEquals(kkcLcarsBlockDelayMs(6, 7, entering = true) + KKC_LCARS_BLOCK_MS, kkcLcarsEnterTotalMs(count = 7))
+    }
+
+    @Test
     fun lcarsLabelsAreUppercase() {
         assertEquals("LIBRARY", kkcLcarsLabel("standards"))
         assertEquals("CALC", kkcLcarsLabel("calculator"))

@@ -28,6 +28,17 @@ import com.example.timecard.kkcnav.KkcReturnNavigation
 import com.example.timecard.kkcnav.kkcNavBarSource
 import com.example.timecard.kkcnav.kkcNavBarStyle
 import com.example.timecard.kkcnav.kkcNavColorsFromHt
+import com.example.timecard.kkcnav.KKC_GLASS_SWAP_MS
+import com.example.timecard.kkcnav.KkcLcarsBlockAnim
+import com.example.timecard.kkcnav.KkcNavBarStyle
+import com.example.timecard.kkcnav.kkcLcarsEnterTotalMs
+import com.example.timecard.kkcnav.kkcLcarsRetractTotalMs
+import com.example.timecard.kkcnav.kkcNavSlots
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.runtime.SideEffect
 import androidx.compose.material3.MaterialTheme
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
@@ -103,6 +114,36 @@ fun TimecardApp(
         val kkcOnNavigate: (String) -> Unit = { route ->
             (context as? Activity)?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar?.animDisabled == true) }
         }
+        // Normal ↔ LCARS navbar transition (kkcnav/KkcLcarsNav.kt timings). Only a CHANGE of theme while
+        // Hours Tracker is open animates; opening straight into LCARS shows the band as-is.
+        val kkcIsLcars = kkcNavSource == KkcNavBarSource.Lcars
+        val kkcAnimate = kkcNavBar != null && !kkcNavBar.animDisabled
+        val kkcSlotCount = kkcNavBar?.let { kkcNavSlots(it.destinations).size } ?: 0
+        var kkcWasLcars by remember { mutableStateOf(kkcIsLcars) }
+        var kkcLcarsAnim by remember { mutableStateOf(KkcLcarsBlockAnim.None) }
+        var kkcLcarsRetracting by remember { mutableStateOf(false) }
+        LaunchedEffect(kkcIsLcars) {
+            if (kkcIsLcars == kkcWasLcars) return@LaunchedEffect
+            kkcWasLcars = kkcIsLcars
+            if (!kkcAnimate) {
+                kkcLcarsAnim = KkcLcarsBlockAnim.None
+                kkcLcarsRetracting = false
+            } else if (kkcIsLcars) {
+                kkcLcarsRetracting = false
+                kkcLcarsAnim = KkcLcarsBlockAnim.Enter
+                kotlinx.coroutines.delay(kkcLcarsEnterTotalMs(kkcSlotCount).toLong())
+                // Settled: a later recomposition of the frame (e.g. re-login) must not replay it.
+                kkcLcarsAnim = KkcLcarsBlockAnim.None
+            } else {
+                kkcLcarsAnim = KkcLcarsBlockAnim.None
+                kkcLcarsRetracting = true
+                kotlinx.coroutines.delay(kkcLcarsRetractTotalMs(kkcSlotCount).toLong())
+                kkcLcarsRetracting = false
+            }
+        }
+        // The glass bar keeps its last non-LCARS look while it slides out, so it doesn't flash
+        // LCARS-theme colors on the way down.
+        var kkcLastGlassStyle by remember { mutableStateOf<KkcNavBarStyle?>(null) }
 
         var showSplash by remember { mutableStateOf(autoLoginInput == null && !launchedByKkc) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
@@ -275,6 +316,7 @@ fun TimecardApp(
                         launchedByKkc = launchedByKkc,
                         kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars) kkcNavBar else null,
                         onKkcNavigate = kkcOnNavigate,
+                        kkcLcarsAnim = kkcLcarsAnim,
                         timesheetViewModel = timesheetViewModel,
                         alertsViewModel = alertsViewModel,
                         statsViewModel = statsViewModel,
@@ -384,19 +426,21 @@ fun TimecardApp(
             // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
             // ═══════════════════════════════════════════════════════════════════════════════════════════
             if (kkcNavBar != null) {
-                if (kkcNavSource == KkcNavBarSource.Lcars) {
-                    // The timesheet's LCARS frame carries the band itself; only screens without the
-                    // frame (login card / no employee) get the standalone band.
-                    if (loggedInEmployee == null || isExpanded) {
-                        KkcLcarsNavBand(
-                            payload = kkcNavBar,
-                            onNavigate = kkcOnNavigate,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                    }
-                } else {
+                // Standalone LCARS band: screens without the LCARS frame (login card / no employee) —
+                // the timesheet's frame carries the band itself — and the retract animation after
+                // leaving LCARS (the frame is already gone by then, so it plays over the new theme).
+                if ((kkcIsLcars && (loggedInEmployee == null || isExpanded)) || kkcLcarsRetracting) {
+                    KkcLcarsNavBand(
+                        payload = kkcNavBar,
+                        onNavigate = kkcOnNavigate,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        anim = if (kkcLcarsRetracting) KkcLcarsBlockAnim.Exit else kkcLcarsAnim
+                    )
+                }
+
+                val glassStyle = if (!kkcIsLcars) {
                     val scheme = MaterialTheme.colorScheme
-                    val style = kkcNavBarStyle(
+                    kkcNavBarStyle(
                         payload = kkcNavBar,
                         source = kkcNavSource,
                         darkTheme = colors.isDark,
@@ -409,14 +453,30 @@ fun TimecardApp(
                             onError = scheme.onError
                         ),
                         canvas = colors.backgroundTo
-                    )
-                    KkcNavBar(
-                        payload = kkcNavBar,
-                        style = style,
-                        hazeState = kkcHazeState,
-                        onNavigate = kkcOnNavigate,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
+                    ).also { style -> SideEffect { kkcLastGlassStyle = style } }
+                } else {
+                    kkcLastGlassStyle
+                }
+                // Initially-visible AnimatedVisibility doesn't animate, so opening Hours Tracker shows
+                // the bar as-is; only a theme change slides it out (→ LCARS) or back in (← LCARS).
+                AnimatedVisibility(
+                    visible = !kkcIsLcars && !kkcLcarsRetracting,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = if (kkcAnimate) {
+                        slideInVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeIn(tween(KKC_GLASS_SWAP_MS))
+                    } else EnterTransition.None,
+                    exit = if (kkcAnimate) {
+                        slideOutVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeOut(tween(KKC_GLASS_SWAP_MS))
+                    } else ExitTransition.None
+                ) {
+                    glassStyle?.let { style ->
+                        KkcNavBar(
+                            payload = kkcNavBar,
+                            style = style,
+                            hazeState = kkcHazeState,
+                            onNavigate = kkcOnNavigate
+                        )
+                    }
                 }
             }
         }

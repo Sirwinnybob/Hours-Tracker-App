@@ -112,7 +112,8 @@ fun TimesheetScreen(
     // Only set when the LCARS theme is equipped and KKC launched us: the KKC destinations then live
     // in the LCARS frame's bottom band instead of the floating glass bar (kkcnav/KkcLcarsNav.kt).
     kkcNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
-    onKkcNavigate: (String) -> Unit = {}
+    onKkcNavigate: (String) -> Unit = {},
+    kkcLcarsAnim: com.example.timecard.kkcnav.KkcLcarsBlockAnim = com.example.timecard.kkcnav.KkcLcarsBlockAnim.None
 ) {
     val uiState by timesheetViewModel.uiState.collectAsStateWithLifecycle()
     val colors = LocalTimecardColors.current
@@ -231,7 +232,7 @@ fun TimesheetScreen(
                     footerPadding = if (kkcNavBar != null) 0.dp else 8.dp,
                     footerContent = {
                         if (kkcNavBar != null) {
-                            KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate)
+                            KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim)
                         } else {
                             Text(
                                 text = "TIMECARD SYSTEM  //  ${employeeDisplayName.uppercase()}",

@@ -37,6 +37,9 @@ This repository contains an Android application project.
   - LCARS → no glass bar. `kkcnav/KkcLcarsNav.kt`: the timesheet's `LcarsFrame` bottom band grows to
     `KKC_LCARS_NAV_HEIGHT` and holds the destination blocks (`TimesheetScreen` `kkcNavBar` param); the login screen
     (no frame) gets the standalone `KkcLcarsNavBand`.
+  - Switching to/from LCARS while HT is open animates the navbar only (`KkcLcarsNav.kt` timings, driven by
+    `TimecardApp`): glass bar slides down/fades, then LCARS blocks power up left→right; reverse retracts right→left
+    then the glass bar slides up. Opening straight into a theme doesn't animate; low-end (`animDisabled`) is instant.
   - Bold-mode text/icon color is picked against Hours Tracker's own canvas (`kkcOnGlassColor`, `colors.backgroundTo`),
     not KKC's background — KKC's `frostedContent` would be wrong over HT's canvas (dark-mode readability bug).
 - Taps call `KkcReturnNavigation.navigate`, which starts KKC `MainActivity` with `extra_kkc_nav_destination`
