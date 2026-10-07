@@ -9,7 +9,8 @@ package com.example.timecard.kkcnav
 //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
 //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
 //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload.
+// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
+// light/dark MODE only selects which of KKC's two color sets (payload.light / payload.dark) is shown.
 // Any change to the KKC files above must be copied here in the same session; any contract
 // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
 // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
@@ -60,15 +61,18 @@ private val KkcNavSpringDp = spring<Dp>(dampingRatio = 0.82f, stiffness = Spring
 /**
  * Copy of KKCSheetTracker AppScaffold.kt MorphingNavBar + MorphingNavIconRow in the FULL state
  * (labels shown, not minimized, no decorations / extended controls). Hours is always the
- * selected destination. Colors come only from [payload], never from Hours Tracker's theme.
+ * selected destination. Colors come only from [payload]; [darkTheme] (Hours Tracker's own mode)
+ * just picks which of the payload's light/dark color sets to draw, so toggling it re-colors live.
  */
 @Composable
 fun KkcNavBar(
     payload: KkcNavBarPayload,
+    darkTheme: Boolean,
     hazeState: HazeState?,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = payload.colorsFor(darkTheme)
     val navSpec = if (!payload.animDisabled) KkcNavSpringDp else snap()
     val iconSize by animateDpAsState(22.dp, navSpec, label = "kkcNavIconSize")
     val hPad by animateDpAsState(14.dp, navSpec, label = "kkcNavItemHPad")
@@ -81,7 +85,7 @@ fun KkcNavBar(
             .padding(start = 24.dp, end = 24.dp, bottom = 12.dp)
     ) {
         val barShape = remember { RoundedCornerShape(20.dp) }
-        val frostedBase = Color(payload.frostedBase)
+        val frostedBase = Color(colors.frostedBase)
         val fillAlpha = kkcFrostedFillAlpha(payload)
         val blurActive = hazeState != null && !payload.blurDisabled
         Surface(
@@ -103,7 +107,7 @@ fun KkcNavBar(
                 Modifier
             }
             Box(modifier = Modifier.fillMaxWidth().then(hazeModifier)) {
-                KkcNavIconRow(payload, onNavigate, iconSize, hPad, vPad)
+                KkcNavIconRow(payload, colors, onNavigate, iconSize, hPad, vPad)
             }
         }
     }
@@ -112,24 +116,22 @@ fun KkcNavBar(
 @Composable
 private fun KkcNavIconRow(
     payload: KkcNavBarPayload,
+    colors: KkcNavBarColors,
     onNavigate: (String) -> Unit,
     iconSize: Dp,
     hPad: Dp,
     vPad: Dp
 ) {
     val indicatorShape = remember(payload.indicatorCornerDp) { RoundedCornerShape(payload.indicatorCornerDp.dp) }
-    val tints = kkcNavTints(payload)
-    val boldBrush = remember(payload.boldGradient) {
-        val stops = payload.boldGradient.map { Color(it) }
-        // KKC boldGradientColors always returns two stops (secondary falls back to primary).
-        Brush.linearGradient(if (stops.size == 1) stops + stops else stops)
-    }
+    val tints = kkcNavTints(colors, payload.boldMode)
+    val selectionFill = remember(colors, payload.boldMode) { kkcNavSelectionFill(colors, payload.boldMode) }
     fun Modifier.navSelectionBackground(active: Boolean): Modifier {
         if (!active) return this
-        return if (payload.boldMode) {
-            background(brush = boldBrush, shape = indicatorShape, alpha = 0.55f)
-        } else {
-            background(color = Color(payload.surfaceVariant), shape = indicatorShape)
+        return when (val fill = selectionFill) {
+            // KKC boldGradientColors always returns two stops (secondary falls back to primary).
+            is KkcNavSelectionFill.Gradient ->
+                background(brush = Brush.linearGradient(fill.stops), shape = indicatorShape, alpha = 0.55f)
+            is KkcNavSelectionFill.Solid -> background(color = fill.color, shape = indicatorShape)
         }
     }
 
@@ -170,8 +172,8 @@ private fun KkcNavIconRow(
                         BadgedBox(
                             badge = {
                                 Badge(
-                                    containerColor = Color(payload.badgeContainer),
-                                    contentColor = Color(payload.badgeContent)
+                                    containerColor = Color(colors.badgeContainer),
+                                    contentColor = Color(colors.badgeContent)
                                 ) { Text(badgeCount.toString(), style = KkcNavLabelStyle) }
                             }
                         ) { iconContent() }

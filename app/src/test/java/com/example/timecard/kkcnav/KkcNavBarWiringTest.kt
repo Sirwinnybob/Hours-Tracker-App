@@ -1,6 +1,7 @@
 package com.example.timecard.kkcnav
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -31,7 +32,19 @@ class KkcNavBarWiringTest {
         assertTrue(src.contains("hazeSource(kkcHazeState)"))
         assertTrue(src.contains("KkcNavBar("))
         assertTrue(src.contains("KkcReturnNavigation.navigate("))
-        assertTrue(src.contains("padding(bottom = kkcNavBarInset)"))
+        // The bar follows Hours Tracker's own light/dark mode, live.
+        assertTrue(src.contains("darkTheme = themeState.mode != ThemeMode.Light"))
+        val call = src.substring(src.indexOf("KkcNavBar("))
+        assertTrue(call.substringBefore("onNavigate").contains("darkTheme = "))
+    }
+
+    @Test
+    fun barFloatsOverFullHeightContentWithNoBottomInset() {
+        val src = read("java/com/example/timecard/TimecardApp.kt")
+        assertFalse(src.contains("padding(bottom = kkcNavBarInset)"))
+        assertFalse(src.contains("kkcNavBarInset"))
+        assertFalse(src.contains("kkcNavBarHeightPx"))
+        assertFalse(src.contains("onSizeChanged"))
     }
 
     @Test

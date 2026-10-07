@@ -6,14 +6,25 @@ import org.junit.Test
 
 class KkcNavBarModelTest {
 
-    private val payload = KkcNavBarPayload(
-        destinations = listOf("jobs", "hours", "timecard", "supply", "standards"),
-        supplyCount = 4, safetyCount = 2, dark = false,
+    private val lightColors = KkcNavBarColors(
         primary = 0xFF1565C0.toInt(), onSurfaceVariant = 0xFF444444.toInt(), surfaceVariant = 0xFFE0E0E0.toInt(),
         frostedBase = 0xFFFFFFFF.toInt(), frostedContent = 0xFF000000.toInt(),
+        boldGradient = listOf(0xFF1565C0.toInt(), 0xFFD8E6F7.toInt()),
+        badgeContainer = 0xFFB3261E.toInt(), badgeContent = 0xFFFFFFFF.toInt()
+    )
+
+    private val darkColors = KkcNavBarColors(
+        primary = 0xFF79B2FF.toInt(), onSurfaceVariant = 0xFFCAC4D0.toInt(), surfaceVariant = 0xFF203048.toInt(),
+        frostedBase = 0xFF162438.toInt(), frostedContent = 0xFFFFFFFF.toInt(),
+        boldGradient = listOf(0xFF79B2FF.toInt(), 0xFF204668.toInt()),
+        badgeContainer = 0xFFF2B8B5.toInt(), badgeContent = 0xFF601410.toInt()
+    )
+
+    private val payload = KkcNavBarPayload(
+        destinations = listOf("jobs", "hours", "timecard", "supply", "standards"),
+        supplyCount = 4, safetyCount = 2,
+        light = lightColors, dark = darkColors,
         frostedAlpha = 0.72f, frostedBlurDp = 14f, boldMode = false,
-        boldGradient = listOf(0xFF1565C0.toInt()),
-        badgeContainer = 0xFFB3261E.toInt(), badgeContent = 0xFFFFFFFF.toInt(),
         indicatorCornerDp = 9f, animDisabled = false, blurDisabled = false, shadowsDisabled = false
     )
 
@@ -60,17 +71,48 @@ class KkcNavBarModelTest {
     }
 
     @Test
-    fun normalTintsUsePrimaryAndOnSurfaceVariant() {
-        val tints = kkcNavTints(payload)
-        assertEquals(Color(payload.primary), tints.selected)
-        assertEquals(Color(payload.onSurfaceVariant), tints.unselected)
+    fun normalTintsUsePrimaryAndOnSurfaceVariantOfTheActiveSet() {
+        val light = kkcNavTints(payload.colorsFor(darkTheme = false), boldMode = false)
+        assertEquals(Color(lightColors.primary), light.selected)
+        assertEquals(Color(lightColors.onSurfaceVariant), light.unselected)
+
+        val dark = kkcNavTints(payload.colorsFor(darkTheme = true), boldMode = false)
+        assertEquals(Color(darkColors.primary), dark.selected)
+        assertEquals(Color(darkColors.onSurfaceVariant), dark.unselected)
     }
 
     @Test
-    fun boldTintsUseTheFrostedContentColor() {
-        val tints = kkcNavTints(payload.copy(boldMode = true))
-        assertEquals(Color(payload.frostedContent), tints.selected)
-        assertEquals(Color(payload.frostedContent).copy(alpha = 0.8f), tints.unselected)
+    fun boldTintsUseTheFrostedContentColorOfTheActiveSet() {
+        val light = kkcNavTints(lightColors, boldMode = true)
+        assertEquals(Color(lightColors.frostedContent), light.selected)
+        assertEquals(Color(lightColors.frostedContent).copy(alpha = 0.8f), light.unselected)
+
+        val dark = kkcNavTints(darkColors, boldMode = true)
+        assertEquals(Color(darkColors.frostedContent), dark.selected)
+        assertEquals(Color(darkColors.frostedContent).copy(alpha = 0.8f), dark.unselected)
+    }
+
+    @Test
+    fun selectionFillIsSurfaceVariantNormallyAndTheGradientInBoldMode() {
+        assertEquals(
+            KkcNavSelectionFill.Solid(Color(lightColors.surfaceVariant)),
+            kkcNavSelectionFill(lightColors, boldMode = false)
+        )
+        assertEquals(
+            KkcNavSelectionFill.Solid(Color(darkColors.surfaceVariant)),
+            kkcNavSelectionFill(darkColors, boldMode = false)
+        )
+        assertEquals(
+            KkcNavSelectionFill.Gradient(listOf(Color(darkColors.boldGradient[0]), Color(darkColors.boldGradient[1]))),
+            kkcNavSelectionFill(darkColors, boldMode = true)
+        )
+    }
+
+    @Test
+    fun singleStopGradientIsDuplicatedLikeKkcFlatGradient() {
+        val flat = lightColors.copy(boldGradient = listOf(0xFF123456.toInt()))
+        val fill = kkcNavSelectionFill(flat, boldMode = true) as KkcNavSelectionFill.Gradient
+        assertEquals(listOf(Color(0xFF123456), Color(0xFF123456)), fill.stops)
     }
 
     @Test

@@ -9,22 +9,17 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import com.example.timecard.kkcnav.KkcNavBar
 import com.example.timecard.kkcnav.KkcNavBarPayload
 import com.example.timecard.kkcnav.KkcReturnNavigation
@@ -53,6 +48,7 @@ import com.example.timecard.ui.shop.ShopViewModel
 import com.example.timecard.ui.stats.StatsViewModel
 
 import com.example.timecard.ui.theme.LocalTimecardColors
+import com.example.timecard.ui.theme.ThemeMode
 import com.example.timecard.ui.theme.ThemeState
 import com.example.timecard.ui.theme.TimecardTheme
 import com.example.timecard.ui.theme.accentColorFor
@@ -96,8 +92,6 @@ fun TimecardApp(
         val scope = rememberCoroutineScope()
         val colors = LocalTimecardColors.current
         val kkcHazeState = remember { HazeState() }
-        var kkcNavBarHeightPx by remember { mutableIntStateOf(0) }
-        val kkcNavBarInset = if (kkcNavBar != null) with(LocalDensity.current) { kkcNavBarHeightPx.toDp() } else 0.dp
 
         var showSplash by remember { mutableStateOf(autoLoginInput == null && !launchedByKkc) }
         var loggedInEmployee by remember { mutableStateOf<Employee?>(null) }
@@ -252,8 +246,8 @@ fun TimecardApp(
                         }
                     }
                 }
-                // Background stays full-height (the glass frosts it); content stops above the KKC bar.
-                .padding(bottom = kkcNavBarInset)
+                // No bottom inset: like KKC, content runs full height and the bar floats over it;
+                // hazeSource above makes the glass blur the actual content behind the bar.
         ) {
             if (!showSplash) {
                 // Layer 1: Timesheet
@@ -369,7 +363,8 @@ fun TimecardApp(
             //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
             //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
             //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-            // Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload.
+            // Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
+            // light/dark MODE only selects which of KKC's two color sets is shown (darkTheme = ...), live.
             // Any change to the KKC files above must be copied here in the same session; any contract
             // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
             // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
@@ -378,13 +373,12 @@ fun TimecardApp(
                 val activity = LocalContext.current as? Activity
                 KkcNavBar(
                     payload = kkcNavBar,
+                    darkTheme = themeState.mode != ThemeMode.Light,
                     hazeState = kkcHazeState,
                     onNavigate = { route ->
                         activity?.let { KkcReturnNavigation.navigate(it, route, kkcNavBar.animDisabled) }
                     },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .onSizeChanged { kkcNavBarHeightPx = it.height }
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
         }

@@ -9,7 +9,8 @@ package com.example.timecard.kkcnav
 //   ui/theme/Type.kt  InterFontFamily + labelSmall → KkcNavTypography.kt
 //   ui/theme/Spacing.kt  navBarHorizontal 24dp, floatingNavMinSideMargin 24dp, floatingNavBottomGap 12dp
 //   navigation/KkcNavBarContract.kt + KkcNavBarPayloadBuilder.kt → KkcNavBarContract.kt
-// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload.
+// Do not restyle this bar from Hours Tracker's theme: every color comes from KkcNavBarPayload. HT's
+// light/dark MODE only selects which of KKC's two color sets (payload.light / payload.dark) is shown.
 // Any change to the KKC files above must be copied here in the same session; any contract
 // change bumps VERSION in both repos. Full rules: Hours Tracker AGENTS.md "KKC navbar mirror".
 // Fallback "← KKC" buttons (TimesheetScreen.kt, NameCard.kt) are intentionally kept.
@@ -63,13 +64,31 @@ internal fun kkcBadgeCount(route: String, payload: KkcNavBarPayload): Int = when
 
 internal data class KkcNavTints(val selected: Color, val unselected: Color)
 
-/** MorphingNavIconRow tint rules: bold mode uses the contrast-picked frosted content color. */
-internal fun kkcNavTints(payload: KkcNavBarPayload): KkcNavTints =
-    if (payload.boldMode) {
-        val onGlass = Color(payload.frostedContent)
+/**
+ * MorphingNavIconRow tint rules for the ACTIVE theme's [colors]: bold mode uses the
+ * contrast-picked frosted content color.
+ */
+internal fun kkcNavTints(colors: KkcNavBarColors, boldMode: Boolean): KkcNavTints =
+    if (boldMode) {
+        val onGlass = Color(colors.frostedContent)
         KkcNavTints(selected = onGlass, unselected = onGlass.copy(alpha = 0.8f))
     } else {
-        KkcNavTints(selected = Color(payload.primary), unselected = Color(payload.onSurfaceVariant))
+        KkcNavTints(selected = Color(colors.primary), unselected = Color(colors.onSurfaceVariant))
+    }
+
+/** Fill behind the selected slot (MorphingNavIconRow navSelectionBackground), minus the 0.55 gradient alpha. */
+internal sealed interface KkcNavSelectionFill {
+    data class Solid(val color: Color) : KkcNavSelectionFill
+    data class Gradient(val stops: List<Color>) : KkcNavSelectionFill
+}
+
+/** Bold mode: the theme gradient (KKC always has two stops; a single stop is doubled). Else surfaceVariant. */
+internal fun kkcNavSelectionFill(colors: KkcNavBarColors, boldMode: Boolean): KkcNavSelectionFill =
+    if (boldMode) {
+        val stops = colors.boldGradient.map { Color(it) }
+        KkcNavSelectionFill.Gradient(if (stops.size == 1) stops + stops else stops)
+    } else {
+        KkcNavSelectionFill.Solid(Color(colors.surfaceVariant))
     }
 
 /**
