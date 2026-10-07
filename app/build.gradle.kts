@@ -84,6 +84,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.ui:ui-text-google-fonts")
+
+    // KKC navbar mirror — same Haze version as KKCSheetTracker (keep in sync)
+    implementation("dev.chrisbanes.haze:haze:1.5.1")
 
     // Activity + Lifecycle
     implementation("androidx.activity:activity-compose:1.13.0")
