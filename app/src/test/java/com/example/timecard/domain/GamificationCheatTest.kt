@@ -45,7 +45,7 @@ class GamificationCheatTest {
         val paidHours = result.profile.coinLog.values.sumOf { it.paidHours }
 
         assertEquals("Logged hours should be 40.0", 40.0, loggedHours, 0.01)
-        assertEquals("Paid hours should be capped at 16.0", 16.0, paidHours, 0.01)
+        assertEquals("Paid coin hours should be capped at 9.0", 9.0, paidHours, 0.01)
     }
 
     @Test

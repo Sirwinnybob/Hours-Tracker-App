@@ -127,47 +127,17 @@ class UpdateManager(private val activity: Activity) {
     }
 
     private fun findUpdateDirectory(): File? {
-        val storageRoot = Environment.getExternalStorageDirectory()
-
-        // Check saved custom path first
         val prefs = activity.getSharedPreferences(PREFS_NAME, Activity.MODE_PRIVATE)
         val customPath = prefs.getString(PREF_CUSTOM_UPDATE_PATH, null)
-        if (customPath != null) {
-            val customDir = File(customPath)
-            if (customDir.exists() && customDir.isDirectory) {
-                Log.d(TAG, "Using saved custom update path: $customPath")
-                resolvedUpdatePath = customPath
-                return customDir
-            } else {
-                prefs.edit().remove(PREF_CUSTOM_UPDATE_PATH).apply()
-                Log.d(TAG, "Saved custom path no longer valid, cleared: $customPath")
-            }
-        }
-
         val isDebug = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-
-        for (jobFolder in JOB_FOLDER_NAMES) {
-            val jobDir = File(storageRoot, jobFolder)
-            if (jobDir.exists() && jobDir.isDirectory) {
-                val foldersToCheck = if (isDebug) {
-                    arrayOf(".Testing_Updates")
-                } else {
-                    arrayOf(".Updates", "Updates")
-                }
-
-                for (updateSubfolder in foldersToCheck) {
-                    val updateDir = File(jobDir, updateSubfolder)
-                    if (updateDir.exists() && updateDir.isDirectory) {
-                        Log.d(TAG, "Found update directory: ${updateDir.absolutePath}")
-                        resolvedUpdatePath = updateDir.absolutePath
-                        return updateDir
-                    }
-                }
-            }
+        val directory = UpdateDirectories.find(
+            Environment.getExternalStorageDirectory(), activity.packageName, isDebug, customPath
+        )
+        resolvedUpdatePath = directory?.absolutePath
+        if (customPath != null && !File(customPath).isDirectory) {
+            prefs.edit().remove(PREF_CUSTOM_UPDATE_PATH).apply()
         }
-
-        Log.d(TAG, "No update directory found in standard locations")
-        return null
+        return directory
     }
 
     private suspend fun checkForUpdatesInDirectory(updateDir: File): Boolean {
@@ -218,7 +188,7 @@ class UpdateManager(private val activity: Activity) {
             inputType = InputType.TYPE_CLASS_TEXT
             setText(basePath)
             setSelection(basePath.length)
-            hint = "e.g., ${basePath}Ready Jobs/.Updates"
+            hint = "e.g., ${basePath}Ready Jobs/.appupdates/apps/com.example.timecard"
         }
 
         AlertDialog.Builder(activity)
@@ -226,7 +196,7 @@ class UpdateManager(private val activity: Activity) {
             .setMessage(
                 "Could not find the updates folder.\n\n" +
                 "Searched for (based on build type):\n" +
-                "\u2022 Ready Jobs/.Updates\n" +
+                "\u2022 Ready Jobs/.appupdates/apps/com.example.timecard\n" +
                 "\u2022 Ready Jobs/.Testing_Updates\n" +
                 "\u2022 Jobs/.Updates\n" +
                 "\u2022 ...and others\n\n" +
