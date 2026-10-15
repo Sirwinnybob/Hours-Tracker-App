@@ -35,7 +35,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -89,27 +89,26 @@ internal fun KkcNavBar(
         val frostedBase = Color(colors.frostedBase)
         val fillAlpha = kkcFrostedFillAlpha(payload)
         val blurActive = hazeState != null && !payload.blurDisabled
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = barShape,
-            color = if (blurActive) Color.Transparent else frostedBase.copy(alpha = fillAlpha),
-            shadowElevation = if (payload.shadowsDisabled) 0.dp else 3.dp,
-            tonalElevation = 0.dp
-        ) {
-            val hazeModifier = if (blurActive) {
-                Modifier.hazeEffect(
-                    hazeState,
-                    style = HazeDefaults.style(
-                        backgroundColor = frostedBase.copy(alpha = fillAlpha),
-                        blurRadius = payload.frostedBlurDp.coerceAtLeast(1f).dp
-                    )
+        val hazeModifier = if (blurActive) {
+            Modifier.hazeEffect(
+                hazeState,
+                style = HazeDefaults.style(
+                    backgroundColor = frostedBase.copy(alpha = fillAlpha),
+                    blurRadius = payload.frostedBlurDp.coerceAtLeast(1f).dp
                 )
-            } else {
-                Modifier
-            }
-            Box(modifier = Modifier.fillMaxWidth().then(hazeModifier)) {
-                KkcNavIconRow(payload, style, onNavigate, iconSize, hPad, vPad)
-            }
+            )
+        } else {
+            Modifier.background(frostedBase)
+        }
+        // Mirror KKC's external shadow -> clip -> Haze layer; no Surface shadow through glass.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(if (payload.shadowsDisabled) 0.dp else 3.dp, barShape, clip = false)
+                .clip(barShape)
+                .then(hazeModifier)
+        ) {
+            KkcNavIconRow(payload, style, onNavigate, iconSize, hPad, vPad)
         }
     }
 }
