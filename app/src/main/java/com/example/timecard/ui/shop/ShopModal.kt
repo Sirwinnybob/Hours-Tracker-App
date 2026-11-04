@@ -568,14 +568,21 @@ fun ShopItemCard(
     }
 
     val cardBg = if (isLcars) Color(0xFF111111) else backgroundColor
-    val cardShape = if (isLcars) RectangleShape else RoundedCornerShape(8.dp)
-    val cardBorder = if (isLcars) Modifier.border(1.dp, themeColor ?: LcarsTan, RectangleShape) else Modifier.border(BorderStroke(1.dp, borderColor), RoundedCornerShape(8.dp))
+    val cardShape = if (isLcars || colors.isRetro) RectangleShape else RoundedCornerShape(8.dp)
+    val cardBorder = if (isLcars) {
+        Modifier.border(1.dp, themeColor ?: LcarsTan, RectangleShape)
+    } else {
+        Modifier.border(BorderStroke(if (colors.isRetro) 2.dp else 1.dp, borderColor), cardShape)
+    }
+    // Backing for the translucent theme-card tints. It is clipped to the card shape (not the row) so no
+    // square corners poke out behind the rounded card; dark themes keep black, light themes use the surface.
+    val cardBacking = if (isLcars || colors.isDark) Color.Black else MaterialTheme.colorScheme.surface
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .background(if (colors.isRetro) Color.White else Color.Black)
+            .background(if (isLcars) Color.Black else Color.Transparent)
     ) {
         if (isLcars) {
             Box(
@@ -590,6 +597,7 @@ fun ShopItemCard(
             modifier = Modifier
                 .weight(1f)
                 .then(cardBorder)
+                .background(cardBacking, cardShape)
                 .background(cardBg, cardShape)
                 .padding(10.dp)
         ) {
