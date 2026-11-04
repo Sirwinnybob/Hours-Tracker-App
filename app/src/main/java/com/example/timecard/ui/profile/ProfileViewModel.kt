@@ -78,6 +78,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     var lastInteractionTimeMillis by mutableStateOf(System.currentTimeMillis())
         private set
 
+    /** False when launched from KKC: no idle logout while the app is in front. */
+    @Volatile var idleLogoutEnabled = true
+
     private var lockRenewJob: kotlinx.coroutines.Job? = null
 
     /** PIN — the stable identity key used for every per-employee file path. */
@@ -439,9 +442,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             while (true) {
                 kotlinx.coroutines.delay(60_000L) // Wait 1 minute
                 val inactiveMs = System.currentTimeMillis() - lastInteractionTimeMillis
-                if (inactiveMs > 300_000L) { // 5 minutes
+                if (idleLogoutEnabled && inactiveMs > 300_000L) { // 5 minutes
+                    // TimecardApp observes the flag and performs the logout (which resets this VM).
+                    // Calling logout() here would clear the flag before the UI could see it.
                     triggerAutoLogout = true
-                    logout()
                     break
                 } else {
                     withContext(Dispatchers.IO) {

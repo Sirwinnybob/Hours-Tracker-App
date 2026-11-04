@@ -191,12 +191,29 @@ fun TimecardApp(
         val lifecycleOwner = LocalLifecycleOwner.current
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) {
+                    timesheetViewModel.markBackgrounded()
+                }
                 if (event == Lifecycle.Event.ON_RESUME) {
                     timesheetViewModel.checkInactivityOnResume()
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+
+        // Opened from KKC: no idle logout while the app is in front (see TimesheetViewModel.checkInactivityOnResume
+        // for the leave-the-app case). Direct launches keep the 5-minute idle logout.
+        LaunchedEffect(launchedByKkc) {
+            timesheetViewModel.idleLogoutEnabled = !launchedByKkc
+            profileViewModel.idleLogoutEnabled = !launchedByKkc
+        }
+
+        // Typing on the soft keyboard never reaches the pointer listener below, so any change to the
+        // grid counts as activity too — otherwise filling in hours by keyboard looks idle.
+        LaunchedEffect(tsState.jobs, tsState.hours, tsState.noLunchDays) {
+            timesheetViewModel.refreshInteraction()
+            profileViewModel.interact()
         }
 
         val timesheetAlpha = remember { Animatable(0f) }

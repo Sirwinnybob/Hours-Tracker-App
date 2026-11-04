@@ -128,6 +128,14 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         lastInteractionTimeMillis = System.currentTimeMillis()
     }
 
+    /** False when launched from KKC: no idle logout while the app is in front. */
+    @Volatile var idleLogoutEnabled = true
+    private var backgroundedAtMillis = 0L
+
+    fun markBackgrounded() {
+        backgroundedAtMillis = System.currentTimeMillis()
+    }
+
     fun resetAutoLogout() {
         _uiState.update { it.copy(triggerAutoLogout = false) }
     }
@@ -136,8 +144,14 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
      *  the inactivity timer was suspended while Android had the app backgrounded. */
     fun checkInactivityOnResume() {
         if (_uiState.value.employeeName.isEmpty()) return // not logged in
-        val inactiveMs = System.currentTimeMillis() - lastInteractionTimeMillis
-        if (inactiveMs > 300_000L) {
+        val now = System.currentTimeMillis()
+        // Idle logout applies to direct launches. Under KKC the user may sit on the timesheet as long
+        // as they like; only being away from the app (home screen, another app) for 5+ minutes counts.
+        val awayMs = if (idleLogoutEnabled) now - lastInteractionTimeMillis
+                     else if (backgroundedAtMillis > 0L) now - backgroundedAtMillis
+                     else 0L
+        backgroundedAtMillis = 0L
+        if (awayMs > 300_000L) {
             _uiState.update { it.copy(triggerAutoLogout = true) }
         }
     }
@@ -446,7 +460,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             while (true) {
                 delay(60_000L)
                 val inactiveMs = System.currentTimeMillis() - lastInteractionTimeMillis
-                if (inactiveMs > 300_000L) {
+                if (idleLogoutEnabled && inactiveMs > 300_000L) {
                     // Only set the flag — TimecardApp's LaunchedEffect owns the actual logout
                     // so that the UI transition always runs, including on resume from background.
                     _uiState.update { it.copy(triggerAutoLogout = true) }
