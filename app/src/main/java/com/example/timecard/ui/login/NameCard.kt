@@ -61,6 +61,13 @@ import com.example.timecard.ui.theme.ThemeState
 import androidx.compose.ui.graphics.RectangleShape
 import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.LcarsMelrose
+import com.example.timecard.ui.theme.VT323FontFamily
+import com.example.timecard.ui.theme.RetroHeader
+import com.example.timecard.ui.theme.RetroSurface
+import com.example.timecard.ui.theme.RetroTextHeading
+import com.example.timecard.ui.theme.RetroAccent
+import com.example.timecard.ui.theme.doubleBeveledBorder
+import com.example.timecard.ui.theme.beveledBorder
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -287,8 +294,8 @@ fun NameCard(
     val buttonAlpha = p
 
     val resolvedShape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(cornerRadius.dp))
-    val cardBackground = if (colors.isLcars) Color.Black else colors.surface
-    val cardShape = if (colors.isLcars) RectangleShape else resolvedShape
+    val cardBackground = if (colors.isLcars) Color.Black else if (colors.isRetro) RetroSurface else colors.surface
+    val cardShape = if (colors.isLcars || colors.isRetro) RectangleShape else resolvedShape
 
     val activity = LocalContext.current as? android.app.Activity
 
@@ -326,10 +333,11 @@ fun NameCard(
                     }
             ) {
                 Text(
-                    text = "Digital Timesheet",
-                    fontSize = 32.sp,
+                    text = if (colors.isRetro) "/// HOURS TRACKER 1995 ///" else "Digital Timesheet",
+                    fontFamily = if (colors.isRetro) VT323FontFamily else null,
+                    fontSize = if (colors.isRetro) 38.sp else 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = if (colors.isRetro) RetroTextHeading else Color.White,
                     textAlign = TextAlign.Center
                 )
             }
@@ -357,7 +365,7 @@ fun NameCard(
                     .graphicsLayer {
                         translationX = flyX.value
                         translationY = flyY.value
-                        shadowElevation = if (colors.isLcars) 0f else with(density) { elevation.dp.toPx() }
+                        shadowElevation = if (colors.isLcars || colors.isRetro) 0f else with(density) { elevation.dp.toPx() }
                         shape = cardShape
                         clip = true
                         // Entry animation
@@ -369,6 +377,7 @@ fun NameCard(
                         }
                     }
                     .background(cardBackground, cardShape)
+                    .then(if (colors.isRetro && isExpanded) Modifier.doubleBeveledBorder(isInset = false) else Modifier)
             ) {
                 Column(
                     horizontalAlignment = if (p > 0.5f) Alignment.CenterHorizontally else Alignment.Start,
@@ -419,6 +428,25 @@ fun NameCard(
                                     }
                                     Spacer(modifier = Modifier.width(6.dp).height(28.dp).background(Color.Black))
                                 }
+                            } else if (colors.isRetro) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(28.dp)
+                                        .background(RetroHeader)
+                                        .beveledBorder(isInset = false, borderWidth = 1.dp)
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    Text(
+                                        text = collapsedText.uppercase(),
+                                        color = RetroTextHeading,
+                                        fontFamily = VT323FontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        maxLines = 1
+                                    )
+                                }
                             } else {
                                 Text(
                                     text = collapsedText,
@@ -450,14 +478,24 @@ fun NameCard(
                                     if (employee != null) onLoginSuccess(employee)
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (colors.isRed) Color(0xFFCC0000) else AccentBlue
+                                    containerColor = when {
+                                        colors.isRetro -> RetroAccent
+                                        colors.isRed -> Color(0xFFCC0000)
+                                        else -> AccentBlue
+                                    }
                                 ),
                                 shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
+                                    .then(if (colors.isRetro) Modifier.doubleBeveledBorder(isInset = false) else Modifier)
                             ) {
-                                Text("ENTER", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (colors.isRetro) "ENTER DIRECTORY ▶" else "ENTER",
+                                    fontFamily = if (colors.isRetro) VT323FontFamily else null,
+                                    fontSize = if (colors.isRetro) 22.sp else 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }

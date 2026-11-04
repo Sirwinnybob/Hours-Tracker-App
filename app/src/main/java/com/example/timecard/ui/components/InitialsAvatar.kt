@@ -13,11 +13,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.font.FontWeight
 
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.VT323FontFamily
 
 @Composable
 fun InitialsAvatar(
@@ -44,10 +46,10 @@ fun InitialsAvatar(
     ) {
         Text(
             text = initials,
-            fontSize = fontSize,
+            fontSize = if (colors.isRetro) (fontSize.value * 1.2f).sp else fontSize,
             color = textColor,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (colors.isLcars) AntonioFontFamily else null
+            fontFamily = if (colors.isLcars) AntonioFontFamily else if (colors.isRetro) VT323FontFamily else null
         )
     }
 }

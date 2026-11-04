@@ -1,5 +1,8 @@
 package com.example.timecard.ui.shop
 
+import com.example.timecard.ui.theme.RetroTextHeading
+import com.example.timecard.ui.theme.RetroHeader
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -283,13 +286,23 @@ fun ShopModal(
                     .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
                     .safeDrawingPadding()
             },
-            shape = if (colors.isLcars) RectangleShape else RoundedCornerShape(12.dp),
+            shape = if (colors.isLcars || colors.isRetro) RectangleShape else RoundedCornerShape(12.dp),
             color = if (colors.isLcars) Color.Black else MaterialTheme.colorScheme.surface,
             tonalElevation = if (colors.isLcars) 0.dp else 8.dp
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().then(if (colors.isRetro) Modifier.doubleBeveledBorder() else Modifier)) {
                 // Header
-                if (colors.isLcars) {
+                if (colors.isRetro) {
+                    com.example.timecard.ui.theme.RetroTitleBar(title = "EXCHANGE", onClose = onDismiss)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().background(RetroHeader).padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("YOUR WALLET:", fontFamily = com.example.timecard.ui.theme.VT323FontFamily, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = RetroTextHeading)
+                        Spacer(Modifier.width(8.dp))
+                        CoinAmount(amount = userCoins, fontSize = 22.sp, iconSize = 24.dp)
+                    }
+                } else if (colors.isLcars) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                             .background(LcarsOrange).padding(horizontal = 16.dp),
@@ -562,7 +575,7 @@ fun ShopItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .background(Color.Black)
+            .background(if (colors.isRetro) Color.White else Color.Black)
     ) {
         if (isLcars) {
             Box(

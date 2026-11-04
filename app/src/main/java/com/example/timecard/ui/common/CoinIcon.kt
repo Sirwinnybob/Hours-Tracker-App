@@ -15,12 +15,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.timecard.R
 import com.example.timecard.ui.theme.CoinAmber
 import com.example.timecard.ui.theme.JetBrainsMonoFontFamily
 
 import com.example.timecard.ui.theme.LocalTimecardColors
 import com.example.timecard.ui.theme.AntonioFontFamily
+import com.example.timecard.ui.theme.VT323FontFamily
 
 @Composable
 fun CoinIcon(modifier: Modifier = Modifier, size: Dp = 20.dp) {
@@ -47,6 +49,16 @@ fun CoinAmount(
             fontWeight = FontWeight.Bold,
             fontFamily = AntonioFontFamily,
             color = color,
+            modifier = modifier
+        )
+    } else if (colors.isRetro) {
+        Text(
+            text = "[$amount 🪙]",
+            fontSize = (fontSize.value * 1.15f).sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = VT323FontFamily,
+            color = color,
+            letterSpacing = 1.sp,
             modifier = modifier
         )
     } else {

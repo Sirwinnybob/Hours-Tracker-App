@@ -89,6 +89,17 @@ import com.example.timecard.ui.theme.LcarsMelrose
 import com.example.timecard.ui.theme.LcarsButton
 import com.example.timecard.ui.theme.LcarsButtonShape
 import com.example.timecard.ui.theme.ThemeState
+import com.example.timecard.ui.theme.RetroFrame
+import com.example.timecard.ui.theme.RetroButton
+import com.example.timecard.ui.theme.retroRainbowBackground
+import com.example.timecard.ui.theme.RetroSurface
+import com.example.timecard.ui.theme.RetroTextHeading
+import com.example.timecard.ui.theme.RetroTextPrimary
+import com.example.timecard.ui.theme.RetroTextSecondary
+import com.example.timecard.ui.theme.RetroAccent
+import com.example.timecard.ui.theme.RetroAccentTeal
+import com.example.timecard.ui.theme.VT323FontFamily
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import com.example.timecard.kkcnav.KKC_LCARS_NAV_HEIGHT
 import com.example.timecard.kkcnav.KkcLcarsNavButtons
 
@@ -112,6 +123,7 @@ fun TimesheetScreen(
     // Only set when the LCARS theme is equipped and KKC launched us: the KKC destinations then live
     // in the LCARS frame's bottom band instead of the floating glass bar (kkcnav/KkcLcarsNav.kt).
     kkcNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
+    kkcRetroNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
     onKkcNavigate: (String) -> Unit = {},
     kkcLcarsAnim: com.example.timecard.kkcnav.KkcLcarsBlockAnim = com.example.timecard.kkcnav.KkcLcarsBlockAnim.None
 ) {
@@ -125,6 +137,7 @@ fun TimesheetScreen(
 
     var showCharts by remember { mutableStateOf(false) }
     var activeLcarsTab by remember { mutableStateOf("timesheet") }
+    var activeRetroTab by remember { mutableStateOf("timesheet") }
 
     LaunchedEffect(employeeId) {
         timesheetViewModel.initialize(employeeId, repository)
@@ -491,6 +504,360 @@ fun TimesheetScreen(
                                                         "If you are seeing this it means the timecard is currently being used by another tablet or has been modified within the last 5 minutes.\n\n" +
                                                         "If this lock persists try:\n1. Waiting 5 minutes\n2. Syncing your tablet.\n3. Restarting then syncing your tablet.\n\nIf this lock persists tell Winston and he will get it unlocked for you.",
                                                         fontSize = 16.sp, color = colors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp)
+                                                    )
+                                                }
+                                            }
+                                        } else if (isLandscape) {
+                                            Row(modifier = Modifier.fillMaxSize()) {
+                                                TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onJobTag = timesheetViewModel::setJobTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(), chartsContent = null, modifier = Modifier.weight(0.66f))
+                                                ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = true, onToggle = {}, showToggle = false, modifier = Modifier.weight(0.34f))
+                                            }
+                                        } else {
+                                            TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onJobTag = timesheetViewModel::setJobTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(),
+                                                chartsContent = { ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = showCharts, onToggle = { showCharts = !showCharts }) },
+                                                modifier = Modifier.fillMaxSize())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (colors.isRetro) {
+                // ── Retro full-frame layout ───────────────────────────
+                RetroFrame(
+                    modifier = Modifier.statusBarsPadding(),
+                    bottomBar = kkcRetroNavBar?.let { payload ->
+                        { com.example.timecard.kkcnav.KkcRetroNavBar(payload = payload, onNavigate = onKkcNavigate) }
+                    },
+                    headerContent = {
+                        // Reserves the slot the collapsed NameCard chip animates into (same contract as LCARS)
+                        val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
+                        Box(
+                            modifier = Modifier
+                                .widthIn(min = if (isCompact) 100.dp else 120.dp)
+                                .height(24.dp)
+                                .onGloballyPositioned { coords ->
+                                    val pos = coords.positionInRoot()
+                                    val sz = coords.size
+                                    onNameMeasured?.invoke(
+                                        com.example.timecard.ui.login.HeaderMetrics(
+                                            x = pos.x,
+                                            centerY = pos.y + sz.height / 2f,
+                                            widthPx = sz.width.toFloat(),
+                                            heightPx = sz.height.toFloat()
+                                        )
+                                    )
+                                }
+                        ) {
+                            Text(
+                                text = nameForMeasure,
+                                fontFamily = VT323FontFamily,
+                                fontSize = 18.sp,
+                                maxLines = 1,
+                                softWrap = false,
+                                color = Color.Transparent
+                            )
+                        }
+
+                        Text(
+                            text = "WEEK OF ${uiState.activeWeekDate}",
+                            fontFamily = VT323FontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = RetroTextHeading,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        if (uiState.hasPreviousWeek) {
+                            val btnText = if (uiState.isViewingPrevious) "CURRENT WEEK ▶" else "◀ PREV WEEK"
+                            RetroButton(
+                                onClick = {
+                                    activeRetroTab = "timesheet"
+                                    timesheetViewModel.togglePrevWeek()
+                                },
+                                label = btnText,
+                                backgroundColor = if (uiState.isViewingPrevious) RetroAccentTeal else RetroSurface,
+                                textColor = if (uiState.isViewingPrevious) Color.Black else RetroTextPrimary,
+                                modifier = Modifier.height(26.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
+
+                        if (launchedByKkc) {
+                            RetroButton(
+                                onClick = { activity?.finish() },
+                                label = "◀ KKC RETURN",
+                                backgroundColor = RetroAccentTeal,
+                                textColor = Color.Black,
+                                modifier = Modifier.height(26.dp)
+                            )
+                        }
+                    },
+                    footerContent = {
+                        Text(
+                            text = "USER: ${employeeDisplayName.uppercase()}",
+                            fontFamily = VT323FontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = RetroTextPrimary
+                        )
+                    },
+                    sidebarContent = {
+                        val btnModifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (isCompact) 28.dp else 32.dp)
+
+                        RetroButton(
+                            onClick = { activeRetroTab = "timesheet" },
+                            label = "TIMESHEET",
+                            icon = "🕒",
+                            isSelected = activeRetroTab == "timesheet",
+                            modifier = btnModifier
+                        )
+
+                        RetroButton(
+                            onClick = {
+                                if (activeRetroTab == "stats") {
+                                    activeRetroTab = "timesheet"
+                                } else {
+                                    statsViewModel.loadStats(com.example.timecard.domain.StatsPeriod.ThisWeek)
+                                    activeRetroTab = "stats"
+                                }
+                            },
+                            label = "STATISTICS",
+                            icon = "📊",
+                            isSelected = activeRetroTab == "stats",
+                            modifier = btnModifier
+                        )
+
+                        if (leaderboardViewModel != null) {
+                            RetroButton(
+                                onClick = {
+                                    if (activeRetroTab == "leaderboard") {
+                                        activeRetroTab = "timesheet"
+                                    } else {
+                                        leaderboardViewModel.load(
+                                            employees.filter { !it.excluded },
+                                            uiState.activeWeekDate,
+                                            repository
+                                        )
+                                        activeRetroTab = "leaderboard"
+                                    }
+                                },
+                                label = "RANKINGS",
+                                icon = "🏆",
+                                isSelected = activeRetroTab == "leaderboard",
+                                modifier = btnModifier
+                            )
+                        }
+
+                        if (challengesViewModel != null) {
+                            RetroButton(
+                                onClick = {
+                                    activeRetroTab = if (activeRetroTab == "challenges") "timesheet" else "challenges"
+                                },
+                                label = "TARGETS",
+                                icon = "🎯",
+                                isSelected = activeRetroTab == "challenges",
+                                modifier = btnModifier
+                            )
+                        }
+
+                        RetroButton(
+                            onClick = {
+                                activeRetroTab = "timesheet"
+                                showCharts = !showCharts
+                            },
+                            label = "CHARTS",
+                            icon = "📈",
+                            isSelected = activeRetroTab == "timesheet" && showCharts,
+                            modifier = btnModifier
+                        )
+
+                        if (shopViewModel != null) {
+                            RetroButton(
+                                onClick = {
+                                    activeRetroTab = if (activeRetroTab == "shop") "timesheet" else "shop"
+                                },
+                                label = "SHOP",
+                                icon = "🛍️",
+                                isSelected = activeRetroTab == "shop",
+                                modifier = btnModifier
+                            )
+                        }
+
+                        if (profileViewModel != null) {
+                            RetroButton(
+                                onClick = {
+                                    activeRetroTab = if (activeRetroTab == "settings" || activeRetroTab == "alerts") "timesheet" else "settings"
+                                },
+                                label = "CONFIG",
+                                icon = "⚙️",
+                                isSelected = activeRetroTab == "settings" || activeRetroTab == "alerts",
+                                modifier = btnModifier
+                            )
+                        }
+
+                        val saveColor = when (uiState.saveStatus) {
+                            SaveStatus.SAVED -> Color(0xFFC4EBC4)
+                            SaveStatus.SYNCING -> Color(0xFFFBE4C3)
+                            SaveStatus.ERROR -> Color(0xFFF5C6C6)
+                        }
+                        val saveLabel = when (uiState.saveStatus) {
+                            SaveStatus.SAVED -> "SAVED OK"
+                            SaveStatus.SYNCING -> "SAVING..."
+                            SaveStatus.ERROR -> "SAVE ERROR"
+                        }
+                        RetroButton(
+                            onClick = { timesheetViewModel.saveData() },
+                            label = saveLabel,
+                            icon = "💾",
+                            backgroundColor = saveColor,
+                            modifier = btnModifier,
+                            enabled = uiState.saveStatus != SaveStatus.SYNCING
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        RetroButton(
+                            onClick = { timesheetViewModel.logout(); onLogout() },
+                            label = "LOGOUT",
+                            icon = "🚪",
+                            backgroundColor = Color(0xFFCC6666),
+                            textColor = Color.White,
+                            modifier = btnModifier
+                        )
+                    }
+                ) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Shop Banner
+                        val newShopItemsRetro = shopViewModel?.newSpecialItems ?: emptyList()
+                        AnimatedVisibility(
+                            visible = newShopItemsRetro.isNotEmpty(),
+                            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .retroRainbowBackground(durationMs = 2200, saturation = 0.5f)
+                                    .doubleBeveledBorder(isInset = false)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .clickable { activeRetroTab = "shop" },
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val bannerText = if (newShopItemsRetro.size == 1) {
+                                    "★ NEW AT THE SHOP: ${newShopItemsRetro.first().title.uppercase()} ★"
+                                } else {
+                                    "★ ${newShopItemsRetro.size} NEW ITEMS AT THE SHOP ★"
+                                }
+                                Text(
+                                    text = bannerText,
+                                    color = RetroTextHeading,
+                                    fontFamily = VT323FontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = "ENTER SHOP ▶",
+                                    color = RetroAccent,
+                                    fontFamily = VT323FontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+
+                        // Tab content
+                        Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                            AnimatedContent(
+                                targetState = activeRetroTab,
+                                label = "retroContentTransition",
+                                modifier = Modifier.fillMaxSize()
+                            ) { tab ->
+                                when (tab) {
+                                    "stats" -> {
+                                        StatsModal(
+                                            viewModel = statsViewModel,
+                                            onDismiss = { activeRetroTab = "timesheet" }
+                                        )
+                                    }
+                                    "leaderboard" -> {
+                                        if (leaderboardViewModel != null) {
+                                            val feedEmployees = remember(employees) {
+                                                employees.filter { !it.excluded }
+                                            }
+                                            com.example.timecard.ui.profile.LeaderboardModal(
+                                                viewModel = leaderboardViewModel,
+                                                myId = employeeId,
+                                                myDisplayName = employeeDisplayName,
+                                                badgeImages = profileViewModel?.badgeImages ?: emptyMap(),
+                                                feedEmployeeNames = feedEmployees,
+                                                onFeedTabSelected = { leaderboardViewModel.loadFeed(feedEmployees, repository) },
+                                                onDismiss = { activeRetroTab = "timesheet" }
+                                            )
+                                        }
+                                    }
+                                    "challenges" -> {
+                                        if (challengesViewModel != null && profileViewModel != null) {
+                                            com.example.timecard.ui.challenges.ChallengesModal(
+                                                viewModel = challengesViewModel,
+                                                onLoad = {
+                                                    challengesViewModel.load(
+                                                        employeeName = employeeId,
+                                                        weekDate = uiState.activeWeekDate,
+                                                        profile = profileViewModel.profile,
+                                                        repository = repository
+                                                    )
+                                                },
+                                                onDismiss = { activeRetroTab = "timesheet" }
+                                            )
+                                        }
+                                    }
+                                    "shop" -> {
+                                        if (shopViewModel != null && profileViewModel != null) {
+                                            com.example.timecard.ui.shop.ShopModal(
+                                                onDismiss = { activeRetroTab = "timesheet" },
+                                                shopViewModel = shopViewModel,
+                                                profileViewModel = profileViewModel
+                                            )
+                                        }
+                                    }
+                                    "settings" -> {
+                                        if (profileViewModel != null) {
+                                            com.example.timecard.ui.profile.SettingsModal(
+                                                profileViewModel = profileViewModel,
+                                                actualName = employeeDisplayName,
+                                                onDismiss = { activeRetroTab = "timesheet" },
+                                                onNavigateToAlerts = { activeRetroTab = "alerts" },
+                                                onOpenShop = { activeRetroTab = "shop" }
+                                            )
+                                        }
+                                    }
+                                    "alerts" -> {
+                                        PastAlertsModal(
+                                            viewModel = alertsViewModel,
+                                            onDismiss = { activeRetroTab = "settings" }
+                                        )
+                                    }
+                                    else -> {
+                                        if (uiState.isLockedByAnotherUser) {
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Text("🔒", fontSize = 64.sp)
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Text("TIMECARD LOCKED (BUSY)", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, fontFamily = VT323FontFamily, letterSpacing = 2.sp)
+                                                    Spacer(modifier = Modifier.height(16.dp))
+                                                    Text(
+                                                        "This timecard is currently being modified by another tablet.\n\nPlease wait 5 minutes or contact your supervisor.",
+                                                        fontSize = 17.sp, color = colors.textSecondary, fontFamily = VT323FontFamily, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp)
                                                     )
                                                 }
                                             }

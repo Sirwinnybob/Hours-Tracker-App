@@ -11,8 +11,8 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import com.example.timecard.ui.theme.accentColorFor
 
-/** Where the mirrored bar's colors come from. */
-internal enum class KkcNavBarSource { KkcTheme, HoursTrackerTheme, Lcars }
+/** Where the mirrored bar's colors come from (Lcars and Retro replace the glass bar with their own bar). */
+internal enum class KkcNavBarSource { KkcTheme, HoursTrackerTheme, Lcars, Retro }
 
 /**
  * Standard Hours Tracker theme (no immersive theme equipped) → KKC's theme colors.
@@ -21,6 +21,7 @@ internal enum class KkcNavBarSource { KkcTheme, HoursTrackerTheme, Lcars }
  */
 internal fun kkcNavBarSource(accentKey: String?): KkcNavBarSource = when {
     accentKey == "lcars" -> KkcNavBarSource.Lcars
+    accentKey == "retro" -> KkcNavBarSource.Retro
     accentKey != null && accentColorFor(accentKey) != null -> KkcNavBarSource.HoursTrackerTheme
     else -> KkcNavBarSource.KkcTheme
 }

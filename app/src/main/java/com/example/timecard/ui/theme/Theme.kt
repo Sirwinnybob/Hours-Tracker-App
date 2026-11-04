@@ -48,7 +48,8 @@ class TimecardColors(
     val isDark: Boolean,
     val isOled: Boolean,
     val isTerminal: Boolean,
-    val isLcars: Boolean = false
+    val isLcars: Boolean = false,
+    val isRetro: Boolean = false
 ) {
     val backgroundBrush: Brush
         get() = Brush.linearGradient(listOf(backgroundFrom, backgroundTo))
@@ -381,6 +382,24 @@ val StarWarsTimecardColors = TimecardColors(
     accent = StarWarsAccent, isRed = false, isDark = true, isOled = false, isTerminal = false
 )
 
+// --- RETRO 90s THEMES ---
+
+val RetroTimecardColors = TimecardColors(
+    backgroundFrom = RetroBackground, backgroundTo = RetroBackgroundTo,
+    surface = RetroSurface, input = RetroInput, hover = RetroHover,
+    textPrimary = RetroTextPrimary, textHeading = RetroTextHeading,
+    textSecondary = RetroTextSecondary, textTotal = RetroTextTotal,
+    textGreen = Color(0xFF1B6E42), textOrange = Color(0xFFB35900),
+    border = RetroBorder,
+    landingGradientStart = Color(0xFF00BFFF),
+    landingGradientMid = Color(0xFF5CD3FF),
+    landingGradientEnd = Color(0xFF00A2F0),
+    tableHeader = TableHeaderRetro,
+    chartColors = RetroChartColors,
+    accent = RetroAccent, isRed = false, isDark = false, isOled = false, isTerminal = false,
+    isLcars = false, isRetro = true
+)
+
 val LocalTimecardColors = compositionLocalOf { DarkTimecardColors }
 
 private val LightMaterialColors = lightColorScheme(
@@ -528,6 +547,15 @@ private val StarWarsMaterialColors = darkColorScheme(
     onPrimary = Color.Black
 )
 
+private val RetroMaterialColors = lightColorScheme(
+    background = RetroBackground,
+    surface = RetroSurface,
+    onBackground = RetroTextPrimary,
+    onSurface = RetroTextHeading,
+    primary = RetroAccent,
+    onPrimary = Color.White
+)
+
 fun timecardColorsFor(mode: ThemeMode): TimecardColors = when (mode) {
     ThemeMode.Light -> LightTimecardColors
     ThemeMode.Dark -> DarkTimecardColors
@@ -545,7 +573,7 @@ fun TimecardColors.withAccent(newAccent: Color) = TimecardColors(
     landingGradientMid = landingGradientMid,
     landingGradientEnd = landingGradientEnd,
     tableHeader = tableHeader, chartColors = chartColors,
-    accent = newAccent, isRed = isRed, isDark = isDark, isOled = isOled, isTerminal = isTerminal, isLcars = isLcars
+    accent = newAccent, isRed = isRed, isDark = isDark, isOled = isOled, isTerminal = isTerminal, isLcars = isLcars, isRetro = isRetro
 )
 
 /** Maps an accentColor key (stored in profile.json) to a Color, or null for default. */
@@ -561,6 +589,7 @@ fun accentColorFor(key: String?): Color? = when (key) {
     "ocean" -> Color(0xFF00BCD4)
     "lcars" -> Color(0xFFFF9900)
     "starwars" -> Color(0xFFFFE81F)
+    "retro" -> Color(0xFF00BFFF)
     else     -> null
 }
 
@@ -577,6 +606,7 @@ val ACCENT_UNLOCKS = listOf(
     Triple("ocean",  Color(0xFF00BCD4), "accent_ocean"),    // Added missing
     Triple("lcars",  Color(0xFFFF9900), "accent_lcars"),
     Triple("starwars", Color(0xFFFFE81F), "accent_starwars"),
+    Triple("retro", Color(0xFF00BFFF), "accent_retro"),
 )
 
 /**
@@ -644,11 +674,17 @@ fun TimecardTheme(
             timecardColors = StarWarsTimecardColors
             materialColors = StarWarsMaterialColors
         }
+        "retro" -> {
+            // Retro: authentic lavender / pastel 90s aesthetic
+            timecardColors = RetroTimecardColors
+            materialColors = RetroMaterialColors
+        }
     }
 
     CompositionLocalProvider(LocalTimecardColors provides timecardColors) {
         val typography = when {
             timecardColors.isLcars -> LcarsTypography
+            timecardColors.isRetro -> RetroTypography
             timecardColors.isTerminal -> TerminalTypography
             else -> TimecardTypography
         }
@@ -725,6 +761,7 @@ fun timecardShape(base: Shape): Shape {
     val colors = LocalTimecardColors.current
     return when {
         colors.isLcars -> androidx.compose.foundation.shape.RoundedCornerShape(50)  // pill buttons
+        colors.isRetro -> RectangleShape // Authentic 90s sharp beveled rectangular shapes
         colors.isTerminal -> RectangleShape
         else -> base
     }

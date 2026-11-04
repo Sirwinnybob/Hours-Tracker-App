@@ -60,6 +60,11 @@ import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LcarsAnakiwa
 import com.example.timecard.ui.theme.LocalTimecardColors
 import androidx.compose.ui.graphics.RectangleShape
+import com.example.timecard.ui.theme.VT323FontFamily
+import com.example.timecard.ui.theme.RetroHeader
+import com.example.timecard.ui.theme.RetroTextHeading
+import com.example.timecard.ui.theme.RetroSurface
+import com.example.timecard.ui.theme.beveledBorder
 
 @Composable
 fun SettingsModal(
@@ -185,8 +190,10 @@ fun SettingsModal(
 
     val modalContent = @Composable {
         Box(
-            modifier = if (colors.isLcars) {
-                Modifier.fillMaxSize().background(Color.Black)
+            modifier = if (colors.isLcars || colors.isRetro) {
+                Modifier.fillMaxSize().background(
+                    if (colors.isRetro) RetroSurface else Color.Black
+                )
             } else {
                 Modifier
                     .fillMaxSize()
@@ -194,14 +201,25 @@ fun SettingsModal(
                     .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
                     .safeDrawingPadding()
             },
-            contentAlignment = if (colors.isLcars) Alignment.TopCenter else Alignment.Center
+            contentAlignment = if (colors.isLcars || colors.isRetro) Alignment.TopCenter else Alignment.Center
         ) {
+            if (colors.isRetro) {
+                com.example.timecard.ui.theme.RetroClouds()
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        if (colors.isLcars) Color.Black else colors.surface,
-                        if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                        when {
+                            colors.isRetro -> Color.Transparent
+                            colors.isLcars -> Color.Black
+                            else -> colors.surface
+                        },
+                        when {
+                            colors.isRetro -> RectangleShape
+                            colors.isLcars -> RectangleShape
+                            else -> com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
+                        }
                     )
             ) {
                 if (colors.isLcars) {
@@ -230,12 +248,17 @@ fun SettingsModal(
                         }
                     }
                     Spacer(Modifier.height(4.dp))
+                } else if (colors.isRetro) {
+                    com.example.timecard.ui.theme.RetroTitleBar(
+                        title = "${profile.displayName ?: actualName}'s profile",
+                        onClose = onDismiss
+                    )
                 }
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(if (colors.isLcars) 16.dp else 24.dp)
+                        .padding(if (colors.isLcars) 16.dp else if (colors.isRetro) 8.dp else 24.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
                 if (profileViewModel.isLockedByAnotherUser) {
@@ -299,6 +322,18 @@ fun SettingsModal(
                             )
                         }
                     }
+                } else if (colors.isRetro) {
+                    RetroProfileContent(
+                        profileViewModel = profileViewModel,
+                        actualName = actualName,
+                        earnedBadges = earnedBadges,
+                        displayNameInput = displayNameInput,
+                        onDisplayNameChange = { displayNameInput = it },
+                        onBadgeClick = { selectedBadge = it },
+                        onDismiss = onDismiss,
+                        onNavigateToAlerts = onNavigateToAlerts,
+                        onOpenShop = onOpenShop
+                    )
                 } else {
                     // Header
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -830,7 +865,8 @@ fun SettingsModal(
                     null to "Default", "orange" to "Sunrise", "purple" to "Twilight",
                     "teal" to "Isle", "gold" to "Daybreak", "red" to "Red",
                     "hacker" to "Hacker", "sunset" to "Sunset", "midnight" to "Midnight",
-                    "ocean" to "Ocean", "lcars" to "LCARS", "starwars" to "Star Wars"
+                    "ocean" to "Ocean", "lcars" to "LCARS", "starwars" to "Star Wars",
+                    "retro" to "Retro"
                 )
                 val allThemeEntries = buildList {
                     add(Triple<String?, androidx.compose.ui.graphics.Color, String?>(null, com.example.timecard.ui.theme.AccentBlue, null))

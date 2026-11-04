@@ -1,5 +1,6 @@
 package com.example.timecard.ui.profile
 
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -108,7 +109,7 @@ fun LeaderboardModal(
             } else {
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(com.example.timecard.ui.theme.retroAwareScrim(colors))
                     .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
                     .safeDrawingPadding()
             },
@@ -121,7 +122,11 @@ fun LeaderboardModal(
                         if (colors.isLcars) Color.Black else colors.surface,
                         if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
                     )
+                    .then(if (colors.isRetro) Modifier.doubleBeveledBorder() else Modifier)
             ) {
+                if (colors.isRetro) {
+                    com.example.timecard.ui.theme.RetroTitleBar(title = "LEADERBOARD", onClose = onDismiss)
+                }
                 if (colors.isLcars) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(40.dp)
@@ -154,7 +159,7 @@ fun LeaderboardModal(
                     modifier = Modifier.fillMaxWidth()
                         .padding(if (colors.isLcars) 16.dp else 24.dp)
                 ) {
-                if (!colors.isLcars) {
+                if (!colors.isLcars && !colors.isRetro) {
                     Text(
                         "🏆 Leaderboard",
                         fontSize = 20.sp,

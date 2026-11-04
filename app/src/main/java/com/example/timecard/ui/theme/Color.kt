@@ -223,6 +223,38 @@ val LcarsTextTotal = Color(0xFFFFCC00)
 val LcarsBorder = Color(0xFF555555)
 val LcarsAccent = Color(0xFFFF9900)
 
+// --- RETRO / 90s WEB THEME ---
+// Win95-era web: sky-blue backdrop with pixel clouds, royal-blue panels, battleship-gray chrome,
+// navy->azure title bars, yellow call-to-action buttons and hot-pink/purple LED accents.
+val RetroSky = Color(0xFF00BFFF)
+val RetroRoyal = Color(0xFF0000FF)
+val RetroTitleStart = Color(0xFF000080)
+val RetroTitleEnd = Color(0xFF1E90FF)
+val RetroYellow = Color(0xFFFFFF00)
+val RetroBackground = Color(0xFFC0C0C0)
+val RetroBackgroundTo = Color(0xFFD4D0C8)
+val RetroSurface = Color(0xFFD6EBFF)
+val RetroInput = Color(0xFFFFFFFF)
+val RetroHover = Color(0xFFB4D6F5)
+val RetroTextPrimary = Color(0xFF0A0A3C)
+val RetroTextHeading = Color(0xFF00007A)
+val RetroTextSecondary = Color(0xFF3A4A8C)
+val RetroTextTotal = Color(0xFF0000D0)
+val RetroBorder = Color(0xFF3A6BC8)
+val RetroBorderHighlight = Color(0xFFFFFFFF)
+val RetroBorderShadow = Color(0xFF202060)
+val RetroHeader = Color(0xFF8CCBFF)
+val RetroAccent = Color(0xFF1A1AE6)
+val RetroAccentTeal = Color(0xFF00E5C8)
+val RetroAccentPink = Color(0xFFFF2DAA)
+val RetroDarkPanel = Color(0xFF002129)
+val RetroChartColors = listOf(
+    Color(0xFF1A1AE6), Color(0xFF00E5C8), Color(0xFFFF2DAA), Color(0xFFFFD400),
+    Color(0xFF7CFC00), Color(0xFFFF7A00), Color(0xFFB827FC), Color(0xFF00BFFF),
+    Color(0xFFE02020), Color(0xFF0A0A3C)
+)
+val TableHeaderRetro = Color(0xFF8CCBFF)
+
 val LcarsChartColors = listOf(
     Color(0xFFFF9900), Color(0xFFCC3333), Color(0xFF9999FF), Color(0xFFFFCC99),
     Color(0xFF33CCFF), Color(0xFFFFCC00), Color(0xFFFF6600), Color(0xFF99CC33),

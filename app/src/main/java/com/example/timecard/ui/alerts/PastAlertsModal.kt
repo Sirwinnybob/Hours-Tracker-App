@@ -1,5 +1,6 @@
 package com.example.timecard.ui.alerts
 
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,7 +58,7 @@ fun PastAlertsModal(
             } else {
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(com.example.timecard.ui.theme.retroAwareScrim(colors))
                     .padding(bottom = 48.dp)
                     .safeDrawingPadding()
             },
@@ -71,7 +72,11 @@ fun PastAlertsModal(
                         if (colors.isLcars) Color.Black else colors.surface,
                         if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
                     )
+                    .then(if (colors.isRetro) Modifier.doubleBeveledBorder() else Modifier)
             ) {
+                if (colors.isRetro) {
+                    com.example.timecard.ui.theme.RetroTitleBar(title = "PAST ALERTS", onClose = onDismiss)
+                }
                 if (colors.isLcars) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(40.dp)

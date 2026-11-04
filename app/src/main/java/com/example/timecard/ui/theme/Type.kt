@@ -201,3 +201,65 @@ val TerminalTypography = Typography(
         fontSize = 14.sp
     )
 )
+
+// Retro 90s Web typography: authentic retro CRT pixel typography
+val RetroTypography = Typography(
+    headlineLarge = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 36.sp,
+        letterSpacing = 1.0.sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        letterSpacing = 0.8.sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        letterSpacing = 0.5.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        letterSpacing = 0.5.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 19.sp,
+        letterSpacing = 0.5.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        letterSpacing = 0.5.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        letterSpacing = 0.8.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 17.sp,
+        letterSpacing = 0.5.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = VT323FontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp
+    )
+)

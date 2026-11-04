@@ -34,6 +34,10 @@ This repository contains an Android application project.
     so the moon toggle re-colors live and immersive themes that force light/dark are respected.
   - Any equipped HT theme (Sunrise, Twilight/Midnight, Isle/Ocean, Daybreak, Red, Hacker, Sunset, Star Wars) →
     that theme's colors (`kkcNavColorsFromHt`: accent / textSecondary / hover pill / surface glass / error badge), never bold.
+  - Retro → no glass bar. `kkcnav/KkcRetroNav.kt` is a Windows-95 taskbar (Start button, one task button per
+    destination with badges, tray clock). The timesheet's `RetroFrame` carries it as `bottomBar`
+    (`TimesheetScreen` `kkcRetroNavBar` param); the login screen (no frame) gets it standalone from `TimecardApp`.
+    No animated theme swap: switching to/from Retro swaps the bars instantly.
   - LCARS → no glass bar. `kkcnav/KkcLcarsNav.kt`: the timesheet's `LcarsFrame` bottom band grows to
     `KKC_LCARS_NAV_HEIGHT` and holds the destination blocks (`TimesheetScreen` `kkcNavBar` param); the login screen
     (no frame) gets the standalone `KkcLcarsNavBand`.

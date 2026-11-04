@@ -1,5 +1,6 @@
 package com.example.timecard.ui.stats
 
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -79,7 +80,7 @@ fun StatsModal(
             } else {
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(com.example.timecard.ui.theme.retroAwareScrim(colors))
                     .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 48.dp)
                     .safeDrawingPadding()
             },
@@ -92,7 +93,11 @@ fun StatsModal(
                         if (colors.isLcars) Color.Black else colors.surface,
                         if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(20.dp))
                     )
+                    .then(if (colors.isRetro) Modifier.doubleBeveledBorder() else Modifier)
             ) {
+                if (colors.isRetro) {
+                    com.example.timecard.ui.theme.RetroTitleBar(title = "STATISTICS", onClose = onDismiss)
+                }
                 if (colors.isLcars) {
                     Row(
                         modifier = Modifier.fillMaxWidth().height(40.dp)
@@ -127,7 +132,7 @@ fun StatsModal(
                         .padding(if (colors.isLcars) 16.dp else 24.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                if (!colors.isLcars) {
+                if (!colors.isLcars && !colors.isRetro) {
                 // Header
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

@@ -74,6 +74,15 @@ import com.example.timecard.ui.theme.LcarsPurple
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
+import com.example.timecard.ui.theme.VT323FontFamily
+import com.example.timecard.ui.theme.RetroHeader
+import com.example.timecard.ui.theme.RetroTextHeading
+import com.example.timecard.ui.theme.RetroTextPrimary
+import com.example.timecard.ui.theme.RetroSurface
+import com.example.timecard.ui.theme.RetroInput
+import com.example.timecard.ui.theme.RetroAccent
+import com.example.timecard.ui.theme.beveledBorder
+import com.example.timecard.ui.theme.doubleBeveledBorder
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -122,7 +131,8 @@ fun TimesheetGrid(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (colors.isLcars) LcarsOrange else colors.tableHeader)
+                .background(if (colors.isLcars) LcarsOrange else if (colors.isRetro) RetroHeader else colors.tableHeader)
+                .then(if (colors.isRetro) Modifier.beveledBorder(isInset = false, borderWidth = 1.dp) else Modifier)
                 .height(ROW_HEIGHT)
         ) {
             HeaderCell("Job", JOB_WEIGHT)
@@ -136,10 +146,10 @@ fun TimesheetGrid(
                 ) {
                     Text(
                         text = if (colors.isLcars) (DAY_LABELS[day] ?: day).uppercase() else (DAY_LABELS[day] ?: day),
-                        color = if (colors.isLcars) Color.Black else Color.White,
-                        fontSize = 13.sp,
+                        color = if (colors.isLcars) Color.Black else if (colors.isRetro) RetroTextHeading else Color.White,
+                        fontSize = if (colors.isRetro) 16.sp else 13.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else if (colors.isRetro) VT323FontFamily else null,
                         letterSpacing = if (colors.isLcars) 0.5.sp else 0.sp,
                         textAlign = TextAlign.Center
                     )
@@ -218,11 +228,11 @@ fun TimesheetGrid(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (colors.isLcars) "  + ADD JOB" else "  + Add Job",
-                        color = if (colors.isLcars) LcarsTan else colors.textSecondary,
-                        fontSize = 15.sp,
+                        text = if (colors.isLcars) "  + ADD JOB" else if (colors.isRetro) "  [+ ADD JOB LINE]" else "  + Add Job",
+                        color = if (colors.isLcars) LcarsTan else if (colors.isRetro) RetroAccent else colors.textSecondary,
+                        fontSize = if (colors.isRetro) 18.sp else 15.sp,
                         fontWeight = FontWeight.Bold,
-                        fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+                        fontFamily = if (colors.isLcars) AntonioFontFamily else if (colors.isRetro) VT323FontFamily else null,
                         letterSpacing = if (colors.isLcars) 1.sp else 0.sp,
                         modifier = Modifier
                             .padding(start = 8.dp)
@@ -710,10 +720,10 @@ private fun RowScope.HeaderCell(text: String, weight: Float) {
     ) {
         Text(
             text = if (colors.isLcars) text.uppercase() else text,
-            color = if (colors.isLcars) Color.Black else Color.White,
-            fontSize = 14.sp,
+            color = if (colors.isLcars) Color.Black else if (colors.isRetro) RetroTextHeading else Color.White,
+            fontSize = if (colors.isRetro) 18.sp else 14.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (colors.isLcars) AntonioFontFamily else null,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else if (colors.isRetro) VT323FontFamily else null,
             letterSpacing = if (colors.isLcars) 0.8.sp else 0.sp,
             textAlign = TextAlign.Center
         )
@@ -729,12 +739,15 @@ private fun JobTagChip(
     onClick: () -> Unit
 ) {
     val isLcars = colors.isLcars
+    val isRetro = colors.isRetro
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
             containerColor = when {
                 isLcars && active -> activeColor
                 isLcars -> Color.Black
+                isRetro && active -> RetroAccent
+                isRetro -> RetroSurface
                 active -> activeColor.copy(alpha = 0.18f)
                 else -> colors.input
             }
@@ -742,24 +755,29 @@ private fun JobTagChip(
         border = when {
             isLcars && active -> null
             isLcars -> androidx.compose.foundation.BorderStroke(1.dp, activeColor.copy(alpha = 0.4f))
+            isRetro -> null
             active -> androidx.compose.foundation.BorderStroke(1.5.dp, activeColor)
             else -> androidx.compose.foundation.BorderStroke(1.dp, colors.border)
         },
         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
         contentPadding = ButtonDefaults.ContentPadding,
-        modifier = Modifier.height(36.dp)
+        modifier = Modifier
+            .height(36.dp)
+            .then(if (isRetro) Modifier.doubleBeveledBorder(isInset = active) else Modifier)
     ) {
         Text(
             text = if (isLcars) label.uppercase() else label,
             color = when {
                 isLcars && active -> Color.Black
                 isLcars -> activeColor
+                isRetro && active -> Color.White
+                isRetro -> RetroTextPrimary
                 active -> activeColor
                 else -> colors.textSecondary
             },
-            fontSize = 13.sp,
+            fontSize = if (isRetro) 16.sp else 13.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+            fontFamily = if (isLcars) AntonioFontFamily else if (isRetro) VT323FontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
             letterSpacing = if (isLcars) 0.5.sp else 0.sp
         )
     }
@@ -768,22 +786,32 @@ private fun JobTagChip(
 @Composable
 private fun QuickAddChip(label: String, lcarsBg: Color?, textColor: Color, onClick: () -> Unit) {
     val colors = LocalTimecardColors.current
-    val bg = if (colors.isLcars && lcarsBg != null) lcarsBg else colors.input
-    val lblColor = if (colors.isLcars && lcarsBg != null) Color.Black else textColor
+    val bg = when {
+        colors.isLcars && lcarsBg != null -> lcarsBg
+        colors.isRetro -> RetroSurface
+        else -> colors.input
+    }
+    val lblColor = when {
+        colors.isLcars && lcarsBg != null -> Color.Black
+        colors.isRetro -> RetroTextPrimary
+        else -> textColor
+    }
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = bg),
-        border = if (colors.isLcars) null else androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+        border = if (colors.isLcars || colors.isRetro) null else androidx.compose.foundation.BorderStroke(1.dp, colors.border),
         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
         contentPadding = ButtonDefaults.ContentPadding,
-        modifier = Modifier.height(40.dp)
+        modifier = Modifier
+            .height(40.dp)
+            .then(if (colors.isRetro) Modifier.doubleBeveledBorder(isInset = false) else Modifier)
     ) {
         Text(
             text = label,
             color = lblColor,
-            fontSize = 14.sp,
+            fontSize = if (colors.isRetro) 18.sp else 14.sp,
             fontWeight = FontWeight.Bold,
-            fontFamily = if (colors.isLcars) AntonioFontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
+            fontFamily = if (colors.isLcars) AntonioFontFamily else if (colors.isRetro) VT323FontFamily else androidx.compose.material3.MaterialTheme.typography.labelLarge.fontFamily,
             letterSpacing = if (colors.isLcars) 0.5.sp else 0.sp
         )
     }

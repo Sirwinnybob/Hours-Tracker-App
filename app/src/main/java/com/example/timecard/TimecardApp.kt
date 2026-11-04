@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.timecard.kkcnav.KkcLcarsNavBand
+import com.example.timecard.kkcnav.KkcRetroNavBar
 import com.example.timecard.kkcnav.KkcNavBar
 import com.example.timecard.kkcnav.KkcNavBarPayload
 import com.example.timecard.kkcnav.KkcNavBarSource
@@ -131,6 +132,7 @@ fun TimecardApp(
         // while Hours Tracker is open, AND on a launch from KKC straight into LCARS: the glass bar shows
         // first (continuing KKC's bar), then turns into the LCARS band once the window fade-in is done.
         val kkcIsLcars = kkcNavSource == KkcNavBarSource.Lcars
+        val kkcIsRetro = kkcNavSource == KkcNavBarSource.Retro
         val kkcAnimate = kkcNavBar != null && !kkcNavBar.animDisabled
         val kkcSlotCount = kkcNavBar?.let { kkcNavSlots(it.destinations).size } ?: 0
         // The theme is picked inside the Settings dialog (its own window, on top of this screen). If the
@@ -403,6 +405,7 @@ fun TimecardApp(
                         themeState = themeState,
                         launchedByKkc = launchedByKkc,
                         kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars && kkcShownLcars) kkcNavBar else null,
+                        kkcRetroNavBar = if (kkcIsRetro) kkcNavBar else null,
                         onKkcNavigate = kkcOnNavigate,
                         kkcLcarsAnim = kkcLcarsAnimNow,
                         timesheetViewModel = timesheetViewModel,
@@ -526,6 +529,15 @@ fun TimecardApp(
                     )
                 }
 
+                // Retro taskbar: login card / no employee only — the timesheet's RetroFrame carries its own.
+                if (kkcIsRetro && (loggedInEmployee == null || isExpanded)) {
+                    KkcRetroNavBar(
+                        payload = kkcNavBar,
+                        onNavigate = kkcOnNavigate,
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+
                 val glassStyle = if (!kkcIsLcars) {
                     val scheme = MaterialTheme.colorScheme
                     kkcNavBarStyle(
@@ -556,7 +568,7 @@ fun TimecardApp(
                 // Initially-visible AnimatedVisibility doesn't animate, so opening Hours Tracker shows
                 // the bar as-is; only a theme change slides it out (→ LCARS) or back in (← LCARS).
                 AnimatedVisibility(
-                    visible = !kkcShownLcars && !kkcRetractingNow,
+                    visible = !kkcShownLcars && !kkcRetractingNow && !kkcIsRetro,
                     modifier = Modifier.align(Alignment.BottomCenter),
                     enter = if (kkcAnimate) {
                         slideInVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeIn(tween(KKC_GLASS_SWAP_MS))

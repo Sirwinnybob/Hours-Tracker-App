@@ -59,6 +59,11 @@ class KkcNavBarStyleTest {
     }
 
     @Test
+    fun retroGetsItsOwnTaskbar() {
+        assertEquals(KkcNavBarSource.Retro, kkcNavBarSource("retro"))
+    }
+
+    @Test
     fun onGlassIsWhiteOverADarkCanvasAndBlackOverALightOne() {
         val glow = Color(0xFF4CAF50)
         // The tablet bug: bold green glass over Hours Tracker's dark canvas must get light text.

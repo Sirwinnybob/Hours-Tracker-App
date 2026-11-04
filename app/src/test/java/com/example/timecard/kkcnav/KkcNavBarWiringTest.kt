@@ -56,6 +56,21 @@ class KkcNavBarWiringTest {
     }
 
     @Test
+    fun retroUsesATaskbarInTheFrameOnTheTimesheetAndStandaloneOnLogin() {
+        val app = read("java/com/example/timecard/TimecardApp.kt")
+        assertTrue(app.contains("kkcRetroNavBar = if (kkcIsRetro) kkcNavBar else null"))
+        assertTrue(app.contains("KkcRetroNavBar("))
+        // The glass bar must not draw under the Retro taskbar.
+        assertTrue(app.contains("visible = !kkcShownLcars && !kkcRetractingNow && !kkcIsRetro"))
+        val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
+        assertTrue(timesheet.contains("bottomBar = kkcRetroNavBar?.let"))
+        assertTrue(timesheet.contains("KkcRetroNavBar(payload = payload, onNavigate = onKkcNavigate)"))
+        val retro = read("java/com/example/timecard/kkcnav/KkcRetroNav.kt")
+        assertTrue(retro.contains("RetroIcon.forKkcRoute(route)"))
+        assertTrue(retro.contains("kkcBadgeCount(route, payload)"))
+    }
+
+    @Test
     fun lcarsBlocksShowTheKkcNavIcons() {
         val lcars = read("java/com/example/timecard/kkcnav/KkcLcarsNav.kt")
         assertTrue(lcars.contains("kkcNavIcon(route, selected)"))
