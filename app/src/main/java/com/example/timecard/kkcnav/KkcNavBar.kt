@@ -107,6 +107,8 @@ internal fun KkcNavBar(
                 .shadow(if (payload.shadowsDisabled) 0.dp else 3.dp, barShape, clip = false)
                 .clip(barShape)
                 .then(hazeModifier)
+                // Mirror KKC: swallow taps on the bar's gaps so they don't reach content below.
+                .clickable(interactionSource = null, indication = null, onClick = {})
         ) {
             KkcNavIconRow(payload, style, onNavigate, iconSize, hPad, vPad)
         }
