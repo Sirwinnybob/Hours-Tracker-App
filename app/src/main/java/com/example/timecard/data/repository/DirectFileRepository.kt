@@ -291,6 +291,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun acquireLock(name: String, date: String, deviceId: String): Boolean {
+        if (date != "profile") return true // Timecard leases are disabled.
         val sName = PathSanitizer.sanitize(name)
         val sDate = PathSanitizer.sanitize(date)
         val empDir = File(baseDir, sName)
@@ -336,6 +337,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun renewLock(name: String, date: String, deviceId: String) {
+        if (date != "profile") return
         try {
             val sName = PathSanitizer.sanitize(name)
             val sDate = PathSanitizer.sanitize(date)
@@ -355,6 +357,7 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
     }
 
     override fun releaseLock(name: String, date: String, deviceId: String) {
+        if (date != "profile") return
         val sName = PathSanitizer.sanitize(name)
         val sDate = PathSanitizer.sanitize(date)
         val lockFile = File(File(baseDir, sName), "$sDate.json.lock")

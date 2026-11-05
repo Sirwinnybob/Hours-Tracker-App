@@ -421,6 +421,7 @@ class SafFileRepository(
     }
 
     override fun acquireLock(name: String, date: String, deviceId: String): Boolean {
+        if (date != "profile") return true // Timecard leases are disabled.
         val sName = PathSanitizer.sanitize(name)
         val sDate = PathSanitizer.sanitize(date)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return true
@@ -465,6 +466,7 @@ class SafFileRepository(
     }
 
     override fun renewLock(name: String, date: String, deviceId: String) {
+        if (date != "profile") return
         try {
             val sName = PathSanitizer.sanitize(name)
             val sDate = PathSanitizer.sanitize(date)
@@ -490,6 +492,7 @@ class SafFileRepository(
     }
 
     override fun releaseLock(name: String, date: String, deviceId: String) {
+        if (date != "profile") return
         val sName = PathSanitizer.sanitize(name)
         val sDate = PathSanitizer.sanitize(date)
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return
