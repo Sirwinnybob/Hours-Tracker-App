@@ -184,7 +184,7 @@ fun TimesheetScreen(
 
                         Spacer(modifier = Modifier.weight(1f))
 
-                        if (uiState.hasPreviousWeek) {
+                        run {
                             val btnBg = if (uiState.isViewingPrevious) com.example.timecard.ui.theme.LcarsOrange else com.example.timecard.ui.theme.LcarsYellow
                             val btnText = if (uiState.isViewingPrevious) "CURRENT WEEK" else "PREVIOUS WEEK"
                             Box(
@@ -192,7 +192,7 @@ fun TimesheetScreen(
                                     .padding(end = 12.dp)
                                     .clip(RoundedCornerShape(50))
                                     .background(Color.Black)
-                                    .clickable {
+                                    .clickable(enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch) {
                                         activeLcarsTab = "timesheet"
                                         timesheetViewModel.togglePrevWeek()
                                     }
@@ -569,7 +569,7 @@ fun TimesheetScreen(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        if (uiState.hasPreviousWeek) {
+                        run {
                             val btnText = if (uiState.isViewingPrevious) "CURRENT WEEK ▶" else "◀ PREV WEEK"
                             RetroButton(
                                 onClick = {
@@ -577,6 +577,7 @@ fun TimesheetScreen(
                                     timesheetViewModel.togglePrevWeek()
                                 },
                                 label = btnText,
+                                enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch,
                                 backgroundColor = if (uiState.isViewingPrevious) RetroAccentTeal else RetroSurface,
                                 textColor = if (uiState.isViewingPrevious) Color.Black else RetroTextPrimary,
                                 modifier = Modifier.height(26.dp)
@@ -916,16 +917,17 @@ fun TimesheetScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Column {
                                     Text(text = "Week of ${uiState.activeWeekDate}", fontSize = if (isCompact) 10.sp else 12.sp, color = colors.textSecondary)
-                                    if (uiState.hasPreviousWeek) {
+                                    run {
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Button(
                                             onClick = { timesheetViewModel.togglePrevWeek() },
-                                            colors = ButtonDefaults.buttonColors(containerColor = if (uiState.isViewingPrevious) Color(0xFF48BB78) else Color(0xFFECC94B)),
+                                            enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch,
+                                            colors = ButtonDefaults.buttonColors(containerColor = colors.hover, contentColor = colors.textPrimary),
                                             shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
                                             contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 10.dp, vertical = 0.dp),
                                             modifier = Modifier.height(if (isCompact) 24.dp else 28.dp)
                                         ) {
-                                            Text(text = if (uiState.isViewingPrevious) "📅 Current" else "⏪ Revise Prev", fontSize = if (isCompact) 9.sp else 11.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                            Text(text = if (uiState.isViewingPrevious) "Current week" else "Previous week", fontSize = if (isCompact) 9.sp else 11.sp, fontWeight = FontWeight.SemiBold)
                                         }
                                     }
                                 }

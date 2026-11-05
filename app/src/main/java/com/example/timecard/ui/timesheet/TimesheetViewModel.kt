@@ -348,6 +348,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun togglePrevWeek() {
+        if (!_uiState.value.isDataLoaded || _uiState.value.saveStatus != SaveStatus.SAVED || _uiState.value.isAnimatingWeekSwitch) return
         _uiState.update { state ->
             val previousHourValues = state.hours.map { row ->
                 row.map { cell ->
@@ -358,6 +359,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
                 previousHourValues = previousHourValues,
                 previousNumRows = state.numRows,
                 isAnimatingWeekSwitch = true,
+                isDataLoaded = false,
                 isViewingPrevious = !state.isViewingPrevious
             )
         }
@@ -453,6 +455,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
 
         if (!lockAcquired) {
             clearGrid()
+            _uiState.update { it.copy(isDataLoaded = true) }
             return
         }
 
