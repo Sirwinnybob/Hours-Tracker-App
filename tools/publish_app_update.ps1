@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)][string]$PackageName,
     [Parameter(Mandatory)][long]$VersionCode,
     [Parameter(Mandatory)][string]$VersionName,
-    [string]$RolloutChannel = 'stable'
+    [string]$RolloutChannel = 'stable',
+    [ValidateSet('General','Emergency')][string]$Update = 'General'
 )
 # Canonical publisher; local copies in the four app repositories avoid a cross-repo runtime dependency.
 $ErrorActionPreference = 'Stop'
@@ -43,9 +44,13 @@ try {
     }
     Copy-Verified $target
     $now = [DateTime]::UtcNow.ToString('o')
+    # Emergency raises the install-now floor to this build; General keeps the previous floor (0 when none).
+    $minRequired = if ($Update -eq 'Emergency') { $VersionCode }
+        elseif ($active.Count) { [long]$active[0].minRequiredVersionCode }
+        else { 0 }
     $entry = [pscustomobject]@{
         packageName=$PackageName; versionCode=$VersionCode; versionName=$VersionName
-        apkFile=$fileName; sha256=$sourceHash; minRequiredVersionCode=$VersionCode
+        apkFile=$fileName; sha256=$sourceHash; minRequiredVersionCode=$minRequired
         rolloutChannel=$RolloutChannel; publishedAt=$now; allowDowngrade=$false
     }
     $manifest.apps = @($manifest.apps | Where-Object {

@@ -4,6 +4,7 @@ param(
     [string]$PackageName = 'com.example.timecard',
     [string]$RolloutChannel = 'stable',
     [string]$FeedRoot = 'Y:\Ready Jobs\.appupdates\apps',
+    [ValidateSet('General','Emergency')][string]$Update = 'General',
     [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
@@ -33,5 +34,6 @@ if ($metadata.applicationId -ne $PackageName -or $metadata.variantName -ne 'rele
 $publish = @{
     SourceApk=$source; FeedRoot=$FeedRoot; PackageName=$PackageName
     VersionCode=$versionCode; VersionName=$versionName; RolloutChannel=$RolloutChannel
+    Update=$Update
 }
 & (Join-Path $PSScriptRoot 'tools\publish_app_update.ps1') @publish
