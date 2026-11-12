@@ -44,14 +44,16 @@ try {
     }
     Copy-Verified $target
     $now = [DateTime]::UtcNow.ToString('o')
-    # Emergency raises the install-now floor to this build; General keeps the previous floor (0 when none).
+    # Emergency raises the install-now floor to this build; General keeps the previous floor only when the
+    # previous entry carries the `update` marker. Legacy entries (old publisher wrote min == version) give 0.
+    $previousMarked = $active.Count -and $null -ne $active[0].PSObject.Properties['update']
     $minRequired = if ($Update -eq 'Emergency') { $VersionCode }
-        elseif ($active.Count) { [long]$active[0].minRequiredVersionCode }
+        elseif ($previousMarked) { [long]$active[0].minRequiredVersionCode }
         else { 0 }
     $entry = [pscustomobject]@{
         packageName=$PackageName; versionCode=$VersionCode; versionName=$VersionName
         apkFile=$fileName; sha256=$sourceHash; minRequiredVersionCode=$minRequired
-        rolloutChannel=$RolloutChannel; publishedAt=$now; allowDowngrade=$false
+        rolloutChannel=$RolloutChannel; publishedAt=$now; allowDowngrade=$false; update=$Update
     }
     $manifest.apps = @($manifest.apps | Where-Object {
         $_.packageName -ne $PackageName -or $_.rolloutChannel -ne $RolloutChannel
