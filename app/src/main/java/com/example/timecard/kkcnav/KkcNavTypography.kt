@@ -45,3 +45,12 @@ internal val KkcNavLabelStyle = TextStyle(
     lineHeight = 16.sp,
     letterSpacing = 0.5.sp
 )
+
+// Copy of KKCTypography.titleMedium: the landscape rail's clock (KkcRailClock).
+internal val KkcTitleMediumStyle = TextStyle(
+    fontFamily = KkcInterFontFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 16.sp,
+    lineHeight = 24.sp,
+    letterSpacing = 0.15.sp
+)

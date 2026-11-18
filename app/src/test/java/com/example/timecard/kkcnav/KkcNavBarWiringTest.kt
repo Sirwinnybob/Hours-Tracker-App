@@ -52,7 +52,7 @@ class KkcNavBarWiringTest {
         assertTrue(app.contains("LocalWindowInfo.current.isWindowFocused"))
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
         assertTrue(timesheet.contains("KkcLcarsNavButtons("))
-        assertTrue(timesheet.contains("footerHeight = if (kkcNavBar != null) KKC_LCARS_NAV_HEIGHT"))
+        assertTrue(timesheet.contains("footerHeight = if (kkcNavBar != null && !kkcLandscapeNav) KKC_LCARS_NAV_HEIGHT"))
     }
 
     @Test
@@ -63,7 +63,7 @@ class KkcNavBarWiringTest {
         // The glass bar must not draw under the Retro taskbar.
         assertTrue(app.contains("visible = !kkcShownLcars && !kkcRetractingNow && !kkcIsRetro"))
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
-        assertTrue(timesheet.contains("bottomBar = kkcRetroNavBar?.let"))
+        assertTrue(timesheet.contains("bottomBar = kkcRetroNavBar?.takeIf { !kkcLandscapeNav }?.let"))
         assertTrue(timesheet.contains("KkcRetroNavBar(payload = payload, onNavigate = onKkcNavigate)"))
         val retro = read("java/com/example/timecard/kkcnav/KkcRetroNav.kt")
         assertTrue(retro.contains("RetroIcon.forKkcRoute(route)"))

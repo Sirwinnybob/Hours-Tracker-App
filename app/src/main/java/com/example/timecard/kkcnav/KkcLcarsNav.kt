@@ -90,76 +90,114 @@ internal fun kkcLcarsEnterTotalMs(count: Int): Int =
 internal fun kkcLcarsRetractTotalMs(count: Int): Int =
     kkcLcarsBlockDelayMs(0, count, entering = false) + KKC_LCARS_BLOCK_MS
 
-/** The KKC destinations as LCARS blocks, filling the band they are placed in. */
+/** The blocks a bar shows: the KKC row in portrait; landscape adds Settings like KKC's rail. */
+internal fun kkcLcarsSlots(destinations: List<String>, vertical: Boolean): List<String> =
+    if (vertical) kkcLandscapeSlots(destinations) else kkcNavSlots(destinations)
+
+/**
+ * The KKC destinations as LCARS blocks, filling the band they are placed in. [vertical] (landscape,
+ * the frame's right spine) stacks them top → bottom and powers them up top → bottom.
+ */
 @Composable
 internal fun KkcLcarsNavButtons(
     payload: KkcNavBarPayload,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier,
-    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None
+    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None,
+    vertical: Boolean = false
 ) {
-    val slots = kkcNavSlots(payload.destinations)
-    Row(
-        modifier = modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(LCARS_GAP),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        slots.forEachIndexed { index, route ->
-            val selected = route == KkcNavBarContract.DEST_HOURS
-            // 0 = retracted (invisible, dropped, squeezed toward its left edge), 1 = fully shown.
-            val progress = remember { Animatable(if (anim == KkcLcarsBlockAnim.Enter) 0f else 1f) }
-            LaunchedEffect(anim) {
-                when (anim) {
-                    KkcLcarsBlockAnim.None -> progress.snapTo(1f)
-                    KkcLcarsBlockAnim.Enter -> {
-                        progress.snapTo(0f)
-                        delay(kkcLcarsBlockDelayMs(index, slots.size, entering = true).toLong())
-                        progress.animateTo(1f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
-                    }
-                    KkcLcarsBlockAnim.Exit -> {
-                        delay(kkcLcarsBlockDelayMs(index, slots.size, entering = false).toLong())
-                        progress.animateTo(0f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
-                    }
+    val slots = kkcLcarsSlots(payload.destinations, vertical)
+    val blocks: @Composable (Modifier, Int, String) -> Unit = { slotModifier, index, route ->
+        KkcLcarsNavSlot(payload, onNavigate, anim, slots.size, index, route, vertical, slotModifier)
+    }
+    if (vertical) {
+        Column(
+            modifier = modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(LCARS_GAP),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            slots.forEachIndexed { index, route -> blocks(Modifier.weight(1f).fillMaxWidth(), index, route) }
+        }
+    } else {
+        Row(
+            modifier = modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(LCARS_GAP),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            slots.forEachIndexed { index, route -> blocks(Modifier.weight(1f).fillMaxHeight(), index, route) }
+        }
+    }
+}
+
+@Composable
+private fun KkcLcarsNavSlot(
+    payload: KkcNavBarPayload,
+    onNavigate: (String) -> Unit,
+    anim: KkcLcarsBlockAnim,
+    count: Int,
+    index: Int,
+    route: String,
+    vertical: Boolean,
+    modifier: Modifier
+) {
+    val selected = route == KkcNavBarContract.DEST_HOURS
+    // 0 = retracted (invisible, dropped, squeezed toward its leading edge), 1 = fully shown.
+    val progress = remember { Animatable(if (anim == KkcLcarsBlockAnim.Enter) 0f else 1f) }
+    LaunchedEffect(anim) {
+        when (anim) {
+            KkcLcarsBlockAnim.None -> progress.snapTo(1f)
+            KkcLcarsBlockAnim.Enter -> {
+                progress.snapTo(0f)
+                delay(kkcLcarsBlockDelayMs(index, count, entering = true).toLong())
+                progress.animateTo(1f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
+            }
+            KkcLcarsBlockAnim.Exit -> {
+                delay(kkcLcarsBlockDelayMs(index, count, entering = false).toLong())
+                progress.animateTo(0f, tween(KKC_LCARS_BLOCK_MS, easing = FastOutSlowInEasing))
+            }
+        }
+    }
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                val p = progress.value
+                alpha = p
+                if (vertical) {
+                    // Spine: squeezed toward its top edge, pushed out toward the screen edge.
+                    scaleY = 0.4f + 0.6f * p
+                    translationX = (1f - p) * size.width * 0.5f
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                } else {
+                    scaleX = 0.4f + 0.6f * p
+                    translationY = (1f - p) * size.height * 0.5f
+                    transformOrigin = TransformOrigin(0f, 0.5f)
                 }
             }
+    ) {
+        KkcLcarsNavBlock(
+            route = route,
+            selected = selected,
+            code = (index + 1).toString().padStart(2, '0'),
+            color = kkcLcarsBlockColor(index, selected),
+            rightCap = !vertical && index == count - 1,
+            onClick = { onNavigate(route) }
+        )
+        val badgeCount = kkcBadgeCount(route, payload)
+        if (badgeCount > 0) {
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .graphicsLayer {
-                        val p = progress.value
-                        alpha = p
-                        scaleX = 0.4f + 0.6f * p
-                        translationY = (1f - p) * size.height * 0.5f
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                    }
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .background(LcarsRed)
+                    .padding(horizontal = 5.dp)
             ) {
-                KkcLcarsNavBlock(
-                    route = route,
-                    selected = selected,
-                    code = (index + 1).toString().padStart(2, '0'),
-                    color = kkcLcarsBlockColor(index, selected),
-                    rightCap = index == slots.lastIndex,
-                    onClick = { onNavigate(route) }
+                Text(
+                    text = badgeCount.toString(),
+                    fontFamily = AntonioFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    color = Color.Black
                 )
-                val badgeCount = kkcBadgeCount(route, payload)
-                if (badgeCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 4.dp)
-                            .background(LcarsRed)
-                            .padding(horizontal = 5.dp)
-                    ) {
-                        Text(
-                            text = badgeCount.toString(),
-                            fontFamily = AntonioFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp,
-                            color = Color.Black
-                        )
-                    }
-                }
             }
         }
     }
@@ -229,11 +267,12 @@ internal fun KkcLcarsNavBand(
     payload: KkcNavBarPayload,
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier,
-    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None
+    anim: KkcLcarsBlockAnim = KkcLcarsBlockAnim.None,
+    vertical: Boolean = false
 ) {
     // The band's own black backing + left cap: fades in as the glass bar leaves (before the blocks
     // power up) and fades out only after the last block has retracted.
-    val count = kkcNavSlots(payload.destinations).size
+    val count = kkcLcarsSlots(payload.destinations, vertical).size
     val bandAlpha = remember { Animatable(if (anim == KkcLcarsBlockAnim.Enter) 0f else 1f) }
     LaunchedEffect(anim) {
         when (anim) {
@@ -247,6 +286,29 @@ internal fun KkcLcarsNavBand(
                 bandAlpha.animateTo(0f, tween(KKC_LCARS_BLOCK_MS))
             }
         }
+    }
+    if (vertical) {
+        // Landscape: the band stands on the right edge, a tan top cap standing in for the frame's
+        // top-right elbow, then the blocks top → bottom.
+        Column(
+            modifier = modifier
+                .fillMaxHeight()
+                .graphicsLayer { alpha = bandAlpha.value }
+                .background(Color.Black)
+                .navigationBarsPadding()
+                .padding(LCARS_GAP)
+                .width(80.dp),
+            verticalArrangement = Arrangement.spacedBy(LCARS_GAP)
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(60.dp)
+                    .fillMaxWidth()
+                    .background(LcarsTan, shape = RoundedCornerShape(topStartPercent = 50, topEndPercent = 50))
+            )
+            KkcLcarsNavButtons(payload, onNavigate, Modifier.weight(1f), anim, vertical = true)
+        }
+        return
     }
     Row(
         modifier = modifier

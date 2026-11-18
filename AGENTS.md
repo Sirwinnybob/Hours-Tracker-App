@@ -46,6 +46,21 @@ This repository contains an Android application project.
     then the glass bar slides up. Opening straight into a theme doesn't animate; low-end (`animDisabled`) is instant.
   - Bold-mode text/icon color is picked against Hours Tracker's own canvas (`kkcOnGlassColor`, `colors.backgroundTo`),
     not KKC's background — KKC's `frostedContent` would be wrong over HT's canvas (dark-mode readability bug).
+- Landscape (HT decides itself, no contract field: `rememberKkcLandscapeRail`, KKC's `useLandscapeChrome` rule —
+  landscape orientation AND window wider than tall): the glass bar becomes `kkcnav/KkcNavRail.kt`, a copy of KKC's
+  bare `LandscapeNavRail` (`ui/components/LandscapeNavRail.kt` + `LandscapeChrome.kt`): one frosted rail on the right
+  edge, clock + battery on top (`KkcRailSystemItems.kt` ← `SideHeaderClock`, `BatteryIndicator`), destinations in fixed
+  62dp slots (Calc before Hours, SemiBold labels, Hours highlighted), Settings at the bottom (returns `settings`).
+  Same `KkcNavBarStyle` colors as the portrait bar; no KKC update dot on Settings; charging bolt uses KKC's default
+  status green. KKC's tool column (decorations) never appears here. The timesheet's standard layout pads its content
+  `end = KkcLandscapeRailClearance` (88dp) while its background runs full width under the glass. Portrait is unchanged.
+  - Retro landscape: the taskbar docks to the RIGHT edge (`KkcRetroNavRail`, `RetroFrame` `sideBar`; standalone on
+    login): Start on top, task buttons stacked, Settings last, tray clock at the bottom.
+  - LCARS landscape: `LcarsFrame` `rightSpineContent` adds a mirrored right spine (elbows joined to the header and
+    footer bars) holding the blocks top → bottom (`KkcLcarsNavButtons(vertical = true)`); the footer returns to the
+    20dp tan strip. Login gets a vertical standalone band. Blocks power up/retract top → bottom.
+  - Retro/LCARS landscape slots = `kkcLandscapeSlots` (KKC order + Settings at the end, standing in for the rail's
+    bottom Settings). KKC must accept a `settings` return tap (it is not in KKC's visible destination list).
 - Taps call `KkcReturnNavigation.navigate`, which starts KKC `MainActivity` with `extra_kkc_nav_destination`
   (`CLEAR_TOP|SINGLE_TOP`) and finishes. Hours tap = no-op. The "← KKC" buttons stay as fallback.
 - Any change on the KKC side must be copied here in the same session. Contract changes update both

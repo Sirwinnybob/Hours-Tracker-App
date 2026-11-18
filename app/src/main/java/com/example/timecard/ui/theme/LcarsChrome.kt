@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,9 @@ fun LcarsFrame(
     footerHeight: Dp = 20.dp,
     footerBackground: Color = LcarsTan,
     footerPadding: Dp = 8.dp,
+    // Landscape launch from KKC: a second spine on the RIGHT (mirrored elbows joining the header and
+    // footer bars) holding the KKC destination blocks (kkcnav/KkcLcarsNav.kt), like KKC's right rail.
+    rightSpineContent: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     Row(
@@ -145,6 +149,46 @@ fun LcarsFrame(
                 verticalAlignment = Alignment.CenterVertically,
                 content = footerContent
             )
+        }
+
+        // ── Right Column (landscape from KKC): mirror image of the left spine ──
+        if (rightSpineContent != null) {
+            Spacer(modifier = Modifier.width(LCARS_GAP))
+            Column(
+                modifier = Modifier
+                    .width(LCARS_SIDEBAR_WIDTH)
+                    .fillMaxHeight(),
+                horizontalAlignment = Alignment.End
+            ) {
+                LcarsTopLeftElbow(
+                    color = LcarsOrange,
+                    w = 80.dp,
+                    r = 28.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .graphicsLayer { scaleX = -1f }
+                )
+                Spacer(Modifier.height(LCARS_GAP))
+                Column(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(LCARS_GAP),
+                    content = rightSpineContent
+                )
+                Spacer(Modifier.height(LCARS_GAP))
+                LcarsBottomLeftElbow(
+                    color = LcarsTan,
+                    w = 80.dp,
+                    h = footerHeight,
+                    r = 28.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp + (footerHeight - 20.dp))
+                        .graphicsLayer { scaleX = -1f }
+                )
+            }
         }
     }
 }

@@ -230,12 +230,19 @@ fun RetroFrame(
     footerContent: @Composable RowScope.() -> Unit = {},
     sidebarContent: @Composable ColumnScope.() -> Unit = {},
     bottomBar: (@Composable () -> Unit)? = null,
+    // Landscape launch from KKC: the taskbar docked on the right edge, full height (kkcnav/KkcRetroNav.kt).
+    sideBar: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
-    Column(
+    Row(
         modifier = modifier
             .fillMaxSize()
             .background(RetroBackground)
+    ) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .fillMaxHeight()
     ) {
         // ── 1. Desktop Window Title Bar (navy -> azure gradient, rainbow title, spinning globe) ──
         Row(
@@ -449,6 +456,8 @@ fun RetroFrame(
 
         // ── 5. Optional taskbar (the KKC destinations when launched from KKC) ──
         bottomBar?.invoke()
+    }
+    sideBar?.invoke()
     }
 }
 

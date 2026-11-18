@@ -7,6 +7,9 @@ package com.example.timecard.kkcnav
 // tray clock. TimesheetScreen puts it under RetroFrame's status bar; the login screen (no frame)
 // gets it standalone from TimecardApp. Destinations, Calc-before-Hours order, badges and tap
 // behavior still follow the KKC contract (kkcNavSlots / kkcBadgeCount / KkcReturnNavigation).
+// Landscape (KKC's right rail): the taskbar docks to the RIGHT edge instead (KkcRetroNavRail) —
+// Start on top, task buttons stacked, Settings last (like the bottom of KKC's rail), tray at the
+// bottom. RetroFrame carries it as `sideBar`.
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.timecard.ui.theme.RetroBackground
@@ -54,6 +57,9 @@ import java.util.Date
 import java.util.Locale
 
 private val RetroBadgeRed = Color(0xFFE02020)
+
+/** Width of the right-docked (landscape) taskbar. */
+val KKC_RETRO_RAIL_WIDTH: Dp = 108.dp
 
 /** Candy-bright icon colors, one per destination, so the taskbar reads like a 90s desktop. */
 private val RetroIconColors = mapOf(
@@ -98,118 +104,172 @@ internal fun KkcRetroNavBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Start button: spinning globe + KKC
-        Row(
-            modifier = Modifier
-                .fillMaxHeight()
-                .background(RetroBackground)
-                .doubleBeveledBorder(isInset = false)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RetroGlobe(modifier = Modifier.padding(end = 6.dp), fontSize = 26.sp)
-            Text(
-                text = "KKC",
-                fontFamily = VT323FontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 26.sp,
-                color = RetroTextHeading
-            )
-        }
-
+        RetroStartButton(Modifier.fillMaxHeight())
         Box(
             modifier = Modifier
                 .width(2.dp)
                 .fillMaxHeight()
                 .beveledBorder(isInset = true, borderWidth = 1.dp)
         )
-
         slots.forEach { route ->
-            val selected = route == KkcNavBarContract.DEST_HOURS
-            val badgeCount = kkcBadgeCount(route, payload)
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(if (selected) RetroInput else RetroBackground)
-                        .doubleBeveledBorder(isInset = selected)
-                        .clickable { onNavigate(route) }
-                        .padding(horizontal = 4.dp, vertical = 3.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // The KKC destination's glyph, redrawn as chunky 16-bit pixel art.
-                    val pixelIcon = RetroIcon.forKkcRoute(route)
-                    if (pixelIcon != null) {
-                        RetroPixelIcon(
-                            icon = pixelIcon,
-                            size = 34.dp,
-                            bounce = selected,
-                            modifier = Modifier.semantics { contentDescription = kkcNavLabel(route) }
-                        )
-                    }
-                    Text(
-                        text = kkcNavLabel(route),
-                        fontFamily = VT323FontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = if (selected) kkcRetroIconColor(route) else RetroTextPrimary,
-                        maxLines = 1
-                    )
-                }
-                if (badgeCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 4.dp)
-                            .background(RetroBadgeRed)
-                            .padding(horizontal = 4.dp)
-                    ) {
-                        Text(
-                            text = badgeCount.toString(),
-                            fontFamily = VT323FontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
+            RetroTaskButton(route, payload, onNavigate, Modifier.weight(1f).fillMaxHeight())
         }
+        RetroTray(Modifier.fillMaxHeight())
+    }
+}
 
-        // System tray: sunken clock with a blinking colon
-        var now by remember { mutableStateOf(System.currentTimeMillis()) }
-        LaunchedEffect(Unit) {
-            while (true) {
-                now = System.currentTimeMillis()
-                delay(15_000)
-            }
+/**
+ * Landscape: the same taskbar docked to the right edge (Windows 95 could dock it to any edge),
+ * running the full height of the screen. Start on top, a task button per destination plus
+ * Settings (KKC's rail has Settings at its bottom), then the tray clock.
+ */
+@Composable
+internal fun KkcRetroNavRail(
+    payload: KkcNavBarPayload,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val slots = kkcLandscapeSlots(payload.destinations)
+    Column(
+        modifier = modifier
+            .width(KKC_RETRO_RAIL_WIDTH)
+            .fillMaxHeight()
+            .background(RetroBackground)
+            .navigationBarsPadding()
+            .beveledBorder(isInset = false, borderWidth = 2.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        RetroStartButton(Modifier.fillMaxWidth().height(52.dp))
+        Box(
+            modifier = Modifier
+                .height(2.dp)
+                .fillMaxWidth()
+                .beveledBorder(isInset = true, borderWidth = 1.dp)
+        )
+        slots.forEach { route ->
+            RetroTaskButton(route, payload, onNavigate, Modifier.weight(1f).fillMaxWidth())
         }
-        val colonVisible = rememberRetroBlink(1000)
+        RetroTray(Modifier.fillMaxWidth().height(56.dp))
+    }
+}
+
+/** Start button: spinning globe + KKC. */
+@Composable
+private fun RetroStartButton(modifier: Modifier) {
+    Row(
+        modifier = modifier
+            .background(RetroBackground)
+            .doubleBeveledBorder(isInset = false)
+            .padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RetroGlobe(modifier = Modifier.padding(end = 6.dp), fontSize = 26.sp)
+        Text(
+            text = "KKC",
+            fontFamily = VT323FontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp,
+            color = RetroTextHeading
+        )
+    }
+}
+
+/** One task button: pixel icon over the label; Hours is pressed in; badge top-right. */
+@Composable
+private fun RetroTaskButton(
+    route: String,
+    payload: KkcNavBarPayload,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier
+) {
+    val selected = route == KkcNavBarContract.DEST_HOURS
+    val badgeCount = kkcBadgeCount(route, payload)
+    Box(modifier = modifier) {
         Column(
             modifier = Modifier
-                .fillMaxHeight()
-                .background(RetroBackground)
-                .beveledBorder(isInset = true, borderWidth = 1.dp)
-                .padding(horizontal = 10.dp),
+                .fillMaxSize()
+                .background(if (selected) RetroInput else RetroBackground)
+                .doubleBeveledBorder(isInset = selected)
+                .clickable { onNavigate(route) }
+                .padding(horizontal = 4.dp, vertical = 3.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // The KKC destination's glyph, redrawn as chunky 16-bit pixel art.
+            val pixelIcon = RetroIcon.forKkcRoute(route)
+            if (pixelIcon != null) {
+                RetroPixelIcon(
+                    icon = pixelIcon,
+                    size = 34.dp,
+                    bounce = selected,
+                    modifier = Modifier.semantics { contentDescription = kkcNavLabel(route) }
+                )
+            }
             Text(
-                text = kkcRetroClockText(now, colonVisible),
+                text = kkcNavLabel(route),
                 fontFamily = VT323FontFamily,
                 fontWeight = FontWeight.Bold,
-                fontSize = 22.sp,
-                color = RetroTextPrimary,
-                maxLines = 1
-            )
-            Text(
-                text = kkcRetroDateText(now),
-                fontFamily = VT323FontFamily,
-                fontSize = 15.sp,
-                color = RetroTextHeading,
+                fontSize = 16.sp,
+                color = if (selected) kkcRetroIconColor(route) else RetroTextPrimary,
                 maxLines = 1
             )
         }
+        if (badgeCount > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .background(RetroBadgeRed)
+                    .padding(horizontal = 4.dp)
+            ) {
+                Text(
+                    text = badgeCount.toString(),
+                    fontFamily = VT323FontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+/** System tray: sunken clock with a blinking colon, date under it. */
+@Composable
+private fun RetroTray(modifier: Modifier) {
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(15_000)
+        }
+    }
+    val colonVisible = rememberRetroBlink(1000)
+    Column(
+        modifier = modifier
+            .background(RetroBackground)
+            .beveledBorder(isInset = true, borderWidth = 1.dp)
+            .padding(horizontal = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = kkcRetroClockText(now, colonVisible),
+            fontFamily = VT323FontFamily,
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = RetroTextPrimary,
+            maxLines = 1
+        )
+        Text(
+            text = kkcRetroDateText(now),
+            fontFamily = VT323FontFamily,
+            fontSize = 15.sp,
+            color = RetroTextHeading,
+            maxLines = 1
+        )
     }
 }

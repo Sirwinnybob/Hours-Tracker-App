@@ -36,10 +36,17 @@ import com.example.timecard.kkcnav.KkcNavBarStyle
 import com.example.timecard.kkcnav.kkcLcarsEnterTotalMs
 import com.example.timecard.kkcnav.kkcLcarsRetractTotalMs
 import com.example.timecard.kkcnav.kkcNavSlots
+import com.example.timecard.kkcnav.KkcNavRail
+import com.example.timecard.kkcnav.KkcRetroNavRail
+import com.example.timecard.kkcnav.kkcLcarsSlots
+import com.example.timecard.kkcnav.rememberKkcLandscapeRail
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalWindowInfo
 import com.example.timecard.ui.theme.LaunchAccentCache
@@ -133,8 +140,11 @@ fun TimecardApp(
         // first (continuing KKC's bar), then turns into the LCARS band once the window fade-in is done.
         val kkcIsLcars = kkcNavSource == KkcNavBarSource.Lcars
         val kkcIsRetro = kkcNavSource == KkcNavBarSource.Retro
+        // KKC's landscape rule (KkcNavRail.kt): the glass bar becomes a right-edge rail and the
+        // timesheet leaves room on its right instead of the bar floating at the bottom.
+        val kkcLandscapeRail = kkcNavBar != null && rememberKkcLandscapeRail()
         val kkcAnimate = kkcNavBar != null && !kkcNavBar.animDisabled
-        val kkcSlotCount = kkcNavBar?.let { kkcNavSlots(it.destinations).size } ?: 0
+        val kkcSlotCount = kkcNavBar?.let { kkcLcarsSlots(it.destinations, vertical = kkcLandscapeRail).size } ?: 0
         // The theme is picked inside the Settings dialog (its own window, on top of this screen). If the
         // navbar switched immediately the whole transition would play hidden behind it, so the navbar
         // keeps showing its previous form until this window has focus again, then animates.
@@ -406,6 +416,7 @@ fun TimecardApp(
                         launchedByKkc = launchedByKkc,
                         kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars && kkcShownLcars) kkcNavBar else null,
                         kkcRetroNavBar = if (kkcIsRetro) kkcNavBar else null,
+                        kkcLandscapeNav = kkcLandscapeRail,
                         onKkcNavigate = kkcOnNavigate,
                         kkcLcarsAnim = kkcLcarsAnimNow,
                         timesheetViewModel = timesheetViewModel,
@@ -524,18 +535,28 @@ fun TimecardApp(
                     KkcLcarsNavBand(
                         payload = kkcNavBar,
                         onNavigate = kkcOnNavigate,
-                        modifier = Modifier.align(Alignment.BottomCenter),
-                        anim = if (kkcRetractingNow) KkcLcarsBlockAnim.Exit else kkcLcarsAnimNow
+                        modifier = Modifier.align(if (kkcLandscapeRail) Alignment.CenterEnd else Alignment.BottomCenter),
+                        anim = if (kkcRetractingNow) KkcLcarsBlockAnim.Exit else kkcLcarsAnimNow,
+                        vertical = kkcLandscapeRail
                     )
                 }
 
                 // Retro taskbar: login card / no employee only — the timesheet's RetroFrame carries its own.
+                // Landscape: docked on the right edge like KKC's rail.
                 if (kkcIsRetro && (loggedInEmployee == null || isExpanded)) {
-                    KkcRetroNavBar(
-                        payload = kkcNavBar,
-                        onNavigate = kkcOnNavigate,
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
+                    if (kkcLandscapeRail) {
+                        KkcRetroNavRail(
+                            payload = kkcNavBar,
+                            onNavigate = kkcOnNavigate,
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        )
+                    } else {
+                        KkcRetroNavBar(
+                            payload = kkcNavBar,
+                            onNavigate = kkcOnNavigate,
+                            modifier = Modifier.align(Alignment.BottomCenter)
+                        )
+                    }
                 }
 
                 val glassStyle = if (!kkcIsLcars) {
@@ -567,23 +588,41 @@ fun TimecardApp(
                 }
                 // Initially-visible AnimatedVisibility doesn't animate, so opening Hours Tracker shows
                 // the bar as-is; only a theme change slides it out (→ LCARS) or back in (← LCARS).
+                // Landscape: KKC's right-edge rail (KkcNavRail.kt) instead of the bottom bar; it slides
+                // sideways. LCARS / Retro keep their own bottom bars in both orientations.
                 AnimatedVisibility(
                     visible = !kkcShownLcars && !kkcRetractingNow && !kkcIsRetro,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    enter = if (kkcAnimate) {
+                    modifier = Modifier.align(if (kkcLandscapeRail) Alignment.CenterEnd else Alignment.BottomCenter),
+                    enter = if (!kkcAnimate) EnterTransition.None
+                    else if (kkcLandscapeRail) {
+                        slideInHorizontally(tween(KKC_GLASS_SWAP_MS)) { it } + fadeIn(tween(KKC_GLASS_SWAP_MS))
+                    } else {
                         slideInVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeIn(tween(KKC_GLASS_SWAP_MS))
-                    } else EnterTransition.None,
-                    exit = if (kkcAnimate) {
+                    },
+                    exit = if (!kkcAnimate) ExitTransition.None
+                    else if (kkcLandscapeRail) {
+                        slideOutHorizontally(tween(KKC_GLASS_SWAP_MS)) { it } + fadeOut(tween(KKC_GLASS_SWAP_MS))
+                    } else {
                         slideOutVertically(tween(KKC_GLASS_SWAP_MS)) { it } + fadeOut(tween(KKC_GLASS_SWAP_MS))
-                    } else ExitTransition.None
+                    }
                 ) {
                     glassStyle?.let { style ->
-                        KkcNavBar(
-                            payload = kkcNavBar,
-                            style = style,
-                            hazeState = kkcHazeState,
-                            onNavigate = kkcOnNavigate
-                        )
+                        if (kkcLandscapeRail) {
+                            KkcNavRail(
+                                payload = kkcNavBar,
+                                style = style,
+                                hazeState = kkcHazeState,
+                                darkTheme = colors.isDark,
+                                onNavigate = kkcOnNavigate
+                            )
+                        } else {
+                            KkcNavBar(
+                                payload = kkcNavBar,
+                                style = style,
+                                hazeState = kkcHazeState,
+                                onNavigate = kkcOnNavigate
+                            )
+                        }
                     }
                 }
             }

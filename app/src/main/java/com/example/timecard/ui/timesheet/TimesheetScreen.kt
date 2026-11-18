@@ -124,6 +124,10 @@ fun TimesheetScreen(
     // in the LCARS frame's bottom band instead of the floating glass bar (kkcnav/KkcLcarsNav.kt).
     kkcNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
     kkcRetroNavBar: com.example.timecard.kkcnav.KkcNavBarPayload? = null,
+    // Landscape launch from KKC (KKC's right rail): the standard layout leaves room on its right for
+    // the glass rail (kkcnav/KkcNavRail.kt; background still runs full width under the glass), LCARS
+    // puts the destination blocks in a right spine, Retro docks its taskbar on the right edge.
+    kkcLandscapeNav: Boolean = false,
     onKkcNavigate: (String) -> Unit = {},
     kkcLcarsAnim: com.example.timecard.kkcnav.KkcLcarsBlockAnim = com.example.timecard.kkcnav.KkcLcarsBlockAnim.None
 ) {
@@ -240,11 +244,14 @@ fun TimesheetScreen(
                             modifier = Modifier.padding(start = 16.dp, end = 8.dp)
                         )
                     },
-                    footerHeight = if (kkcNavBar != null) KKC_LCARS_NAV_HEIGHT else 20.dp,
-                    footerBackground = if (kkcNavBar != null) Color.Black else com.example.timecard.ui.theme.LcarsTan,
-                    footerPadding = if (kkcNavBar != null) 0.dp else 8.dp,
+                    footerHeight = if (kkcNavBar != null && !kkcLandscapeNav) KKC_LCARS_NAV_HEIGHT else 20.dp,
+                    footerBackground = if (kkcNavBar != null && !kkcLandscapeNav) Color.Black else com.example.timecard.ui.theme.LcarsTan,
+                    footerPadding = if (kkcNavBar != null && !kkcLandscapeNav) 0.dp else 8.dp,
+                    rightSpineContent = if (kkcNavBar != null && kkcLandscapeNav) {
+                        { KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim, vertical = true) }
+                    } else null,
                     footerContent = {
-                        if (kkcNavBar != null) {
+                        if (kkcNavBar != null && !kkcLandscapeNav) {
                             KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim)
                         } else {
                             Text(
@@ -527,8 +534,11 @@ fun TimesheetScreen(
                 // ── Retro full-frame layout ───────────────────────────
                 RetroFrame(
                     modifier = Modifier.statusBarsPadding(),
-                    bottomBar = kkcRetroNavBar?.let { payload ->
+                    bottomBar = kkcRetroNavBar?.takeIf { !kkcLandscapeNav }?.let { payload ->
                         { com.example.timecard.kkcnav.KkcRetroNavBar(payload = payload, onNavigate = onKkcNavigate) }
+                    },
+                    sideBar = kkcRetroNavBar?.takeIf { kkcLandscapeNav }?.let { payload ->
+                        { com.example.timecard.kkcnav.KkcRetroNavRail(payload = payload, onNavigate = onKkcNavigate) }
                     },
                     headerContent = {
                         // Reserves the slot the collapsed NameCard chip animates into (same contract as LCARS)
@@ -885,6 +895,7 @@ fun TimesheetScreen(
                         .fillMaxSize()
                         .background(colors.backgroundBrush)
                         .statusBarsPadding()
+                        .padding(end = if (kkcLandscapeNav) com.example.timecard.kkcnav.KkcLandscapeRailClearance else 0.dp)
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         val btnHeight = 40.dp
