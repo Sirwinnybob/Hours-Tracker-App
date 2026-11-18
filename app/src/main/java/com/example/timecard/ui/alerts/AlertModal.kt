@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun AlertModal(viewModel: AlertsViewModel) {
     val colors = LocalTimecardColors.current
+    val alertColors = alertColors(colors)
     val alert = viewModel.currentAlert ?: return
     val isPeerNote = alert.sentBy != null && alert.sentBy != "Admin"
 
@@ -83,7 +84,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     .widthIn(max = 420.dp)
                     .padding(24.dp)
                     .background(
-                        if (colors.isLcars) Color.Black else colors.surface,
+                        alertColors.background,
                         if (colors.isLcars) RectangleShape else com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(16.dp))
                     )
             ) {
@@ -117,7 +118,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     Text(
                         text = "${viewModel.alertQueueIndex + 1} of ${viewModel.alertQueue.size}",
                         fontSize = 14.sp,
-                        color = Color.Black.copy(alpha = 0.6f)
+                        color = alertColors.secondary
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -126,7 +127,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                         text = if (isPeerNote) "\uD83D\uDCE8 Note from ${alert.sentBy}" else "\u26A0\uFE0F Alert",
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = alertColors.text
                     )
                     }
 
@@ -134,9 +135,9 @@ fun AlertModal(viewModel: AlertsViewModel) {
 
                     // Message with basic markdown
                     Text(
-                        text = formatAlertMessage(alert.message),
+                        text = formatAlertMessage(alert.message, alertColors.link),
                         fontSize = 18.sp,
-                        color = Color.Black,
+                        color = alertColors.text,
                         textAlign = TextAlign.Start,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -155,7 +156,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     Text(
                         text = "From ${alert.sentBy ?: "Admin"} \u2022 $sentDate",
                         fontSize = 14.sp,
-                        color = Color.Black.copy(alpha = 0.6f)
+                        color = alertColors.secondary
                     )
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -167,10 +168,10 @@ fun AlertModal(viewModel: AlertsViewModel) {
                         OutlinedTextField(
                             value = viewModel.alertResponse,
                             onValueChange = { viewModel.alertResponse = it },
-                            placeholder = { Text("Optional response...", color = colors.textSecondary) },
+                            placeholder = { Text("Optional response...", color = alertColors.secondary) },
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = colors.textPrimary,
-                                unfocusedTextColor = colors.textPrimary,
+                                focusedTextColor = alertColors.text,
+                                unfocusedTextColor = alertColors.text,
                                 focusedBorderColor = AccentBlue,
                                 unfocusedBorderColor = colors.textSecondary.copy(alpha = 0.3f),
                                 cursorColor = AccentBlue
@@ -184,7 +185,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                         Text(
                             text = "Replies are restricted to one response. To continue the conversation, purchase a new note in the shop!",
                             style = MaterialTheme.typography.bodySmall,
-                            color = colors.textOrange,
+                            color = alertColors.text,
                             fontStyle = FontStyle.Italic,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
@@ -201,9 +202,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     Button(
                         onClick = { viewModel.acknowledgeCurrentAlert() },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (colors.isLcars) LcarsOrange
-                                else if (colors.isRed) Color(0xFFCC0000)
-                                else AccentBlue
+                            containerColor = alertColors.button
                         ),
                         shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(12.dp)),
                         modifier = Modifier
@@ -214,7 +213,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                             if (colors.isLcars) "ACKNOWLEDGE" else "\u2705 Acknowledge",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (colors.isLcars) Color.Black else Color.White,
+                            color = alertColors.buttonText,
                             fontFamily = if (colors.isLcars) AntonioFontFamily else null
                         )
                     }
@@ -239,7 +238,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
  * Supports: **bold**, *italic*, _italic_, ~~strikethrough~~, `code`,
  * [link text](url), # headers, - bullet lists, 1. numbered lists, line breaks.
  */
-fun formatAlertMessage(raw: String): AnnotatedString {
+fun formatAlertMessage(raw: String, linkColor: Color = Color(0xFF4A9FE5)): AnnotatedString {
     return buildAnnotatedString {
         val lines = raw.split("\n")
         lines.forEachIndexed { lineIndex, line ->
@@ -251,32 +250,32 @@ fun formatAlertMessage(raw: String): AnnotatedString {
             when {
                 trimmed.startsWith("### ") -> {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 16.sp)) {
-                        appendInlineMarkdown(trimmed.removePrefix("### "))
+                        appendInlineMarkdown(trimmed.removePrefix("### "), linkColor)
                     }
                 }
                 trimmed.startsWith("## ") -> {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 18.sp)) {
-                        appendInlineMarkdown(trimmed.removePrefix("## "))
+                        appendInlineMarkdown(trimmed.removePrefix("## "), linkColor)
                     }
                 }
                 trimmed.startsWith("# ") -> {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp)) {
-                        appendInlineMarkdown(trimmed.removePrefix("# "))
+                        appendInlineMarkdown(trimmed.removePrefix("# "), linkColor)
                     }
                 }
                 // Bullet list: - item or * item (but not **bold**)
                 trimmed.startsWith("- ") || (trimmed.startsWith("* ") && !trimmed.startsWith("**")) -> {
                     append("  \u2022 ")
-                    appendInlineMarkdown(trimmed.substringAfter(" ").trimStart())
+                    appendInlineMarkdown(trimmed.substringAfter(" ").trimStart(), linkColor)
                 }
                 // Numbered list: 1. item
                 trimmed.matches(Regex("^\\d+\\.\\s.*")) -> {
                     val num = trimmed.substringBefore(".")
                     append("  $num. ")
-                    appendInlineMarkdown(trimmed.substringAfter(".").trimStart())
+                    appendInlineMarkdown(trimmed.substringAfter(".").trimStart(), linkColor)
                 }
                 else -> {
-                    appendInlineMarkdown(line)
+                    appendInlineMarkdown(line, linkColor)
                 }
             }
         }
@@ -287,7 +286,7 @@ fun formatAlertMessage(raw: String): AnnotatedString {
  * Parses inline markdown: **bold**, *italic*, _italic_, ~~strikethrough~~,
  * `code`, [text](url)
  */
-private fun AnnotatedString.Builder.appendInlineMarkdown(text: String) {
+private fun AnnotatedString.Builder.appendInlineMarkdown(text: String, linkColor: Color) {
     var i = 0
     while (i < text.length) {
         when {
@@ -296,7 +295,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String) {
                 val end = text.indexOf("**", i + 2)
                 if (end >= 0) {
                     withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                        appendInlineMarkdown(text.substring(i + 2, end))
+                        appendInlineMarkdown(text.substring(i + 2, end), linkColor)
                     }
                     i = end + 2
                 } else {
@@ -309,7 +308,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String) {
                 val end = text.indexOf("~~", i + 2)
                 if (end >= 0) {
                     withStyle(SpanStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)) {
-                        appendInlineMarkdown(text.substring(i + 2, end))
+                        appendInlineMarkdown(text.substring(i + 2, end), linkColor)
                     }
                     i = end + 2
                 } else {
@@ -341,7 +340,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String) {
                     if (closeParen >= 0) {
                         val linkText = text.substring(i + 1, closeBracket)
                         withStyle(SpanStyle(
-                            color = Color(0xFF4A9FE5),
+                            color = linkColor,
                             textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
                         )) {
                             append(linkText)
@@ -362,7 +361,7 @@ private fun AnnotatedString.Builder.appendInlineMarkdown(text: String) {
                 val end = text.indexOf(marker, i + 1)
                 if (end >= 0) {
                     withStyle(SpanStyle(fontStyle = FontStyle.Italic)) {
-                        appendInlineMarkdown(text.substring(i + 1, end))
+                        appendInlineMarkdown(text.substring(i + 1, end), linkColor)
                     }
                     i = end + 1
                 } else {
