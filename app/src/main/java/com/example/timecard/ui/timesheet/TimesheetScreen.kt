@@ -101,6 +101,14 @@ import com.example.timecard.ui.theme.RetroAccentTeal
 import com.example.timecard.ui.theme.VT323FontFamily
 import com.example.timecard.ui.theme.doubleBeveledBorder
 import com.example.timecard.kkcnav.KKC_LCARS_NAV_HEIGHT
+import androidx.compose.foundation.layout.ColumnScope
+import com.example.timecard.ui.timesheet.lcars.LcarsClassic
+import com.example.timecard.ui.timesheet.lcars.LcarsClassicFrame
+import com.example.timecard.ui.timesheet.lcars.LcarsPanel
+import com.example.timecard.ui.timesheet.lcars.LcarsPill
+import com.example.timecard.ui.timesheet.lcars.LcarsSaveStatus
+import com.example.timecard.ui.timesheet.lcars.LcarsTimesheetBody
+import com.example.timecard.ui.timesheet.lcars.lcarsWeekNumber
 import com.example.timecard.ui.timesheet.standard.AvatarTile
 import com.example.timecard.ui.timesheet.standard.GridActions
 import com.example.timecard.ui.timesheet.standard.StandardHeader
@@ -167,15 +175,25 @@ fun TimesheetScreen(
 
             if (colors.isLcars) {
                 // ── LCARS full-frame layout ───────────────────────────────────
-                LcarsFrame(
+                // Classic TNG frame (ui/timesheet/lcars/, 2026-11-19 mockup). Tabs still open inline below.
+                val lcarsAnimate = kkcNavBar?.animDisabled != true
+                val lcarsActiveJobs = rememberActiveJobs(repository)
+                val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
+                val rightSpineContent: (@Composable ColumnScope.() -> Unit)? = if (kkcNavBar != null && kkcLandscapeNav) {
+                    { KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim, vertical = true) }
+                } else null
+                val canSwitchWeek = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch
+                LcarsClassicFrame(
                     modifier = Modifier.statusBarsPadding(),
-                    headerContent = {
-                        val namePlaceholderMin = if (isCompact) 100.dp else 120.dp
-                        val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
+                    title = "HOURS • WEEK ${lcarsWeekNumber(uiState.activeWeekDate)}",
+                    headerCode = "02-${employeeId.takeLast(4).uppercase()}",
+                    animate = lcarsAnimate,
+                    subtitle = {
+                        // Reserves the slot the collapsed NameCard chip animates into (the card draws the name).
                         Box(
                             modifier = Modifier
-                                .widthIn(min = namePlaceholderMin)
-                                .height(28.dp)
+                                .widthIn(min = if (isCompact) 100.dp else 120.dp)
+                                .height(24.dp)
                                 .onGloballyPositioned { coords ->
                                     val pos = coords.positionInRoot()
                                     val sz = coords.size
@@ -189,218 +207,58 @@ fun TimesheetScreen(
                                     )
                                 }
                         ) {
-                            Text(
-                                text = nameForMeasure,
-                                fontSize = 18.sp,
-                                maxLines = 1,
-                                softWrap = false,
-                                color = Color.Transparent
-                            )
+                            Text(text = nameForMeasure, fontSize = 18.sp, maxLines = 1, softWrap = false, color = Color.Transparent)
                         }
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        run {
-                            val btnBg = if (uiState.isViewingPrevious) com.example.timecard.ui.theme.LcarsOrange else com.example.timecard.ui.theme.LcarsYellow
-                            val btnText = if (uiState.isViewingPrevious) "CURRENT WEEK" else "PREVIOUS WEEK"
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(Color.Black)
-                                    .clickable(enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch) {
-                                        activeLcarsTab = "timesheet"
-                                        timesheetViewModel.togglePrevWeek()
-                                    }
-                                    .padding(horizontal = 10.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = btnText,
-                                    color = btnBg,
-                                    fontFamily = AntonioFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-
-                        if (launchedByKkc) {
-                            Spacer(modifier = Modifier.width(6.dp).height(28.dp).background(Color.Black))
-                            Box(
-                                modifier = Modifier
-                                    .height(28.dp)
-                                    .background(Color(0xFF99FF66))
-                                    .clickable {
-                                        activity?.finish()
-                                    }
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "← KKC",
-                                    color = Color.Black,
-                                    fontFamily = AntonioFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(6.dp).height(28.dp).background(Color.Black))
-                        }
-
-                        Text(
-                            text = "WEEK OF ${uiState.activeWeekDate}",
-                            color = Color.Black,
-                            fontFamily = AntonioFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(start = 16.dp, end = 8.dp)
-                        )
+                        LcarsSaveStatus(uiState.saveStatus, animate = lcarsAnimate, onSave = { timesheetViewModel.saveData() })
                     },
-                    footerHeight = if (kkcNavBar != null && !kkcLandscapeNav) KKC_LCARS_NAV_HEIGHT else 20.dp,
-                    footerBackground = if (kkcNavBar != null && !kkcLandscapeNav) Color.Black else com.example.timecard.ui.theme.LcarsTan,
-                    footerPadding = if (kkcNavBar != null && !kkcLandscapeNav) 0.dp else 8.dp,
-                    rightSpineContent = if (kkcNavBar != null && kkcLandscapeNav) {
-                        { KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim, vertical = true) }
-                    } else null,
-                    footerContent = {
-                        if (kkcNavBar != null && !kkcLandscapeNav) {
-                            KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim)
-                        } else {
-                            Text(
-                                text = "TIMECARD SYSTEM  //  ${employeeDisplayName.uppercase()}",
-                                color = Color.Black,
-                                fontFamily = AntonioFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
-                        }
-                    },
-                    sidebarContent = {
-                        val btnModifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isCompact) 32.dp else 36.dp)
-
-                        LcarsButton(
-                            onClick = {
-                                if (activeLcarsTab == "stats") {
-                                    activeLcarsTab = "timesheet"
-                                } else {
-                                    statsViewModel.loadStats(com.example.timecard.domain.StatsPeriod.ThisWeek)
-                                    activeLcarsTab = "stats"
+                    panels = listOfNotNull(
+                        // Week switch lives in the side bar (owner: clearer than header pills). Lit = the week shown.
+                        LcarsPanel("01-THIS WEEK", LcarsClassic.Red, height = 70.dp, selected = !uiState.isViewingPrevious) {
+                            activeLcarsTab = "timesheet"
+                            if (uiState.isViewingPrevious && canSwitchWeek) timesheetViewModel.togglePrevWeek()
+                        },
+                        LcarsPanel("02-LAST WEEK", LcarsClassic.Orange, selected = uiState.isViewingPrevious) {
+                            activeLcarsTab = "timesheet"
+                            if (!uiState.isViewingPrevious && canSwitchWeek) timesheetViewModel.togglePrevWeek()
+                        },
+                        LcarsPanel("03-STATS", LcarsClassic.Butter, selected = activeLcarsTab == "stats") {
+                            if (activeLcarsTab == "stats") activeLcarsTab = "timesheet" else {
+                                statsViewModel.loadStats(com.example.timecard.domain.StatsPeriod.ThisWeek)
+                                activeLcarsTab = "stats"
+                            }
+                        },
+                        leaderboardViewModel?.let { vm ->
+                            LcarsPanel("04-BOARD", LcarsClassic.Violet, selected = activeLcarsTab == "leaderboard") {
+                                if (activeLcarsTab == "leaderboard") activeLcarsTab = "timesheet" else {
+                                    vm.load(employees.filter { !it.excluded }, uiState.activeWeekDate, repository)
+                                    activeLcarsTab = "leaderboard"
                                 }
-                            },
-                            label = "STATS",
-                            color = if (activeLcarsTab == "stats") LcarsAnakiwa else LcarsTan,
-                            code = "01",
-                            modifier = btnModifier,
-                            shapeType = LcarsButtonShape.LeftCap
-                        )
-
-                        if (leaderboardViewModel != null) {
-                            LcarsButton(
-                                onClick = {
-                                    if (activeLcarsTab == "leaderboard") {
-                                        activeLcarsTab = "timesheet"
-                                    } else {
-                                        leaderboardViewModel.load(
-                                            employees.filter { !it.excluded },
-                                            uiState.activeWeekDate,
-                                            repository
-                                        )
-                                        activeLcarsTab = "leaderboard"
-                                    }
-                                },
-                                label = "BOARD",
-                                color = if (activeLcarsTab == "leaderboard") LcarsAnakiwa else LcarsPurple,
-                                code = "02",
-                                modifier = btnModifier,
-                                shapeType = LcarsButtonShape.LeftCap
-                            )
-                        }
-
-                        if (challengesViewModel != null) {
-                            LcarsButton(
-                                onClick = {
-                                    activeLcarsTab = if (activeLcarsTab == "challenges") "timesheet" else "challenges"
-                                },
-                                label = "TARGETS",
-                                color = if (activeLcarsTab == "challenges") LcarsAnakiwa else LcarsBlueBell,
-                                code = "03",
-                                modifier = btnModifier,
-                                shapeType = LcarsButtonShape.LeftCap
-                            )
-                        }
-
-                        LcarsButton(
-                            onClick = {
-                                activeLcarsTab = "timesheet"
-                                showCharts = !showCharts
-                            },
-                            label = "CHARTS",
-                            color = if (activeLcarsTab == "timesheet" && showCharts) LcarsAnakiwa else LcarsOrange,
-                            code = "04",
-                            modifier = btnModifier,
-                            shapeType = LcarsButtonShape.LeftCap
-                        )
-
-                        if (shopViewModel != null) {
-                            LcarsButton(
-                                onClick = {
-                                    activeLcarsTab = if (activeLcarsTab == "shop") "timesheet" else "shop"
-                                },
-                                label = "SHOP",
-                                color = if (activeLcarsTab == "shop") LcarsAnakiwa else LcarsYellow,
-                                code = "05",
-                                modifier = btnModifier,
-                                shapeType = LcarsButtonShape.LeftCap
-                            )
-                        }
-
-                        if (profileViewModel != null) {
-                            LcarsButton(
-                                onClick = {
-                                    activeLcarsTab = if (activeLcarsTab == "settings" || activeLcarsTab == "alerts") "timesheet" else "settings"
-                                },
-                                label = "USER",
-                                color = if (activeLcarsTab == "settings" || activeLcarsTab == "alerts") LcarsAnakiwa else LcarsMelrose,
-                                code = "06",
-                                modifier = btnModifier,
-                                shapeType = LcarsButtonShape.LeftCap
-                            )
-                        }
-
-                        val saveColor = when (uiState.saveStatus) {
-                            SaveStatus.SAVED -> Color(0xFF99FF66)
-                            SaveStatus.SYNCING -> LcarsOrange
-                            SaveStatus.ERROR -> LcarsRed
-                        }
-                        val saveLabel = when (uiState.saveStatus) {
-                            SaveStatus.SAVED -> "SAVED"
-                            SaveStatus.SYNCING -> "SYNCING"
-                            SaveStatus.ERROR -> "ERROR"
-                        }
-                        LcarsButton(
-                            onClick = { timesheetViewModel.saveData() },
-                            label = saveLabel,
-                            color = saveColor,
-                            code = "07",
-                            modifier = btnModifier,
-                            shapeType = LcarsButtonShape.LeftCap,
-                            enabled = uiState.saveStatus != SaveStatus.SYNCING
-                        )
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        LcarsButton(
-                            onClick = { timesheetViewModel.logout(); onLogout() },
-                            label = "LOGOUT",
-                            color = LcarsRed,
-                            textColor = Color.White,
-                            code = "08",
-                            modifier = btnModifier,
-                            shapeType = LcarsButtonShape.LeftCap
-                        )
-                    }
+                            }
+                        },
+                        challengesViewModel?.let {
+                            LcarsPanel("05-TARGETS", LcarsClassic.Bluey, selected = activeLcarsTab == "challenges") {
+                                activeLcarsTab = if (activeLcarsTab == "challenges") "timesheet" else "challenges"
+                            }
+                        },
+                        shopViewModel?.let {
+                            LcarsPanel("06-SHOP", LcarsClassic.Barley, selected = activeLcarsTab == "shop") {
+                                activeLcarsTab = if (activeLcarsTab == "shop") "timesheet" else "shop"
+                            }
+                        },
+                        profileViewModel?.let {
+                            LcarsPanel("07-PROFILE", LcarsClassic.Mauve, selected = activeLcarsTab == "settings" || activeLcarsTab == "alerts") {
+                                activeLcarsTab = if (activeLcarsTab == "settings" || activeLcarsTab == "alerts") "timesheet" else "settings"
+                            }
+                        },
+                        if (launchedByKkc) LcarsPanel("08-KKC", LcarsClassic.Lilac) { activity?.finish() } else null,
+                        LcarsPanel("09-LOGOUT", LcarsClassic.Sienna) { timesheetViewModel.logout(); onLogout() }
+                    ),
+                    bottomBand = if (kkcNavBar != null && !kkcLandscapeNav) {
+                        { KkcLcarsNavButtons(payload = kkcNavBar, onNavigate = onKkcNavigate, anim = kkcLcarsAnim) }
+                    } else null,
+                    bottomLabel = "TIMECARD SYSTEM // ${employeeDisplayName.uppercase()}",
+                    rightSpine = rightSpineContent,
+                    entranceDelayMs = if (launchedByKkc) com.example.timecard.ui.timesheet.lcars.LCARS_LAUNCH_FADE_MS else 0
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         // Shop banner
@@ -509,33 +367,27 @@ fun TimesheetScreen(
                                         )
                                     }
                                     else -> {
-                                        if (uiState.isLockedByAnotherUser) {
-                                            Box(
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Text("🔒", fontSize = 64.sp)
-                                                    Spacer(modifier = Modifier.height(16.dp))
-                                                    Text("TIMESHEET LOCKED", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary, fontFamily = AntonioFontFamily, letterSpacing = 2.sp)
-                                                    Spacer(modifier = Modifier.height(16.dp))
-                                                    Text(
-                                                        "If you are seeing this it means the timecard is currently being used by another tablet or has been modified within the last 5 minutes.\n\n" +
-                                                        "If this lock persists try:\n1. Waiting 5 minutes\n2. Syncing your tablet.\n3. Restarting then syncing your tablet.\n\nIf this lock persists tell Winston and he will get it unlocked for you.",
-                                                        fontSize = 16.sp, color = colors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp)
-                                                    )
-                                                }
-                                            }
-                                        } else if (isLandscape) {
-                                            Row(modifier = Modifier.fillMaxSize()) {
-                                                TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(), chartsContent = null, modifier = Modifier.weight(0.66f))
-                                                ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = true, onToggle = {}, showToggle = false, modifier = Modifier.weight(0.34f))
-                                            }
-                                        } else {
-                                            TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(),
-                                                chartsContent = { ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = showCharts, onToggle = { showCharts = !showCharts }) },
-                                                modifier = Modifier.fillMaxSize())
-                                        }
+                                        LcarsTimesheetBody(
+                                            uiState = uiState,
+                                            activeJobs = lcarsActiveJobs,
+                                            canUndo = timesheetViewModel.canUndo(),
+                                            canRedo = timesheetViewModel.canRedo(),
+                                            actions = GridActions(
+                                                onJobChange = timesheetViewModel::setJob,
+                                                onHoursChange = timesheetViewModel::setHours,
+                                                onSnapHours = timesheetViewModel::snapHours,
+                                                onFillShop = timesheetViewModel::fillShopHours,
+                                                onToggleNoLunch = timesheetViewModel::toggleNoLunch,
+                                                onAddRow = {
+                                                    val index = timesheetViewModel.uiState.value.numRows
+                                                    timesheetViewModel.addRow()
+                                                    index
+                                                },
+                                                onUndo = timesheetViewModel::undo,
+                                                onRedo = timesheetViewModel::redo
+                                            ),
+                                            animate = lcarsAnimate
+                                        )
                                     }
                                 }
                             }

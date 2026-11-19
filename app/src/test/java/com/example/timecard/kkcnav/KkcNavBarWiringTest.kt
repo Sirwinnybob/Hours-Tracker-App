@@ -52,7 +52,8 @@ class KkcNavBarWiringTest {
         assertTrue(app.contains("LocalWindowInfo.current.isWindowFocused"))
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
         assertTrue(timesheet.contains("KkcLcarsNavButtons("))
-        assertTrue(timesheet.contains("footerHeight = if (kkcNavBar != null && !kkcLandscapeNav) KKC_LCARS_NAV_HEIGHT"))
+        // LCARS Classic frame: KKC destinations ride the bottom elbow's band in portrait.
+        assertTrue(timesheet.contains("bottomBand = if (kkcNavBar != null && !kkcLandscapeNav)"))
     }
 
     @Test
@@ -100,8 +101,8 @@ class KkcNavBarWiringTest {
     @Test
     fun kkcFallbackButtonsStillFinish() {
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
-        // LCARS keeps its text button; the standard layout keeps an icon back button (KKC-style icon, no emoji).
-        assertTrue(timesheet.contains("text = \"← KKC\""))
+        // LCARS: a coded side panel back to KKC; the standard layout keeps an icon back button (no emoji).
+        assertTrue(timesheet.contains("if (launchedByKkc) LcarsPanel(\"08-KKC\", LcarsClassic.Lilac) { activity?.finish() }"))
         assertTrue(timesheet.contains("showKkcBack = launchedByKkc"))
         assertTrue(timesheet.contains("onKkcBack = { activity?.finish() }"))
         assertTrue(read("java/com/example/timecard/ui/timesheet/standard/StandardHeader.kt").contains("if (showKkcBack)"))

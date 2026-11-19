@@ -91,10 +91,11 @@ class KkcNavRailTest {
     @Test
     fun lcarsMovesTheBlocksIntoARightSpineInLandscape() {
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
-        assertTrue(timesheet.contains("rightSpineContent = if (kkcNavBar != null && kkcLandscapeNav)"))
+        assertTrue(timesheet.contains("= if (kkcNavBar != null && kkcLandscapeNav)"))
         assertTrue(timesheet.contains("anim = kkcLcarsAnim, vertical = true"))
-        val frame = read("java/com/example/timecard/ui/theme/LcarsChrome.kt")
-        assertTrue(frame.contains("if (rightSpineContent != null)"))
+        assertTrue(timesheet.contains("rightSpine = rightSpineContent"))
+        val frame = read("java/com/example/timecard/ui/timesheet/lcars/LcarsClassicFrame.kt")
+        assertTrue(frame.contains("if (rightSpine != null)"))
         val app = read("java/com/example/timecard/TimecardApp.kt")
         assertTrue(app.contains("vertical = kkcLandscapeRail"))
     }

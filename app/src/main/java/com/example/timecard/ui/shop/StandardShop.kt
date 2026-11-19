@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,30 +108,14 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
     val items = shopViewModel.items
     val coins = shopViewModel.userCoins
     val profile = profileViewModel.profile
-    val fullCatalog = profileViewModel.employeeName == "389" // Winston's PIN — full unfiltered catalog (as before)
+    val fullCatalog = isFullCatalog(profileViewModel)
     val claimResult = shopViewModel.limitedClaimResult
     var tab by remember { mutableStateOf<ShopCategory?>(null) }
     var pendingPurchase by remember { mutableStateOf<ShopItem?>(null) }
-    var showSendNote by remember { mutableStateOf(false) }
-    var anonymous by remember { mutableStateOf(false) }
+    var sendNote by remember { mutableStateOf<Boolean?>(null) } // anonymous? (null = closed)
 
-    LaunchedEffect(Unit) { shopViewModel.reloadAndMarkSeen() }
-    LaunchedEffect(claimResult) {
-        if (claimResult != null) {
-            kotlinx.coroutines.delay(4000)
-            shopViewModel.dismissLimitedClaimResult()
-        }
-    }
-    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
-    val previewExpiresAtMs = shopViewModel.previewExpiresAtMs
-    LaunchedEffect(previewExpiresAtMs) {
-        while (previewExpiresAtMs != null && System.currentTimeMillis() < previewExpiresAtMs) {
-            kotlinx.coroutines.delay(500)
-            nowMs = System.currentTimeMillis()
-        }
-        nowMs = System.currentTimeMillis()
-    }
-    val previewSecondsLeft = (((previewExpiresAtMs ?: 0L) - nowMs) / 1000).coerceAtLeast(0).toInt()
+    ShopOpenEffects(shopViewModel)
+    val previewSecondsLeft = rememberPreviewSecondsLeft(shopViewModel)
 
     StandardDialog(
         title = "Shop",
@@ -143,9 +126,9 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
     ) { look ->
         CategoryTabs(look, items, tab) { tab = it }
         if (claimResult != null) {
-            val ok = claimResult.trimStart().startsWith("✅")
+            val (message, ok) = claimResultParts(claimResult)
             Chip(
-                claimResult.replace(Regex("^[^\\p{L}\\p{N}]+"), ""),
+                message,
                 if (ok) look.doneSoft else look.warn.copy(alpha = 0.15f),
                 if (ok) look.doneText else look.warn,
                 icon = if (ok) HoursIcons.Check else HoursIcons.Close
@@ -153,8 +136,7 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
         }
         val card: @Composable (ShopItem, Modifier) -> Unit = { item, mod ->
             val state = shopItemState(item, profile.inventory, coins, shopViewModel.pendingLimitedClaims.containsKey(item.id), fullCatalog)
-            val category = shopCategoryOf(item)
-            val accentKey = if (category == ShopCategory.Themes) ACCENT_UNLOCKS.find { it.third.equals(item.id.trim(), true) }?.first else null
+            val accentKey = shopThemeKey(item)
             ShopCard(
                 look = look,
                 item = item,
@@ -164,7 +146,7 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
                 isCurrentTheme = accentKey != null && profile.accentColor == accentKey,
                 previewActive = shopViewModel.previewItemId == item.id,
                 previewSecondsLeft = previewSecondsLeft,
-                canTry = accentKey != null && state != ShopItemState.Owned && !profile.triedThemes.contains(item.id) && (item.inShop || fullCatalog),
+                canTry = canTryTheme(item, accentKey, state, profile.triedThemes, fullCatalog),
                 onTry = { if (accentKey != null) shopViewModel.tryTheme(item.id, accentKey) },
                 onUse = { if (accentKey != null) profileViewModel.setAccentColor(accentKey) },
                 onBuy = { if (item.inShop || fullCatalog) pendingPurchase = item },
@@ -195,15 +177,7 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
                 PillButton("Cancel", look, { pendingPurchase = null }, Modifier.weight(1f), kind = PillKind.Outlined, height = 48.dp)
                 PillButton(if (limited) "Submit claim" else "Buy", look, {
                     pendingPurchase = null
-                    when {
-                        pending.id == "consumable_send_note" -> { anonymous = false; showSendNote = true }
-                        pending.id == "consumable_send_anonymous_note" -> { anonymous = true; showSendNote = true }
-                        limited -> shopViewModel.purchaseLimitedItem(pending.id)
-                        else -> {
-                            shopViewModel.purchaseItem(pending.id)
-                            ACCENT_UNLOCKS.find { it.third == pending.id }?.first?.let { profileViewModel.setAccentColor(it) }
-                        }
-                    }
+                    completePurchase(pending, shopViewModel, profileViewModel) { sendNote = it }
                 }, Modifier.weight(1f), kind = PillKind.Filled, height = 48.dp)
             }
         ) { look ->
@@ -219,19 +193,7 @@ internal fun StandardShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewMod
         }
     }
 
-    if (showSendNote) {
-        val cost = items.find { it.id == if (anonymous) "consumable_send_anonymous_note" else "consumable_send_note" }?.price ?: if (anonymous) 60 else 30
-        SendNoteDialog(
-            recipients = shopViewModel.recipients,
-            cost = cost,
-            isAnonymousMode = anonymous,
-            onDismiss = { showSendNote = false; anonymous = false },
-            onSend = { folder, msg ->
-                if (anonymous) shopViewModel.sendAnonymousNote(folder, msg, cost) else shopViewModel.sendNote(folder, msg, cost)
-                showSendNote = false; anonymous = false
-            }
-        )
-    }
+    sendNote?.let { anonymous -> ShopSendNote(shopViewModel, anonymous) { sendNote = null } }
 }
 
 @Composable

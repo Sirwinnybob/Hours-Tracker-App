@@ -80,6 +80,11 @@ fun SettingsModal(
         StandardSettingsModal(profileViewModel, actualName, themeState, onDismiss, onNavigateToAlerts, onOpenShop)
         return
     }
+    if (LocalTimecardColors.current.isLcars) {
+        // LCARS Classic profile (LcarsSettings.kt, 2026-11-19 mockup). Retro keeps the layout below.
+        LcarsSettingsModal(profileViewModel, actualName, onDismiss, onNavigateToAlerts, onOpenShop)
+        return
+    }
     val colors = LocalTimecardColors.current
     val profile = profileViewModel.profile
     var displayNameInput by remember(profile.displayName) {

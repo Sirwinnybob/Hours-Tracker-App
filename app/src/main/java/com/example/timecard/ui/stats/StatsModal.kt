@@ -99,31 +99,8 @@ fun StatsModal(
                     com.example.timecard.ui.theme.RetroTitleBar(title = "STATISTICS", onClose = onDismiss)
                 }
                 if (colors.isLcars) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().height(40.dp)
-                            .background(LcarsOrange).padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "STATISTICS",
-                            fontFamily = AntonioFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            letterSpacing = 1.5.sp,
-                            color = Color.Black,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Box(
-                            modifier = Modifier.size(width = 52.dp, height = 26.dp)
-                                .clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(50)))
-                                .background(LcarsRed)
-                                .clickable { onDismiss() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("CLOSE", fontFamily = AntonioFontFamily, fontWeight = FontWeight.Bold, fontSize = 11.sp, letterSpacing = 0.5.sp, color = Color.White)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
+                    com.example.timecard.ui.timesheet.lcars.LcarsScreenHeader("STATISTICS", onClose = { onDismiss() })
+                    Spacer(Modifier.height(10.dp))
                 }
 
                 Column(
@@ -571,7 +548,7 @@ fun StatsModal(
 
                 if (colors.isLcars) {
                     Spacer(Modifier.height(4.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(24.dp).background(LcarsTan))
+                    // Classic frame already closes the screen below; no extra tan strip.
                 }
             }
         }

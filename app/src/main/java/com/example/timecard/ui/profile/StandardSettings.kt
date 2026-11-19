@@ -1,10 +1,6 @@
 package com.example.timecard.ui.profile
 
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -42,7 +38,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -100,22 +95,8 @@ internal fun StandardSettingsModal(
     var displayNameInput by remember(profile.displayName) { mutableStateOf(profile.displayName ?: "") }
     var selectedBadge by remember { mutableStateOf<BadgeDefinition?>(null) }
     val earnedBadges = BadgeEngine.ALL_BADGES.filter { (profile.badges[it.id] ?: 0) > 0 }
-    val avatarBitmap = remember(profileViewModel.avatarImage, profile.avatar) {
-        val bytes = profileViewModel.avatarImage
-        if (profile.avatar == "custom" && bytes != null) BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() else null
-    }
-    val context = LocalContext.current
-    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
-                val original = BitmapFactory.decodeStream(stream) ?: return@use null
-                val scale = minOf(512f / original.width, 512f / original.height, 1f)
-                val scaled = if (scale < 1f) Bitmap.createScaledBitmap(original, (original.width * scale).toInt(), (original.height * scale).toInt(), true) else original
-                java.io.ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.JPEG, 85, it) }.toByteArray()
-            }
-            if (bytes != null) profileViewModel.saveCustomAvatar(bytes)
-        }
-    }
+    val avatarBitmap = rememberAvatarBitmap(profileViewModel)
+    val pickPhoto = rememberAvatarPicker(profileViewModel)
 
     StandardDialog(
         title = name,
@@ -168,9 +149,7 @@ internal fun StandardSettingsModal(
                     if (profile.avatar == "custom") {
                         PillButton("Remove", look, { profileViewModel.clearCustomAvatar() }, kind = PillKind.Outlined, height = 44.dp)
                     }
-                    PillButton("Change photo", look, {
-                        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }, kind = PillKind.Tonal, icon = HoursIcons.Camera, height = 44.dp)
+                    PillButton("Change photo", look, pickPhoto, kind = PillKind.Tonal, icon = HoursIcons.Camera, height = 44.dp)
                 } else {
                     PillButton("Shop", look, onOpenShop, kind = PillKind.Tonal, icon = HoursIcons.Shop, height = 44.dp)
                 }

@@ -202,26 +202,26 @@ val LightHackerBorder = Color(0xFFC0E8C0)
 val LightHackerAccent = Color(0xFF00AA00)
 
 // LCARS Chrome palette — public constants used by LcarsChrome, TimesheetGrid, dialogs, etc.
-val LcarsOrange   = Color(0xFFFF9900)   // atomic-tangerine — primary chrome
-val LcarsTan      = Color(0xFFFFCC99)   // tanoi — secondary chrome
-val LcarsYellow   = Color(0xFFFFFF99)   // pale-canary
-val LcarsRed      = Color(0xFFCC6666)   // chestnut-rose
-val LcarsPurple   = Color(0xFFCC99CC)   // lilac
-val LcarsMelrose  = Color(0xFF9999FF)   // melrose purple
-val LcarsBlueBell = Color(0xFF9999CC)   // blue-bell
-val LcarsAnakiwa  = Color(0xFF99CCFF)   // anakiwa blue
+val LcarsOrange   = Color(0xFFEB943A)   // Classic orange (thelcars.com TNG Classic, 2026-11-19)
+val LcarsTan      = Color(0xFFD29B7F)   // Classic almond — secondary chrome
+val LcarsYellow   = Color(0xFFFCC19F)   // Classic almond-creme — highlight
+val LcarsRed      = Color(0xFFCF4F4F)   // Classic red
+val LcarsPurple   = Color(0xFFC082A9)   // Classic true-mauve
+val LcarsMelrose  = Color(0xFFBAA4E5)   // Classic african-violet
+val LcarsBlueBell = Color(0xFF8A72A7)   // Classic lilac
+val LcarsAnakiwa  = Color(0xFF8899FF)   // Classic bluey — active / selected
 
 // LCARS Theme (Star Trek — terminal aesthetic, orange on black)
 val LcarsBackground = Color(0xFF000000)
 val LcarsBackgroundTo = Color(0xFF0A0400)
-val LcarsSurface = Color(0xFF160A00)
-val LcarsInput = Color(0xFF241200)
-val LcarsTextPrimary = Color(0xFFFF9900)
-val LcarsTextHeading = Color(0xFFFFCC99)
-val LcarsTextSecondary = Color(0xFFCC6600)
-val LcarsTextTotal = Color(0xFFFFCC00)
-val LcarsBorder = Color(0xFF555555)
-val LcarsAccent = Color(0xFFFF9900)
+val LcarsSurface = Color(0xFF0E0B14)
+val LcarsInput = Color(0xFF1A1526)
+val LcarsTextPrimary = Color(0xFFEB943A)
+val LcarsTextHeading = Color(0xFFFCC19F)
+val LcarsTextSecondary = Color(0xFFC47D69)
+val LcarsTextTotal = Color(0xFFEDB378)
+val LcarsBorder = Color(0xFF3A3450)
+val LcarsAccent = Color(0xFFEB943A)
 
 // --- RETRO / 90s WEB THEME ---
 // Win95-era web: sky-blue backdrop with pixel clouds, royal-blue panels, battleship-gray chrome,
@@ -256,11 +256,11 @@ val RetroChartColors = listOf(
 val TableHeaderRetro = Color(0xFF8CCBFF)
 
 val LcarsChartColors = listOf(
-    Color(0xFFFF9900), Color(0xFFCC3333), Color(0xFF9999FF), Color(0xFFFFCC99),
-    Color(0xFF33CCFF), Color(0xFFFFCC00), Color(0xFFFF6600), Color(0xFF99CC33),
-    Color(0xFFFF99CC), Color(0xFF66CCCC)
+    Color(0xFFEB943A), Color(0xFFBAA4E5), Color(0xFF8899FF), Color(0xFFEA9C72),
+    Color(0xFFC082A9), Color(0xFFEDB378), Color(0xFFCF4F4F), Color(0xFF8A72A7),
+    Color(0xFFFCC19F), Color(0xFFC47D69)
 )
-val TableHeaderLcars = Color(0xFF3D1A00)
+val TableHeaderLcars = Color(0xFF3A3450)
 
 // Star Wars Theme (Original Trilogy — deep space, iconic crawl yellow)
 val StarWarsBackground = Color(0xFF05080F)

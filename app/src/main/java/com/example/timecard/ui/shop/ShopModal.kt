@@ -62,6 +62,11 @@ fun ShopModal(
         StandardShopModal(onDismiss, shopViewModel, profileViewModel)
         return
     }
+    if (LocalTimecardColors.current.isLcars) {
+        // LCARS Classic shop (LcarsShop.kt, 2026-11-19 mockup). Retro keeps the layout below.
+        LcarsShopModal(onDismiss, shopViewModel, profileViewModel)
+        return
+    }
     val items = shopViewModel.items
     val userCoins = shopViewModel.userCoins
     val inventory = profileViewModel.profile.inventory
