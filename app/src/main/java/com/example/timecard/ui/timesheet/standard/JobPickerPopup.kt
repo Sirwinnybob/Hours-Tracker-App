@@ -35,6 +35,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -56,13 +57,21 @@ sealed interface JobPick {
     data class Entry(val job: String) : JobPick
     /** The job is already on another row: go there instead of adding a duplicate. */
     data class ExistingRow(val rowIndex: Int) : JobPick
-    data object ToggleDelivery : JobPick
 }
+
+internal fun resolveJobPick(entry: String, delivery: Boolean, jobsOnCard: Map<String, Int>): JobPick {
+    val job = if (delivery && isNumberedJob(entry)) "${entry}D" else entry
+    val existing = jobsOnCard[job.uppercase()]
+    return if (existing == null) JobPick.Entry(job) else JobPick.ExistingRow(existing)
+}
+
+private fun isNumberedJob(entry: String): Boolean =
+    entry.isNotEmpty() && entry.all { it in '0'..'9' }
 
 /**
  * Small popup that opens under a row's job cell. One field: a number matches active Ready Jobs by
  * number first, words match names; anything else can still be used as typed ("not on the floor").
- * Tag chips (Delivery, PTO, Sick, Holiday) replace the old emoji tag bar.
+ * Delivery can be set before choosing a job or toggled on the current numbered job.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -76,8 +85,10 @@ internal fun JobPickerPopup(
     onPick: (JobPick) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val bare = if (JobValidator.isDeliveryJob(currentJob)) currentJob.dropLast(1) else currentJob
+    val currentIsDelivery = JobValidator.isDeliveryJob(currentJob)
+    val bare = if (currentIsDelivery) currentJob.trim().dropLast(1) else currentJob.trim()
     var query by remember { mutableStateOf(bare) }
+    var delivery by remember { mutableStateOf(currentIsDelivery) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
@@ -85,8 +96,7 @@ internal fun JobPickerPopup(
     val trimmed = query.trim()
     val showTyped = trimmed.isNotEmpty() && !ActiveJobs.isExactNumber(trimmed, activeJobs)
     val choose: (String) -> Unit = { entry ->
-        val existing = jobsOnCard[entry.uppercase()]
-        onPick(if (existing != null) JobPick.ExistingRow(existing) else JobPick.Entry(entry))
+        onPick(resolveJobPick(entry, delivery, jobsOnCard))
     }
 
     Popup(
@@ -152,9 +162,27 @@ internal fun JobPickerPopup(
                 }
             }
 
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                TagChip(look, "SHOP", currentJob.equals("SHOP", true)) { choose("SHOP") }
+                TagChip(look, "Delivery", delivery, HoursIcons.Delivery) {
+                    if (trimmed == bare && isNumberedJob(bare)) {
+                        onPick(resolveJobPick(bare, !delivery, jobsOnCard))
+                    } else {
+                        delivery = !delivery
+                    }
+                }
+                if (currentJob.isNotBlank()) {
+                    TagChip(look, "Clear job", false, HoursIcons.Close) { onPick(JobPick.Entry("")) }
+                }
+            }
+
             // Active-job matches
             matches.forEach { job ->
-                val onCard = jobsOnCard.containsKey(job.number.uppercase())
+                val onCard = resolveJobPick(job.number, delivery, jobsOnCard) is JobPick.ExistingRow
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -189,24 +217,6 @@ internal fun JobPickerPopup(
                     Text("not on the floor", color = look.warn, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
-
-            // Quick picks and tags
-            FlowRow(
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                TagChip(look, "SHOP", currentJob.equals("SHOP", true)) { choose("SHOP") }
-                if (currentJob.isNotBlank() && JobValidator.isValidJobEntry(currentJob) && currentJob.firstOrNull()?.isDigit() == true) {
-                    TagChip(look, "Delivery", JobValidator.isDeliveryJob(currentJob), HoursIcons.Delivery) { onPick(JobPick.ToggleDelivery) }
-                }
-                TagChip(look, "PTO", currentJob.equals("PTO", true)) { choose("PTO") }
-                TagChip(look, "Sick", currentJob.equals("SICK", true)) { choose("SICK") }
-                TagChip(look, "Holiday", currentJob.equals("HOLIDAY", true)) { choose("HOLIDAY") }
-                if (currentJob.isNotBlank()) {
-                    TagChip(look, "Clear job", false, HoursIcons.Close) { onPick(JobPick.Entry("")) }
-                }
-            }
         }
     }
 }
@@ -225,6 +235,7 @@ private fun TagChip(
             .clip(PillShape)
             .background(if (active) look.primary else look.soft)
             .clickable(role = Role.Button, onClick = onClick)
+            .semantics { if (active) selected = true }
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)

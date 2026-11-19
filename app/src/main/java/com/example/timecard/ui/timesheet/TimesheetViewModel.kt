@@ -324,18 +324,6 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** Set PTO / SICK / HOLIDAY on a row — replaces job text, or clears if already active. */
-    fun setJobTag(rowIndex: Int, tag: String) {
-        updateState { state ->
-            if (rowIndex >= state.jobs.size) return@updateState state
-            val job = state.jobs[rowIndex]
-            val newJob = if (job.uppercase() == tag.uppercase()) "" else tag.uppercase()
-            val newJobs = state.jobs.toMutableList().also { it[rowIndex] = newJob }
-            scheduleAutosave()
-            state.copy(jobs = newJobs)
-        }
-    }
-
     /** Toggle the no-lunch flag for a day on the SHOP row (+0.5h when not taken). */
     fun toggleNoLunch(dayIndex: Int) {
         updateState { state ->

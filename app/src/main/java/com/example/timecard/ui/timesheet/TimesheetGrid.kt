@@ -68,9 +68,7 @@ import com.example.timecard.ui.components.AnimatedCounter
 import com.example.timecard.ui.theme.AntonioFontFamily
 import com.example.timecard.ui.theme.AccentBlue
 import com.example.timecard.ui.theme.LcarsAnakiwa
-import com.example.timecard.ui.theme.LcarsBlueBell
 import com.example.timecard.ui.theme.LcarsOrange
-import com.example.timecard.ui.theme.LcarsPurple
 import com.example.timecard.ui.theme.LcarsRed
 import com.example.timecard.ui.theme.LcarsTan
 import com.example.timecard.ui.theme.LocalTimecardColors
@@ -108,7 +106,6 @@ fun TimesheetGrid(
     onSnapHours: (Int, Int) -> Unit,
     onAddRow: () -> Unit,
     onDeliveryTag: (Int) -> Unit,
-    onJobTag: (Int, String) -> Unit,
     onToggleNoLunch: (Int) -> Unit,
     onUndo: () -> Unit = {},
     onRedo: () -> Unit = {},
@@ -212,7 +209,6 @@ fun TimesheetGrid(
                             focusManager.clearFocus()
                         },
                         onDeliveryTag = onDeliveryTag,
-                        onJobTag = onJobTag,
                         onToggleNoLunch = onToggleNoLunch
                     )
                 }
@@ -421,7 +417,6 @@ private fun TimesheetRowItem(
     onFocusChange: (Int, Int) -> Unit,
     onFocusClear: () -> Unit,
     onDeliveryTag: (Int) -> Unit,
-    onJobTag: (Int, String) -> Unit,
     onToggleNoLunch: (Int) -> Unit
 ) {
     val colors = LocalTimecardColors.current
@@ -642,9 +637,6 @@ private fun TimesheetRowItem(
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 JobTagChip(label = if (colors.isLcars) "DELIVERY" else "🚚 Delivery", active = isDelivery, activeColor = if (colors.isLcars) LcarsOrange else Color(0xFFDD6B20), colors = colors) { onDeliveryTag(rowIndex) }
-                JobTagChip(label = if (colors.isLcars) "PTO" else "🏖 PTO", active = job.uppercase() == "PTO", activeColor = if (colors.isLcars) LcarsBlueBell else colors.accent, colors = colors) { onJobTag(rowIndex, "PTO") }
-                JobTagChip(label = if (colors.isLcars) "SICK" else "🤒 Sick", active = job.uppercase() == "SICK", activeColor = if (colors.isLcars) LcarsRed else Color(0xFFE53935), colors = colors) { onJobTag(rowIndex, "SICK") }
-                JobTagChip(label = if (colors.isLcars) "HOLIDAY" else "🎉 Holiday", active = job.uppercase() == "HOLIDAY", activeColor = if (colors.isLcars) LcarsPurple else Color(0xFF7B1FA2), colors = colors) { onJobTag(rowIndex, "HOLIDAY") }
                 androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
                 Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(if (colors.isLcars) LcarsOrange.copy(alpha = 0.2f) else colors.hover).clickable { onFocusClear() }, contentAlignment = Alignment.Center) {
                     Text("✕", color = if (colors.isLcars) LcarsOrange else colors.textSecondary, fontSize = 12.sp)

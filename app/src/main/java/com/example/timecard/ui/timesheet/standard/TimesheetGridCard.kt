@@ -70,7 +70,6 @@ internal class GridActions(
     val onSnapHours: (row: Int, day: Int) -> Unit,
     val onFillShop: (day: Int) -> Unit,
     val onToggleNoLunch: (day: Int) -> Unit,
-    val onDeliveryTag: (row: Int) -> Unit,
     /** Appends a row and returns its index. */
     val onAddRow: () -> Int,
     val onUndo: () -> Unit,
@@ -158,10 +157,6 @@ internal fun TimesheetGridCard(
                                         pickerRow = null
                                         if (row == pendingRow && job.isBlank()) pendingRow = null
                                         flashRow = pick.rowIndex
-                                    }
-                                    JobPick.ToggleDelivery -> {
-                                        actions.onDeliveryTag(row)
-                                        pickerRow = null
                                     }
                                 }
                             },
