@@ -95,7 +95,7 @@ fun BadgePopup(
                             modifier = Modifier.size(44.dp).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)))
                         )
                     } else {
-                        Text(def.emoji, fontSize = 36.sp)
+                        com.example.timecard.ui.common.FunEmojiOr(def.emoji, 36) { com.example.timecard.ui.common.FunIconTile(com.example.timecard.ui.common.FunIcons.badge(def.id), size = 48.dp, iconSize = 30.dp, dark = colors.isDark) }
                     }
                     Spacer(Modifier.width(14.dp))
                     Column {

@@ -124,7 +124,11 @@ fun TimecardApp(
     }
     val accentKey = shopViewModel.previewAccentKey ?: profileAccent
 
-    TimecardTheme(themeMode = themeState.mode, accentKey = accentKey) {
+    // No HT theme equipped + launched from KKC → the whole app follows KKC's theme (KkcThemeFollow.kt).
+    val kkcThemeColors = if (kkcNavBarSource(accentKey) == KkcNavBarSource.KkcTheme) {
+        kkcNavBar?.colorsFor(themeState.mode != com.example.timecard.ui.theme.ThemeMode.Light)
+    } else null
+    TimecardTheme(themeMode = themeState.mode, accentKey = accentKey, kkcColors = kkcThemeColors) {
         val tsState by timesheetViewModel.uiState.collectAsStateWithLifecycle()
         val context = LocalContext.current
         val scope = rememberCoroutineScope()

@@ -617,6 +617,9 @@ val ACCENT_UNLOCKS = listOf(
 fun TimecardTheme(
     themeMode: ThemeMode,
     accentKey: String? = null,
+    // KKC's theme colors for HT's effective light/dark, set only when no HT theme is equipped and KKC
+    // launched us (KkcThemeFollow.kt). Null → plain Hours Tracker palette.
+    kkcColors: com.example.timecard.kkcnav.KkcNavBarColors? = null,
     content: @Composable () -> Unit
 ) {
     // Determine base colors from system/user preference
@@ -681,12 +684,17 @@ fun TimecardTheme(
         }
     }
 
+    if (kkcColors != null && accentColorFor(accentKey) == null) {
+        timecardColors = timecardColors.followingKkc(kkcColors)
+        materialColors = materialColors.followingKkc(kkcColors, timecardColors)
+    }
+
     CompositionLocalProvider(LocalTimecardColors provides timecardColors) {
         val typography = when {
             timecardColors.isLcars -> LcarsTypography
             timecardColors.isRetro -> RetroTypography
             timecardColors.isTerminal -> TerminalTypography
-            else -> TimecardTypography
+            else -> KkcInterTypography
         }
     
         MaterialTheme(

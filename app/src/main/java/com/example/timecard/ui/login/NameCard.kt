@@ -516,7 +516,7 @@ fun NameCard(
                     if (!viewModel.isConnected) {
                         TextButton(onClick = { dirPickerLauncher.launch(null) }) {
                             Text(
-                                "📂 Connect Sync Folder",
+                                "Connect sync folder",
                                 color = Color(0xFFA3BFFA),
                                 fontSize = 14.sp
                             )
@@ -527,7 +527,7 @@ fun NameCard(
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(onClick = onReinstallLatest) {
                             Text(
-                                "🔄 Reinstall Latest Debug APK",
+                                "Reinstall latest debug APK",
                                 color = Color(0xFFFF6B6B),
                                 fontSize = 12.sp
                             )

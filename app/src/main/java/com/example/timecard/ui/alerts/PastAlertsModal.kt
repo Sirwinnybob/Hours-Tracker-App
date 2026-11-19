@@ -113,7 +113,7 @@ fun PastAlertsModal(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "\uD83D\uDCCB Past Alerts",
+                            text = if (colors.isRetro) "\uD83D\uDCCB Past Alerts" else "Past alerts",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textHeading,

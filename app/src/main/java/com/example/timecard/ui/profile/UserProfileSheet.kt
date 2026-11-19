@@ -158,7 +158,7 @@ fun UserProfileSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val dailyStreak = entry.currentStreak
-                    val displayDaily = if (colors.isLcars) dailyStreak.toString() else "🔥 $dailyStreak"
+                    val displayDaily = if (!colors.isRetro) dailyStreak.toString() else "🔥 $dailyStreak"
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -194,7 +194,7 @@ fun UserProfileSheet(
                     }
 
                     val weeklyStreak = entry.currentWeeklyStreak
-                    val displayWeekly = if (colors.isLcars) weeklyStreak.toString() else "📆 $weeklyStreak"
+                    val displayWeekly = if (!colors.isRetro) weeklyStreak.toString() else "📆 $weeklyStreak"
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -234,7 +234,7 @@ fun UserProfileSheet(
 
                 // Personal Records
                 Text(
-                    text = if (colors.isLcars) "PERSONAL RECORDS" else "🏅 Personal Records",
+                    text = if (colors.isLcars) "PERSONAL RECORDS" else if (colors.isRetro) "🏅 Personal Records" else "Personal records",
                     fontSize = 15.sp,
                     fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                     fontWeight = FontWeight.Bold,
@@ -306,7 +306,7 @@ fun UserProfileSheet(
                 if (earnedBadges.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = if (colors.isLcars) "BADGES (${earnedBadges.size} EARNED)" else "🏆 Badges (${earnedBadges.size} earned)",
+                        text = if (colors.isLcars) "BADGES (${earnedBadges.size} EARNED)" else if (colors.isRetro) "🏆 Badges (${earnedBadges.size} earned)" else "Badges (${earnedBadges.size} earned)",
                         fontSize = 15.sp,
                         fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,
@@ -359,7 +359,7 @@ fun UserProfileSheet(
                                                 color = LcarsTan
                                             )
                                         } else {
-                                            Text(def.emoji, fontSize = 22.sp)
+                                            com.example.timecard.ui.common.FunEmojiOr(def.emoji, 22) { com.example.timecard.ui.common.FunIconTile(com.example.timecard.ui.common.FunIcons.badge(def.id), size = 36.dp, iconSize = 24.dp, dark = colors.isDark) }
                                         }
                                     }
                                 }
@@ -381,7 +381,7 @@ fun UserProfileSheet(
                 if (entry.purchaseHistory.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
                     Text(
-                        text = if (colors.isLcars) "PURCHASES" else "🛒 Purchases",
+                        text = if (colors.isLcars) "PURCHASES" else if (colors.isRetro) "🛒 Purchases" else "Purchases",
                         fontSize = 15.sp,
                         fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold,

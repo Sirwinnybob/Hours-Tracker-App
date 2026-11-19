@@ -159,6 +159,8 @@ fun TimesheetScreen(
         statsViewModel.initialize(employeeId, repository, timesheetViewModel)
     }
 
+    // Dialogs (Settings, Shop, Stats…) are separate windows; give them the same standard-layout colors.
+    androidx.compose.runtime.CompositionLocalProvider(com.example.timecard.ui.timesheet.standard.LocalStandardLook provides (standardLook ?: currentStandardLook())) {
     NavHost(navController = navController, startDestination = "main", modifier = Modifier.fillMaxSize()) {
         composable("main") {
             val isCompact = remember(screenWidth) { screenWidth < 900 }
@@ -1015,7 +1017,8 @@ fun TimesheetScreen(
                     onNavigateToAlerts = { navController.navigate("alerts") },
                     onOpenShop = { navController.navigate("shop") {
                         popUpTo("settings") { inclusive = true }
-                    } }
+                    } },
+                    themeState = themeState
                 )
             }
         }
@@ -1068,6 +1071,7 @@ fun TimesheetScreen(
     // Alert modal (auto-shown for unacknowledged alerts on launch, not part of regular nav actions)
     if (alertsViewModel.showAlertModal) {
         AlertModal(viewModel = alertsViewModel)
+    }
     }
 }
 

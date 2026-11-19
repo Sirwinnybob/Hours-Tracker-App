@@ -124,7 +124,7 @@ fun AlertModal(viewModel: AlertsViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = if (isPeerNote) "\uD83D\uDCE8 Note from ${alert.sentBy}" else "\u26A0\uFE0F Alert",
+                        text = if (colors.isRetro) { if (isPeerNote) "\uD83D\uDCE8 Note from ${alert.sentBy}" else "\u26A0\uFE0F Alert" } else { if (isPeerNote) "Note from ${alert.sentBy}" else "Alert" },
                         fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
                         color = alertColors.text

@@ -57,6 +57,11 @@ fun ShopModal(
     shopViewModel: ShopViewModel,
     profileViewModel: ProfileViewModel
 ) {
+    if (com.example.timecard.ui.timesheet.standard.isStandardLook()) {
+        // Standard theme: KKC-look shop (StandardShop.kt). LCARS and Retro keep the layout below.
+        StandardShopModal(onDismiss, shopViewModel, profileViewModel)
+        return
+    }
     val items = shopViewModel.items
     val userCoins = shopViewModel.userCoins
     val inventory = profileViewModel.profile.inventory
@@ -932,7 +937,7 @@ fun SendNoteDialog(
                 text = if (colors.isLcars) {
                     if (isAnonymousMode) "SEND ANONYMOUS NOTE" else "SEND NOTE"
                 } else {
-                    if (isAnonymousMode) "✉️ Send Anonymous Note" else "✉️ Send a Note"
+                    if (!LocalTimecardColors.current.isRetro) { if (isAnonymousMode) "Send an anonymous note" else "Send a note" } else { if (isAnonymousMode) "✉️ Send Anonymous Note" else "✉️ Send a Note" }
                 },
                 fontSize = 18.sp,
                 fontFamily = if (colors.isLcars) AntonioFontFamily else null,
@@ -1090,7 +1095,7 @@ fun SendNoteDialog(
                         text = if (colors.isLcars) {
                             if (isAnonymousMode) "SEND ANONYMOUS (${cost} KK)" else "SEND (${cost} KK)"
                         } else {
-                            if (isAnonymousMode) "✉️ Send Anonymous (${cost}c)" else "✉️ Send (${cost}c)"
+                            if (!LocalTimecardColors.current.isRetro) { if (isAnonymousMode) "Send anonymously · $cost KK" else "Send · $cost KK" } else { if (isAnonymousMode) "✉️ Send Anonymous (${cost}c)" else "✉️ Send (${cost}c)" }
                         },
                         fontFamily = if (colors.isLcars) AntonioFontFamily else null,
                         fontWeight = FontWeight.Bold

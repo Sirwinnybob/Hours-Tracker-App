@@ -161,7 +161,7 @@ fun LeaderboardModal(
                 ) {
                 if (!colors.isLcars && !colors.isRetro) {
                     Text(
-                        "🏆 Leaderboard",
+                        "Leaderboard",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
@@ -179,7 +179,7 @@ fun LeaderboardModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     // Tab 0–2: text labels
-                    listOf("Week", "Month", if (isLcars) "Streak" else "🔥 Streak").forEachIndexed { index, label ->
+                    listOf("Week", "Month", if (isLcars || !colors.isRetro) "Streak" else "🔥 Streak").forEachIndexed { index, label ->
                         val selected = tab == index
                         val tabBg = if (isLcars) {
                             if (selected) activeColor else inactiveColors[index % inactiveColors.size]
@@ -262,7 +262,7 @@ fun LeaderboardModal(
                             .padding(horizontal = 6.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            text = if (isLcars) "FEED" else "📰 Feed",
+                            text = if (isLcars) "FEED" else if (colors.isRetro) "📰 Feed" else "Feed",
                             fontSize = 11.sp,
                             fontFamily = if (isLcars) AntonioFontFamily else null,
                             fontWeight = if (isLcars || feedSelected) FontWeight.Bold else FontWeight.Normal,
@@ -369,7 +369,7 @@ fun LeaderboardModal(
                                                 if (event.type == "badge_granted") {
                                                     Spacer(Modifier.width(4.dp))
                                                     Text(
-                                                        "🎁",
+                                                        if (colors.isRetro) "🎁" else "Badge",
                                                         fontSize = 11.sp,
                                                         color = CoinAmber,
                                                         modifier = Modifier
@@ -429,7 +429,7 @@ fun LeaderboardModal(
                             val valueText = when (tab) {
                                 0 -> "${String.format("%.2f", entry.weekHours)} hrs"
                                 1 -> "${String.format("%.2f", entry.monthHours)} hrs"
-                                2 -> "🔥 ${entry.currentStreak} days"
+                                2 -> if (colors.isRetro) "🔥 ${entry.currentStreak} days" else "${entry.currentStreak} days"
                                 else -> null // coins tab uses CoinAmount composable
                             }
 
@@ -540,7 +540,7 @@ fun LeaderboardModal(
                                         .clickable { selectedEntry = entry }
                                         .padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
-                                    Text(rankEmoji, fontSize = 18.sp)
+                                    if (colors.isRetro) Text(rankEmoji, fontSize = 18.sp) else com.example.timecard.ui.common.RankBadge(rank)
                                     Spacer(Modifier.width(8.dp))
 
                                     // Avatar

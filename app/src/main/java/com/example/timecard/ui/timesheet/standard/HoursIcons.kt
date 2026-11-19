@@ -196,7 +196,69 @@ private fun back() = kkcIcon("HoursBack") {
     }
 }
 
+private fun flame() = kkcIcon("HoursFlame") {
+    val body: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit = {
+        moveTo(12f, 22f)
+        curveTo(16f, 22f, 19f, 19f, 19f, 15f)
+        curveTo(19f, 11.5f, 16.5f, 9f, 15f, 6f)
+        curveTo(13.5f, 8f, 12.5f, 9.5f, 12f, 11f)
+        curveTo(11f, 10f, 10.5f, 8.5f, 10.5f, 7f)
+        curveTo(7.5f, 9f, 5f, 12f, 5f, 15f)
+        curveTo(5f, 19f, 8f, 22f, 12f, 22f)
+        close()
+    }
+    solid(DUOTONE, pathBuilder = body)
+    line(pathBuilder = body)
+}
+
+private fun calendar() = kkcIcon("HoursCalendar") {
+    solid(DUOTONE) { roundRect(3f, 5f, 21f, 21f, 2f) }
+    line {
+        roundRect(3f, 5f, 21f, 21f, 2f)
+        moveTo(3f, 10f); horizontalLineTo(21f)
+        moveTo(8f, 3f); verticalLineTo(7f)
+        moveTo(16f, 3f); verticalLineTo(7f)
+    }
+}
+
+private fun bell() = kkcIcon("HoursBell") {
+    val body: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit = {
+        moveTo(6f, 16f); verticalLineTo(11f)
+        arcTo(6f, 6f, 0f, false, true, 18f, 11f)
+        verticalLineTo(16f); lineTo(20f, 18f); horizontalLineTo(4f); lineTo(6f, 16f); close()
+    }
+    solid(DUOTONE, pathBuilder = body)
+    line(pathBuilder = body)
+    line { moveTo(10f, 21f); horizontalLineTo(14f) }
+}
+
+private fun camera() = kkcIcon("HoursCamera") {
+    val body: androidx.compose.ui.graphics.vector.PathBuilder.() -> Unit = {
+        moveTo(3f, 8f); horizontalLineTo(7f); lineTo(9f, 5f); horizontalLineTo(15f); lineTo(17f, 8f); horizontalLineTo(21f)
+        verticalLineTo(19f); horizontalLineTo(3f); close()
+    }
+    solid(DUOTONE, pathBuilder = body)
+    line(pathBuilder = body)
+    line { circle(12f, 13f, 3f) }
+}
+
+private fun lock() = kkcIcon("HoursLock") {
+    solid(DUOTONE) { roundRect(4f, 10f, 20f, 21f, 2f) }
+    line {
+        roundRect(4f, 10f, 20f, 21f, 2f)
+        moveTo(8f, 10f); verticalLineTo(7f)
+        arcTo(4f, 4f, 0f, false, true, 16f, 7f)
+        verticalLineTo(10f)
+    }
+    block { circle(12f, 15.5f, 1.25f) }
+}
+
 object HoursIcons {
+    val Flame: ImageVector by lazy { flame() }
+    val Calendar: ImageVector by lazy { calendar() }
+    val Bell: ImageVector by lazy { bell() }
+    val Camera: ImageVector by lazy { camera() }
+    val Lock: ImageVector by lazy { lock() }
     val Stats: ImageVector by lazy { stats() }
     val Leaderboard: ImageVector by lazy { leaderboard() }
     val Challenges: ImageVector by lazy { challenges() }

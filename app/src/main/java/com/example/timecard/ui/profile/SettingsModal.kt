@@ -72,8 +72,14 @@ fun SettingsModal(
     actualName: String,
     onDismiss: () -> Unit,
     onNavigateToAlerts: () -> Unit,
-    onOpenShop: () -> Unit
+    onOpenShop: () -> Unit,
+    themeState: com.example.timecard.ui.theme.ThemeState? = null
 ) {
+    if (com.example.timecard.ui.timesheet.standard.isStandardLook()) {
+        // Standard theme: KKC-look settings (StandardSettings.kt). LCARS and Retro keep the layout below.
+        StandardSettingsModal(profileViewModel, actualName, themeState, onDismiss, onNavigateToAlerts, onOpenShop)
+        return
+    }
     val colors = LocalTimecardColors.current
     val profile = profileViewModel.profile
     var displayNameInput by remember(profile.displayName) {

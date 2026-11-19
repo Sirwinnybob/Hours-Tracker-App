@@ -139,7 +139,7 @@ fun StatsModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        "\uD83D\uDCCA Statistics",
+                        if (colors.isRetro) "\uD83D\uDCCA Statistics" else "Statistics",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textHeading,
@@ -269,7 +269,7 @@ fun StatsModal(
                         StatCard(
                             "Total Hours",
                             stats.totalHours,
-                            StatsBlue,
+                            if (colors.isRetro) StatsBlue else colors.textTotal,
                             Modifier.weight(1f)
                         ) { String.format("%.2f", it) }
                         
@@ -277,14 +277,14 @@ fun StatsModal(
                         StatCard(
                             "Shop %",
                             shopPct,
-                            StatsPurple,
+                            if (colors.isRetro) StatsPurple else colors.textTotal,
                             Modifier.weight(1f)
                         ) { "${it.toInt()}%" }
                         
                         StatCard(
                             "Jobs",
                             stats.jobMap.size.toDouble(),
-                            StatsGreen,
+                            if (colors.isRetro) StatsGreen else colors.textTotal,
                             Modifier.weight(1f)
                         ) { "${it.toInt()}" }
                         
@@ -293,7 +293,7 @@ fun StatsModal(
                         StatCard(
                             "Avg/Day",
                             avgDaily,
-                            StatsBlue,
+                            if (colors.isRetro) StatsBlue else colors.textTotal,
                             Modifier.weight(1f)
                         ) { String.format("%.2f", it) }
                     }

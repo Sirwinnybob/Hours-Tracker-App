@@ -103,7 +103,7 @@ fun ChallengesModal(
                 ) {
                     if (!colors.isLcars && !colors.isRetro) {
                         Text(
-                            "🎯 Weekly Challenges",
+                            if (colors.isRetro) "🎯 Weekly Challenges" else "Weekly Challenges",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = colors.textPrimary
@@ -214,7 +214,7 @@ private fun ChallengeCard(cp: ChallengeProgress) {
                     .padding(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(cp.challenge.icon, fontSize = 22.sp)
+                    com.example.timecard.ui.common.FunEmojiOr(cp.challenge.icon) { com.example.timecard.ui.common.FunIconTile(com.example.timecard.ui.common.FunIcons.Challenge, size = 40.dp, iconSize = 26.dp, dark = LocalTimecardColors.current.isDark) }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -296,7 +296,7 @@ private fun ChallengeCard(cp: ChallengeProgress) {
                 .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(cp.challenge.icon, fontSize = 22.sp)
+                com.example.timecard.ui.common.FunEmojiOr(cp.challenge.icon) { com.example.timecard.ui.common.FunIconTile(com.example.timecard.ui.common.FunIcons.Challenge, size = 40.dp, iconSize = 26.dp, dark = LocalTimecardColors.current.isDark) }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -313,7 +313,7 @@ private fun ChallengeCard(cp: ChallengeProgress) {
                 }
                 Spacer(Modifier.width(8.dp))
                 if (cp.isComplete) {
-                    Text("✅", fontSize = 20.sp)
+                    if (colors.isRetro) Text("✅", fontSize = 20.sp) else androidx.compose.material3.Icon(com.example.timecard.ui.timesheet.standard.HoursIcons.Check, contentDescription = "Done", tint = colors.textGreen, modifier = Modifier.size(22.dp))
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CoinIcon(size = 14.dp)
