@@ -14,7 +14,10 @@ class WeekNavigationWiringTest {
         assertEquals(3, Regex("timesheetViewModel\\.togglePrevWeek\\(\\)").findAll(source).count())
         assertTrue(source.contains("PREVIOUS WEEK"))
         assertTrue(source.contains("PREV WEEK"))
-        assertTrue(source.contains("Previous week"))
-        assertTrue(source.contains("containerColor = colors.hover"))
+        // Standard layout: This week / Last week segmented switch, gated only on load/save state.
+        assertTrue(source.contains("onToggleWeek = { timesheetViewModel.togglePrevWeek() }"))
+        assertTrue(source.contains("canSwitchWeek = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch"))
+        val header = SourceFiles.mainSource("com/example/timecard/ui/timesheet/standard/StandardHeader.kt").readText()
+        assertTrue(header.contains("\"This week\" to false, \"Last week\" to true"))
     }
 }

@@ -101,6 +101,14 @@ import com.example.timecard.ui.theme.RetroAccentTeal
 import com.example.timecard.ui.theme.VT323FontFamily
 import com.example.timecard.ui.theme.doubleBeveledBorder
 import com.example.timecard.kkcnav.KKC_LCARS_NAV_HEIGHT
+import com.example.timecard.ui.timesheet.standard.AvatarTile
+import com.example.timecard.ui.timesheet.standard.GridActions
+import com.example.timecard.ui.timesheet.standard.StandardHeader
+import com.example.timecard.ui.timesheet.standard.StandardLockedNotice
+import com.example.timecard.ui.timesheet.standard.StandardTimesheetBody
+import com.example.timecard.ui.timesheet.standard.currentStandardLook
+import com.example.timecard.ui.timesheet.standard.rememberActiveJobs
+import com.example.timecard.ui.timesheet.standard.weekOfLabel
 import com.example.timecard.kkcnav.KkcLcarsNavButtons
 
 @Composable
@@ -128,6 +136,8 @@ fun TimesheetScreen(
     // the glass rail (kkcnav/KkcNavRail.kt; background still runs full width under the glass), LCARS
     // puts the destination blocks in a right spine, Retro docks its taskbar on the right edge.
     kkcLandscapeNav: Boolean = false,
+    // Colors for the standard layout (ui/timesheet/standard/StandardLook.kt); null → current HT theme.
+    standardLook: com.example.timecard.ui.timesheet.standard.StandardLook? = null,
     onKkcNavigate: (String) -> Unit = {},
     kkcLcarsAnim: com.example.timecard.kkcnav.KkcLcarsBlockAnim = com.example.timecard.kkcnav.KkcLcarsBlockAnim.None
 ) {
@@ -889,140 +899,95 @@ fun TimesheetScreen(
                     }
                 }
             } else {
-                // ── Standard layout (unchanged) ───────────────────────────────
+                // ── Standard layout: KKC look (ui/timesheet/standard/) ─────────────────────
+                val look = standardLook ?: currentStandardLook()
+                val activeJobs = rememberActiveJobs(repository)
+                val newShopItems = shopViewModel?.newSpecialItems ?: emptyList()
+                val shopLabel = when {
+                    newShopItems.isEmpty() -> null
+                    newShopItems.size == 1 -> "New: ${newShopItems.first().title}"
+                    else -> "${newShopItems.size} new in the Shop"
+                }
+                val openStats = { statsViewModel.loadStats(StatsPeriod.ThisWeek); navController.navigate("stats") }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(colors.backgroundBrush)
+                        .background(look.background)
                         .statusBarsPadding()
                         .padding(end = if (kkcLandscapeNav) com.example.timecard.kkcnav.KkcLandscapeRailClearance else 0.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        val btnHeight = 40.dp
-                        val btnFontSize = if (isCompact) 11.sp else 13.sp
-                        val btnSpacing = if (isCompact) 4.dp else 6.dp
-                        val btnPaddingH = if (isCompact) 10.dp else 14.dp
-                        val namePlaceholderMin = if (isCompact) 120.dp else 140.dp
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(colors.surface)
-                                .padding(horizontal = if (isCompact) 6.dp else 10.dp, vertical = 8.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                Box(
-                                    modifier = Modifier
-                                        .widthIn(min = namePlaceholderMin)
-                                        .height(40.dp)
-                                        .onGloballyPositioned { coords ->
-                                            val pos = coords.positionInRoot()
-                                            val sz = coords.size
-                                            onNameMeasured?.invoke(com.example.timecard.ui.login.HeaderMetrics(x = pos.x, centerY = pos.y + sz.height / 2f, widthPx = sz.width.toFloat(), heightPx = sz.height.toFloat()))
-                                        }
-                                ) {
-                                    val nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName
-                                    Text(text = nameForMeasure, fontSize = 18.sp, maxLines = 1, softWrap = false, color = Color.Transparent, modifier = Modifier)
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Column {
-                                    Text(text = "Week of ${uiState.activeWeekDate}", fontSize = if (isCompact) 10.sp else 12.sp, color = colors.textSecondary)
-                                    run {
-                                        Spacer(modifier = Modifier.height(2.dp))
-                                        Button(
-                                            onClick = { timesheetViewModel.togglePrevWeek() },
-                                            enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch,
-                                            colors = ButtonDefaults.buttonColors(containerColor = colors.hover, contentColor = colors.textPrimary),
-                                            shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(6.dp)),
-                                            contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 10.dp, vertical = 0.dp),
-                                            modifier = Modifier.height(if (isCompact) 24.dp else 28.dp)
-                                        ) {
-                                            Text(text = if (uiState.isViewingPrevious) "Current week" else "Previous week", fontSize = if (isCompact) 9.sp else 11.sp, fontWeight = FontWeight.SemiBold)
-                                        }
-                                    }
-                                }
-                            }
-                            Row(horizontalArrangement = Arrangement.spacedBy(btnSpacing), verticalAlignment = Alignment.CenterVertically) {
-                                if (launchedByKkc) {
-                                    Button(onClick = { activity?.finish() }, colors = ButtonDefaults.buttonColors(containerColor = colors.accent), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
-                                        Text("← KKC", color = Color.White, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                                Button(onClick = { statsViewModel.loadStats(StatsPeriod.ThisWeek); navController.navigate("stats") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
-                                    Text("STATS", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
-                                }
-                                SaveButton(status = uiState.saveStatus, onClick = { timesheetViewModel.saveData() }, isCompact = isCompact)
-                                Button(onClick = { timesheetViewModel.logout(); onLogout() }, colors = ButtonDefaults.buttonColors(containerColor = colors.surface), border = androidx.compose.foundation.BorderStroke(1.dp, colors.textOrange), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = if (isCompact) 20.dp else 30.dp)) {
-                                    Text("LOGOUT", color = colors.textOrange, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
-                                }
-                                if (leaderboardViewModel != null) {
-                                    Button(onClick = { leaderboardViewModel.load(employees.filter { !it.excluded }, uiState.activeWeekDate, repository); navController.navigate("leaderboard") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
-                                        Text("🏆", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                                if (challengesViewModel != null) {
-                                    Button(onClick = { navController.navigate("challenges") }, colors = ButtonDefaults.buttonColors(containerColor = colors.hover), shape = com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp)), modifier = Modifier.height(btnHeight), contentPadding = PaddingValues(horizontal = btnPaddingH)) {
-                                        Text("🎯", color = colors.textPrimary, fontSize = btnFontSize, fontWeight = FontWeight.Bold)
-                                    }
-                                }
+                    com.example.timecard.ui.timesheet.standard.StandardText { Column(modifier = Modifier.fillMaxSize()) {
+                        StandardHeader(
+                            look = look,
+                            nameForMeasure = profileViewModel?.profile?.displayName ?: employeeDisplayName,
+                            weekLabel = weekOfLabel(uiState.activeWeekDate),
+                            isViewingPrevious = uiState.isViewingPrevious,
+                            canSwitchWeek = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch,
+                            onToggleWeek = { timesheetViewModel.togglePrevWeek() },
+                            saveStatus = uiState.saveStatus,
+                            onSave = { timesheetViewModel.saveData() },
+                            onStats = openStats,
+                            onLeaderboard = leaderboardViewModel?.let { vm ->
+                                { vm.load(employees.filter { !it.excluded }, uiState.activeWeekDate, repository); navController.navigate("leaderboard") }
+                            },
+                            onChallenges = challengesViewModel?.let { { navController.navigate("challenges") } },
+                            onLogout = { timesheetViewModel.logout(); onLogout() },
+                            themeState = themeState,
+                            showKkcBack = launchedByKkc,
+                            onKkcBack = { activity?.finish() },
+                            avatar = {
                                 if (profileViewModel != null) {
-                                    val streak = profileViewModel.profile.streaks.currentDaily
-                                    val avatar = profileViewModel.profile.avatar
+                                    val profile = profileViewModel.profile
                                     val avatarImage = profileViewModel.avatarImage
-                                    Box(modifier = Modifier.size(btnHeight).clip(com.example.timecard.ui.theme.timecardShape(RoundedCornerShape(8.dp))).clickable { navController.navigate("settings") }, contentAlignment = Alignment.Center) {
-                                        if (avatar == "custom" && avatarImage != null) {
-                                            val bitmap = remember(avatarImage) { BitmapFactory.decodeByteArray(avatarImage, 0, avatarImage.size)?.asImageBitmap() }
-                                            if (bitmap != null) {
-                                                Image(bitmap = bitmap, contentDescription = "Profile", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                                            } else {
-                                                com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeDisplayName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
-                                            }
-                                        } else {
-                                            com.example.timecard.ui.components.InitialsAvatar(name = profileViewModel.profile.displayName ?: employeeDisplayName, size = btnHeight, fontSize = if (isCompact) 18.sp else 22.sp, bgColor = colors.hover)
+                                    AvatarTile(look, profile.streaks.currentDaily, onClick = { navController.navigate("settings") }) {
+                                        val bitmap = remember(avatarImage, profile.avatar) {
+                                            if (profile.avatar == "custom" && avatarImage != null) {
+                                                BitmapFactory.decodeByteArray(avatarImage, 0, avatarImage.size)?.asImageBitmap()
+                                            } else null
                                         }
-                                        val badgeText = if (streak >= 3) "🔥$streak" else "⭐"
-                                        Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color.Black.copy(alpha = 0.5f)).padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
-                                            Text(text = badgeText, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        if (bitmap != null) {
+                                            Image(bitmap = bitmap, contentDescription = "Profile", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                                        } else {
+                                            com.example.timecard.ui.components.InitialsAvatar(name = profile.displayName ?: employeeDisplayName, size = 44.dp, fontSize = 18.sp, bgColor = look.soft)
                                         }
                                     }
                                 }
-                                ThemeToggle(themeState = themeState, size = btnHeight)
-                            }
-                        }
-
-                        // Shop banner
-                        val newShopItems = shopViewModel?.newSpecialItems ?: emptyList()
-                        AnimatedVisibility(visible = newShopItems.isNotEmpty(), enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(), exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()) {
-                            Row(modifier = Modifier.fillMaxWidth().background(Color(0xFFD4AC0D)).padding(horizontal = 12.dp, vertical = 6.dp).clickable { navController.navigate("shop") }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                val bannerText = if (newShopItems.size == 1) "✨ New in the Shop: ${newShopItems.first().title}" else "✨ ${newShopItems.size} new items in the Shop!"
-                                Text(text = bannerText, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = if (isCompact) 11.sp else 13.sp, modifier = Modifier.weight(1f))
-                                Text(text = "Visit Shop →", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = if (isCompact) 11.sp else 13.sp, modifier = Modifier.padding(start = 8.dp))
-                            }
-                        }
-
-                        // Content
+                            },
+                            onNameMeasured = onNameMeasured
+                        )
                         if (uiState.isLockedByAnotherUser) {
-                            Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🔒", fontSize = 64.sp)
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text("Timesheet Locked", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text("If you are seeing this it means the timecard is currently being used by another tablet or has been modified within the last 5 minutes.\n\nIf this lock persists try:\n1. Waiting 5 minutes\n2. Syncing your tablet.\n3. Restarting then syncing your tablet.\n\nIf this lock persists tell Winston and he will get it unlocked for you.", fontSize = 16.sp, color = colors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
-                                }
-                            }
-                        } else if (isLandscape) {
-                            Row(modifier = Modifier.fillMaxSize().weight(1f)) {
-                                TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onJobTag = timesheetViewModel::setJobTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(), chartsContent = null, modifier = Modifier.weight(0.66f))
-                                ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = true, onToggle = {}, showToggle = false, modifier = Modifier.weight(0.34f))
-                            }
+                            StandardLockedNotice(look, Modifier.weight(1f))
                         } else {
-                            TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onJobTag = timesheetViewModel::setJobTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(),
-                                chartsContent = { ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = showCharts, onToggle = { showCharts = !showCharts }) },
-                                modifier = Modifier.weight(1f))
+                            StandardTimesheetBody(
+                                look = look,
+                                uiState = uiState,
+                                activeJobs = activeJobs,
+                                canUndo = timesheetViewModel.canUndo(),
+                                canRedo = timesheetViewModel.canRedo(),
+                                actions = GridActions(
+                                    onJobChange = timesheetViewModel::setJob,
+                                    onHoursChange = timesheetViewModel::setHours,
+                                    onSnapHours = timesheetViewModel::snapHours,
+                                    onFillShop = timesheetViewModel::fillShopHours,
+                                    onToggleNoLunch = timesheetViewModel::toggleNoLunch,
+                                    onDeliveryTag = timesheetViewModel::toggleDeliveryTag,
+                                    onAddRow = {
+                                        val index = timesheetViewModel.uiState.value.numRows
+                                        timesheetViewModel.addRow()
+                                        index
+                                    },
+                                    onUndo = timesheetViewModel::undo,
+                                    onRedo = timesheetViewModel::redo
+                                ),
+                                shopLabel = shopLabel,
+                                onShop = { navController.navigate("shop") },
+                                onStats = openStats,
+                                // The KKC glass bar floats over the bottom in portrait; leave room to scroll past it.
+                                bottomPadding = if (launchedByKkc && !kkcLandscapeNav) 112.dp else 24.dp,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                    }
+                    } }
                 }
             }
         } // end of main composable

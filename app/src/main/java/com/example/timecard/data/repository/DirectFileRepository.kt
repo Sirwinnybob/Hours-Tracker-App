@@ -532,6 +532,16 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         }
     }
 
+    override fun listReadyJobFolders(): List<String> = try {
+        baseDir.parentFile
+            ?.listFiles { f -> f.isDirectory && !f.name.startsWith(".") }
+            ?.map { it.name }
+            ?: emptyList()
+    } catch (e: Exception) {
+        Log.e("DirectFileRepo", "Error listing Ready Jobs folders", e)
+        emptyList()
+    }
+
     private fun atomicRename(from: File, to: File): Boolean {
         val fromPath = from.toPath()
         val toPath = to.toPath()

@@ -99,7 +99,12 @@ class KkcNavBarWiringTest {
 
     @Test
     fun kkcFallbackButtonsStillFinish() {
-        assertTrue(read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt").contains("Text(\"← KKC\""))
+        val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
+        // LCARS keeps its text button; the standard layout keeps an icon back button (KKC-style icon, no emoji).
+        assertTrue(timesheet.contains("text = \"← KKC\""))
+        assertTrue(timesheet.contains("showKkcBack = launchedByKkc"))
+        assertTrue(timesheet.contains("onKkcBack = { activity?.finish() }"))
+        assertTrue(read("java/com/example/timecard/ui/timesheet/standard/StandardHeader.kt").contains("if (showKkcBack)"))
         assertTrue(read("java/com/example/timecard/ui/login/NameCard.kt").contains("onClick = { activity?.finish() }"))
     }
 }

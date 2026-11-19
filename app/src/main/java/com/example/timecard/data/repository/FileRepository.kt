@@ -55,4 +55,10 @@ interface FileRepository {
     fun loadGlobalDirFiles(subdirectory: String, filenames: List<String>): Map<String, String?>
     /** Lists filenames directly inside [subdirectory]/ under the shared root. */
     fun listGlobalDir(subdirectory: String): List<String>
+    /**
+     * Read-only: folder names in the Ready Jobs root (the parent of `.time_cards`), one per job on the
+     * floor ("725 - WIECHERT 34 CHURCHVIEW"). Empty when the root can't be reached (SAF grants only
+     * `.time_cards`); the job picker then still accepts any typed job number.
+     */
+    fun listReadyJobFolders(): List<String> = emptyList()
 }

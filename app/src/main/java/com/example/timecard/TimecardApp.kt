@@ -24,6 +24,7 @@ import com.example.timecard.kkcnav.KkcLcarsNavBand
 import com.example.timecard.kkcnav.KkcRetroNavBar
 import com.example.timecard.kkcnav.KkcNavBar
 import com.example.timecard.kkcnav.KkcNavBarPayload
+import com.example.timecard.ui.timesheet.standard.standardLookSource
 import com.example.timecard.kkcnav.KkcNavBarSource
 import com.example.timecard.kkcnav.KkcReturnNavigation
 import com.example.timecard.kkcnav.kkcNavBarSource
@@ -417,6 +418,13 @@ fun TimecardApp(
                         kkcNavBar = if (kkcNavSource == KkcNavBarSource.Lcars && kkcShownLcars) kkcNavBar else null,
                         kkcRetroNavBar = if (kkcIsRetro) kkcNavBar else null,
                         kkcLandscapeNav = kkcLandscapeRail,
+                        // Standard layout colors: KKC's theme when no HT theme is equipped (same rule as the navbar).
+                        standardLook = standardLookSource(
+                            followKkcTheme = kkcNavSource == KkcNavBarSource.KkcTheme,
+                            kkcColors = kkcNavBar?.colorsFor(colors.isDark),
+                            darkTheme = colors.isDark,
+                            ht = colors
+                        ),
                         onKkcNavigate = kkcOnNavigate,
                         kkcLcarsAnim = kkcLcarsAnimNow,
                         timesheetViewModel = timesheetViewModel,

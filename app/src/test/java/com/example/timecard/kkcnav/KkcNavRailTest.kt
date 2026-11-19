@@ -69,7 +69,8 @@ class KkcNavRailTest {
     fun timesheetLeavesRoomOnTheRightButPaintsTheBackgroundUnderTheRail() {
         val timesheet = read("java/com/example/timecard/ui/timesheet/TimesheetScreen.kt")
         val padded = Regex(
-            "\\.background\\(colors\\.backgroundBrush\\)\\s*\\.statusBarsPadding\\(\\)\\s*" +
+            // Standard layout paints its KKC-look background (StandardLook) under the rail, then pads.
+            "\\.background\\(look\\.background\\)\\s*\\.statusBarsPadding\\(\\)\\s*" +
                 "\\.padding\\(end = if \\(kkcLandscapeNav\\) com\\.example\\.timecard\\.kkcnav\\.KkcLandscapeRailClearance else 0\\.dp\\)"
         )
         assertTrue(padded.containsMatchIn(timesheet))
