@@ -28,6 +28,10 @@ data class RunningStats(
     @SerializedName("saturdayWeeksCount") val saturdayWeeksCount: Int = 0,
     @SerializedName("alertsAcknowledged") val alertsAcknowledged: Int = 0,
     @SerializedName("processedWeeks") val processedWeeks: List<String> = emptyList(),
+    /** Shop hours each week has added to [totalShopHours], so later saves add only the difference. */
+    @SerializedName("weekShopHours") val weekShopHours: Map<String, Double> = emptyMap(),
+    /** Weeks counted in [saturdayWeeksCount] (a Saturday logged after the first save still counts). */
+    @SerializedName("saturdayWeeks") val saturdayWeeks: List<String> = emptyList(),
     /** Set to true after one-time historical backfill completes. */
     @SerializedName("backfillComplete") val backfillComplete: Boolean = false
 )
@@ -50,6 +54,8 @@ data class PlayerProfile(
     @SerializedName("records") val records: RecordData = RecordData(),
     @SerializedName("runningStats") val runningStats: RunningStats = RunningStats(),
     @SerializedName("grantedBadges") val grantedBadges: List<String> = emptyList(),
+    /** Coins each admin grant actually paid (badge id to coins), so a revoke takes back exactly that. */
+    @SerializedName("grantedBadgeCoins") val grantedBadgeCoins: Map<String, Int> = emptyMap(),
     @SerializedName("coinLog") val coinLog: Map<String, CoinLogEntry> = emptyMap(),
     @SerializedName("inventory") val inventory: List<String> = emptyList(),
     // Tracks which bonuses/badges were already awarded per week (weekStarting → bonusId → count).

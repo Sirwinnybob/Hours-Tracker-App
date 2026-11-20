@@ -61,12 +61,23 @@ class AlertsViewModel : ViewModel() {
 
     var onAcknowledged: (() -> Unit)? = null
 
+    /** True while an acknowledgement is being saved (the button is disabled: a double tap paid twice). */
+    var isAcknowledging by mutableStateOf(false)
+        private set
+
+    /** Shown in the alert when the acknowledgement couldn't be saved (nothing was paid; try again). */
+    var acknowledgeError by mutableStateOf<String?>(null)
+        private set
+
     fun acknowledgeCurrentAlert() {
+        if (isAcknowledging) return
         val current = currentAlert ?: return
         val repo = repository ?: return
-        
+        isAcknowledging = true
+        acknowledgeError = null
+
         val responseText = alertResponse.trim().ifEmpty { null }
-        
+
         viewModelScope.launch(Dispatchers.IO) {
             // Read our profile to get display name
             val myProfileRaw = repo.loadGenericJSON(employeeName, "profile.json", useCache = true)
@@ -87,8 +98,16 @@ class AlertsViewModel : ViewModel() {
             )
 
             // A. Save locally (Seen Flag)
-            saveAcknowledgementLocally(ackRecord)
-            
+            val saved = saveAcknowledgementLocally(ackRecord)
+            if (saved == AckSave.FAILED) {
+                withContext(Dispatchers.Main) {
+                    // Not saved: don't pay and keep the alert up so it can be acknowledged again.
+                    acknowledgeError = "Couldn't save your acknowledgement. Please try again."
+                    isAcknowledging = false
+                }
+                return@launch
+            }
+
             // B. If it's a note with a sender, save reply in SENDER'S folder
             val senderFold = current.senderFolder
             if (senderFold != null && responseText != null) {
@@ -96,11 +115,13 @@ class AlertsViewModel : ViewModel() {
             }
 
             withContext(Dispatchers.Main) {
-                onAcknowledged?.invoke()
+                // Pay once per alert: an alert that was already acknowledged earns nothing again.
+                if (saved == AckSave.NEW) onAcknowledged?.invoke()
+                isAcknowledging = false
                 alertResponse = ""
                 // Refresh local state immediately
                 refreshAlerts()
-                
+
                 alertQueueIndex++
                 if (alertQueueIndex >= alertQueue.size) {
                     showAlertModal = false
@@ -309,15 +330,18 @@ class AlertsViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun allowAlertsToDisplay() {
         permissionsGrantedToShow = true
         refreshAlerts()
     }
 
-    private fun saveAcknowledgementLocally(ack: Acknowledgement) {
-        val repo = repository ?: return
-        try {
+    private enum class AckSave { NEW, ALREADY, FAILED }
+
+    /** Saves the seen flag; NEW the first time, ALREADY if this alert was acknowledged before, FAILED if not saved. */
+    private fun saveAcknowledgementLocally(ack: Acknowledgement): AckSave {
+        val repo = repository ?: return AckSave.FAILED
+        return try {
             // profile.json.lock (held by ProfileViewModel) is the session lock —
             // only one tablet is active per employee at a time, so no separate lock needed here.
             val raw = repo.loadGenericJSON(employeeName, "acknowledgements.json", useCache = false)
@@ -333,9 +357,15 @@ class AlertsViewModel : ViewModel() {
                 updatedAcks.add(ack)
             }
 
-            repo.saveGenericJSON(employeeName, "acknowledgements.json", gson.toJson(AcksFile(updatedAcks)))
+            val result = repo.saveGenericJSON(employeeName, "acknowledgements.json", gson.toJson(AcksFile(updatedAcks)))
+            when {
+                result != "SUCCESS" -> AckSave.FAILED
+                existingIndex >= 0 -> AckSave.ALREADY
+                else -> AckSave.NEW
+            }
         } catch (e: Exception) {
             Log.e("AlertsVM", "Local ack save error", e)
+            AckSave.FAILED
         }
     }
 

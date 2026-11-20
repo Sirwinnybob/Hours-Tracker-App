@@ -14,6 +14,12 @@ interface FileRepository {
     fun saveAcknowledgements(name: String, json: String): String
     fun loadEmployeeList(): String?
     fun loadGenericJSON(name: String, filename: String, useCache: Boolean = true): String?
+    /**
+     * Whether [filename] exists in [name]'s folder: true / false, or null when storage couldn't be
+     * checked. Lets callers tell "file missing" (start fresh) from "file there but unreadable"
+     * (never overwrite it). Default false keeps the old "null means missing" behavior for fakes.
+     */
+    fun employeeFileExists(name: String, filename: String): Boolean? = false
     fun saveGenericJSON(name: String, filename: String, json: String): String
     fun getAvailableDates(name: String): List<String>
     /** Load a file from the root of the shared folder (not employee-specific). */

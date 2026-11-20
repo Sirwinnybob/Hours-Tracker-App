@@ -14,6 +14,7 @@ import com.example.timecard.data.repository.FileRepository
 import com.example.timecard.domain.BadgeDefinition
 import com.example.timecard.domain.BadgeEngine
 import com.example.timecard.domain.ChallengeEngine
+import com.example.timecard.domain.applyGrantChanges
 import com.example.timecard.domain.GamificationEngine
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -36,6 +37,16 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     /** Employee id whose profile.json has been loaded into [profile]; null until then / after logout. */
     var loadedProfileFor by mutableStateOf<String?>(null)
         private set
+
+    /**
+     * True when profile.json exists but couldn't be read or parsed. Nothing is saved while this is
+     * set: writing the blank fallback would wipe the employee's coins, inventory and badges.
+     */
+    var profileLoadFailed by mutableStateOf(false)
+        private set
+
+    /** Completes once this login's profile has loaded; rewards wait on it (cancelled on logout). */
+    private var profileReady = kotlinx.coroutines.CompletableDeferred<Unit>()
 
     /** Badge images loaded from server: badge ID → raw PNG/JPG bytes. */
     var badgeImages by mutableStateOf<Map<String, ByteArray>>(emptyMap())
@@ -97,6 +108,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         if (employeeName == id && repo == repository) return
         employeeName = id
         repository = repo
+        profileReady.cancel()
+        profileReady = kotlinx.coroutines.CompletableDeferred()
+        profileLoadFailed = false
         viewModelScope.launch {
             loadBadgesConfig(repo)
             loadProfile()
@@ -110,8 +124,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     fun logout() {
         lockRenewJob?.cancel()
         if (employeeName.isNotEmpty()) {
-            repository?.releaseLock(employeeName, "profile", deviceId)
+            val repo = repository
+            val name = employeeName
+            viewModelScope.launch(Dispatchers.IO) { repo?.releaseLock(name, "profile", deviceId) }
         }
+        profileReady.cancel()
+        profileReady = kotlinx.coroutines.CompletableDeferred()
+        profileLoadFailed = false
         profile = PlayerProfile()
         loadedProfileFor = null
         employeeName = ""
@@ -212,11 +231,15 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onAlertAcknowledged() {
-        val newStats = profile.runningStats.copy(
-            alertsAcknowledged = profile.runningStats.alertsAcknowledged + 1
-        )
-        val updated = profile.copy(runningStats = newStats)
-        applyCoins(updated, 5)
+        viewModelScope.launch {
+            // Wait for this login's profile: rewarding the blank pre-load profile would save it over the real one.
+            try { profileReady.await() } catch (_: kotlinx.coroutines.CancellationException) { return@launch }
+            val newStats = profile.runningStats.copy(
+                alertsAcknowledged = profile.runningStats.alertsAcknowledged + 1
+            )
+            val updated = profile.copy(runningStats = newStats)
+            applyCoins(updated, 5)
+        }
     }
 
     /**
@@ -229,7 +252,10 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     ) {
         viewModelScope.launch {
             try {
+                profileReady.await() // never compute rewards on the blank pre-load profile
                 processTimecardSave(weekData, allAvailableDates)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("ProfileVM", "Error processing save", e)
             }
@@ -249,17 +275,18 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
 
         // Load month weeks for best-month record calculation
         val currentMonth = weekData.weekStarting.substring(0, 7)
-        val monthWeeks = mutableListOf(weekData)
-        allAvailableDates.filter { it.startsWith(currentMonth) && it != weekData.weekStarting }.forEach { date ->
-            val json = repository?.loadFile(employeeName, date)
-            if (json != null) try { monthWeeks.add(gson.fromJson(json, TimecardData::class.java)) } catch (_: Exception) {}
-        }
-
-        // Load recent weeks for streak and badge calculation
-        val recentWeeks = mutableListOf(weekData)
-        allAvailableDates.filter { it != weekData.weekStarting }.take(7).forEach { date ->
-            val json = repository?.loadFile(employeeName, date)
-            if (json != null) try { recentWeeks.add(gson.fromJson(json, TimecardData::class.java)) } catch (_: Exception) {}
+        val repoForLoads = repository
+        val loadName = employeeName
+        val (monthWeeks, recentWeeks) = withContext(Dispatchers.IO) {
+            fun load(date: String): TimecardData? = repoForLoads?.loadFile(loadName, date)?.let {
+                try { gson.fromJson(it, TimecardData::class.java) } catch (_: Exception) { null }
+            }
+            val month = mutableListOf(weekData)
+            allAvailableDates.filter { it.startsWith(currentMonth) && it != weekData.weekStarting }.forEach { d -> load(d)?.let(month::add) }
+            // Recent weeks for streak and badge calculation
+            val recent = mutableListOf(weekData)
+            allAvailableDates.filter { it != weekData.weekStarting }.take(7).forEach { d -> load(d)?.let(recent::add) }
+            month to recent
         }
 
         // Delegate all gamification logic to the engine
@@ -302,7 +329,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         try {
             val repo = repository
             if (repo != null) {
-                val challenges = repo.loadChallenges()
+                val challenges = withContext(Dispatchers.IO) { repo.loadChallenges() }
                 if (challenges.isNotEmpty()) {
                     val completed = ChallengeEngine.detectCompletions(challenges, weekData, profile)
                     if (completed.isNotEmpty()) {
@@ -349,7 +376,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     fun saveCustomAvatar(bytes: ByteArray) {
         viewModelScope.launch {
             try {
-                repository?.saveEmployeeBinaryFile(employeeName, ".avatar.jpg", bytes)
+                val repo = repository
+                val name = employeeName
+                withContext(Dispatchers.IO) { repo?.saveEmployeeBinaryFile(name, ".avatar.jpg", bytes) }
                 avatarImage = bytes
                 setAvatar("custom")
             } catch (e: Exception) {
@@ -366,7 +395,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     fun saveBadgeCustomImage(badgeId: String, bytes: ByteArray) {
         viewModelScope.launch {
             try {
-                repository?.saveEmployeeBinaryFile(employeeName, ".badge_${badgeId}.png", bytes)
+                val repo = repository
+                val name = employeeName
+                withContext(Dispatchers.IO) { repo?.saveEmployeeBinaryFile(name, ".badge_${badgeId}.png", bytes) }
                 badgeImages = badgeImages + (badgeId to bytes)
             } catch (e: Exception) {
                 android.util.Log.e("ProfileVM", "Error saving badge image for $badgeId", e)
@@ -378,7 +409,9 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 // Save empty file to signal removal
-                repository?.saveEmployeeBinaryFile(employeeName, ".badge_${badgeId}.png", ByteArray(0))
+                val repo = repository
+                val name = employeeName
+                withContext(Dispatchers.IO) { repo?.saveEmployeeBinaryFile(name, ".badge_${badgeId}.png", ByteArray(0)) }
                 badgeImages = badgeImages - badgeId
             } catch (e: Exception) {
                 android.util.Log.e("ProfileVM", "Error clearing badge image for $badgeId", e)
@@ -389,7 +422,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private suspend fun loadBadgesConfig(repo: FileRepository?) {
         if (repo == null) return
         try {
-            val json = repo.loadGlobalFile("badges_config.json", useCache = false) ?: return
+            val json = withContext(Dispatchers.IO) { repo.loadGlobalFile("badges_config.json", useCache = false) } ?: return
             val wrapper = gson.fromJson(json, CustomBadgeConfig::class.java) ?: return
             val defs = wrapper.badges.map { cfg ->
                 BadgeDefinition(
@@ -411,7 +444,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 val images = mutableMapOf<String, ByteArray>()
                 defs.forEach { def ->
                     val path = def.imagePath ?: return@forEach
-                    val bytes = repo.loadGlobalBinaryFile(path)
+                    val bytes = withContext(Dispatchers.IO) { repo.loadGlobalBinaryFile(path) }
                     if (bytes != null) images[def.id] = bytes
                 }
                 if (images.isNotEmpty()) badgeImages = images
@@ -456,25 +489,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
 
         run {
-            val json = withContext(Dispatchers.IO) {
-                repository?.loadGenericJSON(employeeName, "profile.json", useCache = false)
+            val loaded = loadProfileFileWithRetry() ?: run {
+                // profile.json is there but unreadable: keep it untouched (saves stay blocked).
+                profileLoadFailed = true
+                Log.e("ProfileVM", "profile.json for $employeeName could not be read; not overwriting it")
+                return
             }
-            val loaded = if (json != null) {
-                try {
-                    // Detect old badge format (array) and migrate to new map format
-                    val jsonObj = gson.fromJson(json, JsonObject::class.java)
-                    val badgesElem = jsonObj?.get("badges")
-                    if (badgesElem != null && badgesElem.isJsonArray) {
-                        val oldList = gson.fromJson(badgesElem, Array<String>::class.java) ?: emptyArray()
-                        val newMap = JsonObject()
-                        oldList.forEach { newMap.addProperty(it, 1) }
-                        jsonObj.add("badges", newMap)
-                        gson.fromJson(jsonObj, PlayerProfile::class.java) ?: PlayerProfile()
-                    } else {
-                        gson.fromJson(jsonObj, PlayerProfile::class.java) ?: PlayerProfile()
-                    }
-                } catch (e: Exception) { PlayerProfile() }
-            } else PlayerProfile()
+            profileLoadFailed = false
 
             profile = loaded
             loadedProfileFor = employeeName
@@ -563,7 +584,48 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             }
 
             applyGrantedBadges()
+            profileReady.complete(Unit)
         }
+    }
+
+    /**
+     * Reads and parses profile.json. A missing file gives a fresh profile (new employee); a file that
+     * exists but can't be read or parsed is retried a few times and then gives null, so the caller
+     * never saves a blank profile over real data.
+     */
+    private suspend fun loadProfileFileWithRetry(attempts: Int = 4): PlayerProfile? {
+        val repo = repository
+        val name = employeeName
+        repeat(attempts) { attempt ->
+            val json = withContext(Dispatchers.IO) { repo?.loadGenericJSON(name, "profile.json", useCache = false) }
+            if (json != null) {
+                parseProfileJson(json)?.let { return it }
+            } else {
+                when (withContext(Dispatchers.IO) { repo?.employeeFileExists(name, "profile.json") }) {
+                    false -> return PlayerProfile()
+                    else -> Unit // there but unreadable, or storage couldn't be checked: retry
+                }
+            }
+            if (attempt < attempts - 1) kotlinx.coroutines.delay(1500L * (attempt + 1))
+            if (employeeName != name) return null // logged out or switched meanwhile
+        }
+        return null
+    }
+
+    /** profile.json to PlayerProfile (migrating the old badge array format); null when it doesn't parse. */
+    internal fun parseProfileJson(json: String): PlayerProfile? = try {
+        val jsonObj = gson.fromJson(json, JsonObject::class.java)
+        val badgesElem = jsonObj?.get("badges")
+        if (jsonObj != null && badgesElem != null && badgesElem.isJsonArray) {
+            val oldList = gson.fromJson(badgesElem, Array<String>::class.java) ?: emptyArray()
+            val newMap = JsonObject()
+            oldList.forEach { newMap.addProperty(it, 1) }
+            jsonObj.add("badges", newMap)
+        }
+        if (jsonObj == null) null else gson.fromJson(jsonObj, PlayerProfile::class.java)
+    } catch (e: Exception) {
+        Log.e("ProfileVM", "profile.json did not parse", e)
+        null
     }
 
     /**
@@ -577,7 +639,8 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         val repo = repository ?: return
         isBackfilling = true
         try {
-            val allDates = repo.getAvailableDates(employeeName)
+            val datesFor = employeeName
+            val allDates = withContext(Dispatchers.IO) { repo.getAvailableDates(datesFor) }
             if (allDates.isEmpty()) {
                 profile = profile.copy(
                     runningStats = profile.runningStats.copy(backfillComplete = true)
@@ -650,34 +713,19 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                 return
             }
 
-            val updatedBadges = profile.badges.toMutableMap()
-            var netCoinDelta = 0
-
-            // Apply newly granted badges — use Coins from the file, fallback to BadgeEngine
-            for (id in newlyGranted) {
-                val currentCount = updatedBadges[id] ?: 0
-                updatedBadges[id] = currentCount + 1
+            val result = applyGrantChanges(profile.badges, profile.grantedBadgeCoins, newlyGranted, revoked) { id ->
                 val coinsFromFile = serverGrantedMap[id]?.coinReward ?: 0
-                netCoinDelta += if (coinsFromFile > 0) coinsFromFile else (BadgeEngine.getDefinition(id)?.coinReward ?: 0)
+                if (coinsFromFile > 0) coinsFromFile else (BadgeEngine.getDefinition(id)?.coinReward ?: 0)
             }
-
-            // Apply revoked badges — use Coins from BadgeEngine since entry is removed from file
-            for (id in revoked) {
-                val currentCount = updatedBadges[id] ?: 0
-                if (currentCount > 1) {
-                    updatedBadges[id] = currentCount - 1
-                } else {
-                    updatedBadges.remove(id)
-                }
-                // For revoked badges, the entry is gone from the file, so fall back to BadgeEngine
-                netCoinDelta -= BadgeEngine.getDefinition(id)?.coinReward ?: 100
-            }
+            val updatedBadges = result.badges
+            val netCoinDelta = result.coinDelta
 
             val newCoins = (profile.coins + netCoinDelta).coerceAtLeast(0)
             val newAllTimeCoins = if (netCoinDelta > 0) profile.allTimeCoinsEarned + netCoinDelta else profile.allTimeCoinsEarned
             profile = profile.copy(
                 badges = updatedBadges,
                 grantedBadges = serverGrantedIds, // Update our known state
+                grantedBadgeCoins = result.grantCoins,
                 coins = newCoins,
                 allTimeCoinsEarned = newAllTimeCoins
             )
@@ -715,11 +763,19 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveProfile() {
+        // Only ever write the profile we actually loaded for this employee (never the blank
+        // pre-load or failed-load fallback, which would wipe coins, inventory and badges).
+        if (employeeName.isEmpty() || loadedProfileFor != employeeName || profileLoadFailed) {
+            Log.w("ProfileVM", "Skipped profile save: profile not loaded for '$employeeName'")
+            return
+        }
+        val repo = repository
+        val name = employeeName
         viewModelScope.launch {
             try {
                 val json = gson.toJson(profile)
                 withContext(Dispatchers.IO) {
-                    repository?.saveGenericJSON(employeeName, "profile.json", json)
+                    repo?.saveGenericJSON(name, "profile.json", json)
                 }
             } catch (e: Exception) {
                 Log.e("ProfileVM", "Save failed", e)

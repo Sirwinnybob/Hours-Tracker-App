@@ -26,6 +26,7 @@ class FakeShare {
     ) { _, method, args ->
         when (method.name) {
             "loadFile" -> files["${args!![0]}/${args[1]}"]
+            "employeeFileExists" -> files.containsKey("${args!![0]}/${(args[1] as String).removeSuffix(".json")}")
             "saveJSON" -> {
                 val idx = synchronized(saves) { saves.add(args!![0] as String); saves.size - 1 }
                 beforeSave(idx)

@@ -145,6 +145,18 @@ class SafFileRepository(
         }
     }
 
+    override fun employeeFileExists(name: String, filename: String): Boolean? = try {
+        val root = DocumentFile.fromTreeUri(context, treeUri)
+        if (root == null) null else {
+            val empDir = root.findFile(PathSanitizer.sanitize(name))
+            val sFilename = PathSanitizer.sanitize(filename)
+            empDir != null && (empDir.findFile(sFilename) != null || empDir.findFile("$sFilename.tmp") != null)
+        }
+    } catch (e: Exception) {
+        Log.e("SafFileRepo", "Error checking $name/$filename", e)
+        null
+    }
+
     override fun loadGenericJSON(name: String, filename: String, useCache: Boolean): String? {
         val sName = PathSanitizer.sanitize(name)
         val sFilename = PathSanitizer.sanitize(filename)

@@ -118,6 +118,15 @@ class DirectFileRepository(private val baseDir: File) : FileRepository {
         }
     }
 
+    override fun employeeFileExists(name: String, filename: String): Boolean? = try {
+        val dir = File(baseDir, PathSanitizer.sanitize(name))
+        val sFilename = PathSanitizer.sanitize(filename)
+        File(dir, sFilename).exists() || File(dir, "$sFilename.tmp").exists()
+    } catch (e: Exception) {
+        Log.e("DirectFileRepo", "Error checking $name/$filename", e)
+        null
+    }
+
     override fun loadGenericJSON(name: String, filename: String, useCache: Boolean): String? {
         val sName = PathSanitizer.sanitize(name)
         val sFilename = PathSanitizer.sanitize(filename)

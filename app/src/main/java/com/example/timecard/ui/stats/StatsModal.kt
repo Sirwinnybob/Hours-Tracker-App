@@ -215,8 +215,9 @@ fun StatsModal(
                                     val startMillis = dateRangePickerState.selectedStartDateMillis
                                     val endMillis = dateRangePickerState.selectedEndDateMillis
                                     if (startMillis != null && endMillis != null) {
-                                        // Convert millis to YYYY-MM-DD
-                                        val cal = java.util.Calendar.getInstance()
+                                        // Convert millis to YYYY-MM-DD. The picker gives UTC midnight; reading it in
+                                        // local (Pacific) time landed on the day before.
+                                        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
                                         cal.timeInMillis = startMillis
                                         val startStr = DateUtils.formatLocalDate(cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH))
                                         cal.timeInMillis = endMillis

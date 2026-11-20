@@ -46,7 +46,12 @@ data class TimesheetUiState(
     val previousNumRows: Int = 9,
     val lastSavedData: TimecardData? = null,
     val previousWeekData: TimecardData? = null,
-    val isDataLoaded: Boolean = false
+    val isDataLoaded: Boolean = false,
+    /**
+     * The week's file exists but couldn't be read or parsed. The grid is not the real card, so
+     * nothing is saved (that would overwrite it); Save / Retry reloads instead.
+     */
+    val loadFailed: Boolean = false
 )
 
 class TimesheetViewModel(application: Application) : AndroidViewModel(application) {
@@ -68,6 +73,11 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
 
     private var repository: FileRepository? = null
     private var autosaveJob: Job? = null
+    /** An edit is waiting in the 2 s autosave. A flag, not autosaveJob.isActive: Android cancels
+     *  viewModelScope before onCleared(), so the job already looks finished there. */
+    @Volatile private var autosavePending = false
+    /** Outlives the ViewModel: pending edits flushed on logout / close still reach the disk. */
+    private val flushScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO)
     private val gson = Gson()
     private var isLunchOnlySave = false
 
@@ -94,7 +104,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     fun undo() {
         if (canUndo()) {
             historyIndex--
-            _uiState.value = history[historyIndex]
+            restoreGrid(history[historyIndex])
             scheduleAutosave()
         }
     }
@@ -102,25 +112,53 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     fun redo() {
         if (canRedo()) {
             historyIndex++
-            _uiState.value = history[historyIndex]
+            restoreGrid(history[historyIndex])
             scheduleAutosave()
         }
     }
 
+    /** Puts a history snapshot's grid back. Only grid data: the snapshot's load/save flags are stale. */
+    private fun restoreGrid(snapshot: TimesheetUiState) {
+        _uiState.update { it.copy(jobs = snapshot.jobs, hours = snapshot.hours, numRows = snapshot.numRows, noLunchDays = snapshot.noLunchDays) }
+    }
 
 
+
+    private var inUpdateState = false
+    private var autosaveRequested = false
+
+    /**
+     * Applies an edit. Side effects (history, autosave) run after the state update, not inside it:
+     * the update lambda can run more than once, which used to record the first edit twice.
+     */
     private fun updateState(action: (TimesheetUiState) -> TimesheetUiState) {
-        _uiState.update { state ->
-            val newState = action(state)
-            if (newState != state) {
-                // Determine if we should push history. Only push if data changed.
-                val dataChanged = newState.jobs != state.jobs || newState.hours != state.hours || newState.noLunchDays != state.noLunchDays || newState.numRows != state.numRows
-                if (dataChanged) {
-                    if (history.isEmpty()) pushHistory(state) // Ensure initial state is saved
-                    pushHistory(newState)
-                }
+        var before: TimesheetUiState? = null
+        var after: TimesheetUiState? = null
+        inUpdateState = true
+        autosaveRequested = false
+        try {
+            _uiState.update { state ->
+                val newState = action(state)
+                before = state
+                after = newState
+                newState
             }
-            newState
+        } finally {
+            inUpdateState = false
+        }
+        val old = before
+        val new = after
+        if (old != null && new != null && new != old) {
+            // Only push history when the grid data changed.
+            val dataChanged = new.jobs != old.jobs || new.hours != old.hours || new.noLunchDays != old.noLunchDays || new.numRows != old.numRows
+            if (dataChanged) {
+                if (history.isEmpty()) pushHistory(old) // Ensure initial state is saved
+                pushHistory(new)
+            }
+        }
+        if (autosaveRequested) {
+            autosaveRequested = false
+            scheduleAutosave()
         }
     }
 
@@ -364,7 +402,35 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun saveData() {
         autosaveJob?.cancel()
+        if (_uiState.value.loadFailed) {
+            // The grid isn't the real card: retry the load instead of saving over it.
+            viewModelScope.launch { loadWeekData(_uiState.value.isViewingPrevious) }
+            return
+        }
         performSave()
+    }
+
+    /**
+     * Saves an edit still waiting in the 2 s autosave right now (logout, app closing). Runs on a
+     * scope that outlives this ViewModel so a finishing Activity can't cancel it.
+     */
+    fun flushPendingSave() {
+        val pending = autosavePending
+        autosavePending = false
+        autosaveJob?.cancel()
+        val state = _uiState.value
+        if (!pending || state.employeeName.isEmpty() || !state.isDataLoaded || state.loadFailed || state.isLockedByAnotherUser) return
+        val data = collectTimecardData()
+        val json = gson.toJson(data)
+        val repo = repository ?: return
+        flushScope.launch {
+            try { repo.saveJSON(json, data.employeeName, data.weekStarting) } catch (e: Exception) { Log.e("TimesheetVM", "Flush save failed", e) }
+        }
+    }
+
+    override fun onCleared() {
+        flushPendingSave()
+        super.onCleared()
     }
 
     fun collectTimecardData(): TimecardData {
@@ -400,7 +466,7 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun logout() {
-        autosaveJob?.cancel()
+        flushPendingSave() // an edit typed in the last 2 s must not be lost
         lockRenewJob?.cancel()
         val state = _uiState.value
         val empName = state.employeeName
@@ -464,21 +530,28 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        val json = withContext(Dispatchers.IO) {
-            repository?.loadFile(_uiState.value.employeeName, loadDate)
-        }
-        if (json != null) {
+        val empName = _uiState.value.employeeName
+        val json = withContext(Dispatchers.IO) { repository?.loadFile(empName, loadDate) }
+        val parsed: TimecardData? = json?.let {
             try {
-                val data = gson.fromJson(json, TimecardData::class.java)
-                loadGrid(data)
-            } catch (e: Exception) {
-                Log.e("TimesheetVM", "Failed to parse timecard data", e)
-                clearGrid()
-            }
-        } else {
-            clearGrid()
+                gson.fromJson(it, TimecardData::class.java)
+                    // Gson leaves "rows" null when it's missing or null: a broken card, not an empty week.
+                    ?.takeIf { card -> (card.rows as List<*>?) != null }
+            } catch (e: Exception) { Log.e("TimesheetVM", "Failed to parse timecard data", e); null }
         }
-        _uiState.update { it.copy(isDataLoaded = true) }
+        val failed = when {
+            parsed != null -> { loadGrid(parsed); false }
+            json != null -> true // there but doesn't parse
+            else -> when (withContext(Dispatchers.IO) { repository?.employeeFileExists(empName, "$loadDate.json") }) {
+                false -> { clearGrid(); false } // no card yet this week
+                else -> true // there but unreadable, or storage couldn't be checked
+            }
+        }
+        if (failed) {
+            clearGrid()
+            Log.e("TimesheetVM", "Timecard $empName/$loadDate could not be read; saving is blocked until it loads")
+        }
+        _uiState.update { it.copy(isDataLoaded = true, loadFailed = failed, saveStatus = if (failed) SaveStatus.ERROR else SaveStatus.SAVED) }
     }
 
     private fun loadGrid(data: TimecardData) {
@@ -539,7 +612,10 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun scheduleAutosave() {
+        if (inUpdateState) { autosaveRequested = true; return } // run after the state update
+        if (_uiState.value.loadFailed) return // never save over a card we couldn't read
         autosaveJob?.cancel()
+        autosavePending = true
         _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
         autosaveJob = viewModelScope.launch {
             delay(2000)
@@ -552,6 +628,8 @@ class TimesheetViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun performSave() {
+        autosavePending = false
+        if (_uiState.value.loadFailed) return // the grid isn't the real card
         _uiState.update { it.copy(saveStatus = SaveStatus.SYNCING) }
         val lunchOnly = isLunchOnlySave
         isLunchOnlySave = false

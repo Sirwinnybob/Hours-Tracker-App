@@ -199,8 +199,12 @@ fun AlertModal(viewModel: AlertsViewModel) {
 
 
                     // Acknowledge button
+                    viewModel.acknowledgeError?.let { err ->
+                        Text(err, color = androidx.compose.ui.graphics.Color(0xFFC62828), fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    }
                     Button(
                         onClick = { viewModel.acknowledgeCurrentAlert() },
+                        enabled = !viewModel.isAcknowledging,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = alertColors.button
                         ),

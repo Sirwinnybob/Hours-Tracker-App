@@ -46,8 +46,9 @@ class TimesheetLossAuditTest {
 
     private fun rows(json: String) = gson.fromJson(json, JsonObject::class.java).getAsJsonArray("rows")
 
-    // ── 1. Debounced autosave dropped when the Activity finishes (← KKC / KKC nav bar) ─────────
-    @Test fun `pending autosave is cancelled when the activity finishes within 2s of an edit`() {
+    // ── 1. Debounced autosave flushed when the Activity finishes (← KKC / KKC nav bar) ─────────
+    // Fixed 2026-11-20: onCleared() saves the pending edit on a scope that outlives the ViewModel.
+    @Test fun `pending autosave is saved when the activity finishes within 2s of an edit`() {
         // Control: with the VM alive, the autosave lands ~2s after the edit.
         val controlShare = FakeShare()
         val control = newModel(controlShare)
@@ -65,21 +66,20 @@ class TimesheetLossAuditTest {
         model.setJob(1, "123"); model.setHours(1, 0, "7")
         assertEquals(SaveStatus.SYNCING, model.uiState.value.saveStatus)
         store.clear() // what Activity.finish() → onDestroy does to activity-scoped ViewModels
-        Thread.sleep(3000)
-        assertTrue("edit never written: saves=${share.saves}", share.saves.isEmpty())
-        assertTrue(share.files[key] == null)
+        waitUntil(4000, "flushed save") { share.files[key]?.contains("7.00") == true }
+        assertEquals("saved once, not again by a late autosave", 1, share.saves.size)
     }
 
     // ── 2. Logout within the autosave window ────────────────────────────────────────────────
-    @Test fun `logout within 2s of an edit discards the edit without saving`() {
+    // Fixed 2026-11-20: logout() saves the pending edit instead of cancelling it.
+    @Test fun `logout within 2s of an edit saves the edit`() {
         val share = FakeShare()
         share.files[key] = card("101", week, """{"job":"SHOP","mon":"8.00"}""")
         val model = newModel(share)
         model.setHours(0, 1, "8") // Tuesday 8h
         model.logout()
-        Thread.sleep(3000)
-        assertTrue("no save attempted after logout", share.saves.isEmpty())
-        assertFalse(share.files.getValue(key).contains("\"tue\":\"8.00\""))
+        waitUntil(4000, "logout flush") { share.files.getValue(key).contains("\"tue\":\"8.00\"") }
+        assertTrue("Monday kept", share.files.getValue(key).contains("\"mon\":\"8.00\""))
     }
 
     // ── 3. KKC clock-out prefill overwrites earlier hours on the same job/day ────────────────
@@ -143,23 +143,31 @@ class TimesheetLossAuditTest {
         assertEquals("8.50", rows(share.files.getValue(key))[0].asJsonObject.get("tue").asString)
     }
 
-    // ── 5. Unreadable file → blank grid, no error → next edit overwrites the week ────────────
-    @Test fun `truncated week file loads as a blank grid with no error and the next edit overwrites it`() {
+    // ── 5. Unreadable file → error, saving blocked, the week is never overwritten ────────────
+    // Fixed 2026-11-20: a card that exists but doesn't parse shows ERROR and blocks saves;
+    // Save / Retry reloads instead of writing the blank grid over it.
+    @Test fun `truncated week file shows an error and is never overwritten`() {
         val share = FakeShare()
-        share.files[key] = card("101", week, """{"job":"SHOP","mon":"9.00"},{"job":"123","tue":"8.00"}""").dropLast(3)
+        val original = card("101", week, """{"job":"SHOP","mon":"9.00"},{"job":"123","tue":"8.00"}""").dropLast(3)
+        share.files[key] = original
         val model = newModel(share)
         val s = model.uiState.value
         assertTrue(s.isDataLoaded)
-        assertEquals(SaveStatus.SAVED, s.saveStatus) // nothing tells the employee the load failed
-        assertTrue(s.hours.flatten().all { it.isBlank() })
+        assertTrue(s.loadFailed)
+        assertEquals(SaveStatus.ERROR, s.saveStatus)
         model.setHours(0, 2, "4")
+        model.saveData() // reloads instead of saving
+        Thread.sleep(2500)
+        assertTrue("nothing saved: ${share.saves}", share.saves.isEmpty())
+        assertEquals(original, share.files.getValue(key))
+        // Once the card is readable again, Retry loads it and saving works.
+        share.files[key] = card("101", week, """{"job":"SHOP","mon":"9.00"},{"job":"123","tue":"8.00"}""")
         model.saveData()
-        waitUntil(what = "save") { share.saves.isNotEmpty() && model.uiState.value.saveStatus == SaveStatus.SAVED }
-        val after = share.files.getValue(key)
-        assertFalse("job 123 / Mon 9h overwritten: $after", after.contains("123") || after.contains("9.00"))
+        waitUntil(what = "reload") { !model.uiState.value.loadFailed }
+        assertEquals("9.00", model.uiState.value.hours[0][0])
     }
 
-    @Test fun `file whose rows are null or missing also loads blank and is overwritten`() {
+    @Test fun `file whose rows are null or missing shows an error and is never overwritten`() {
         // (A UTF-8 BOM prefix was also tried: Gson tolerates it, so that variant is NOT a loss.)
         for (content in listOf(
             """{"employeeName":"101","weekStarting":"$week","updatedAt":"x","rows":null,"job":"123"}""",
@@ -168,11 +176,12 @@ class TimesheetLossAuditTest {
             val share = FakeShare()
             share.files[key] = content
             val model = newModel(share)
-            assertTrue(model.uiState.value.hours.flatten().all { it.isBlank() })
-            assertEquals(SaveStatus.SAVED, model.uiState.value.saveStatus)
+            assertTrue(model.uiState.value.loadFailed)
+            assertEquals(SaveStatus.ERROR, model.uiState.value.saveStatus)
             model.setHours(0, 3, "1"); model.saveData()
-            waitUntil(what = "save") { share.saves.isNotEmpty() && model.uiState.value.saveStatus == SaveStatus.SAVED }
-            assertFalse(share.files.getValue(key).contains("123"))
+            Thread.sleep(500)
+            assertTrue(share.saves.isEmpty())
+            assertEquals(content, share.files.getValue(key))
         }
     }
 

@@ -29,6 +29,7 @@ class WeekNavigationTest {
         val repository = Proxy.newProxyInstance(FileRepository::class.java.classLoader, arrayOf(FileRepository::class.java)) { _, method, args ->
             when (method.name) {
                 "loadFile" -> files[args!![1] as String]
+                "employeeFileExists" -> files.containsKey((args!![1] as String).removeSuffix(".json"))
                 "saveJSON" -> { files[args!![2] as String] = args[0] as String; "SUCCESS" }
                 "saveInDir" -> "SUCCESS"
                 "acquireLock" -> true

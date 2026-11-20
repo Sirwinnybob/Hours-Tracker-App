@@ -297,6 +297,10 @@ class ShopViewModel : ViewModel() {
         }
 
         for ((itemId, claim) in current) {
+            // A claim only ever resolves for the employee who made it, once their profile is loaded.
+            // Otherwise an approval landing while someone else is logged in charged THEM and gave
+            // them the item. Other employees' claims stay pending until they're back.
+            if (!claimBelongsToCurrentUser(claim, vm.employeeName, vm.loadedProfileFor)) continue
             try {
                 val json = loadedFiles["${claim.claimId}.json"] ?: continue
 
@@ -327,60 +331,50 @@ class ShopViewModel : ViewModel() {
         }
     }
 
-    fun sendNote(recipientFolder: String, message: String, cost: Int) {
+    fun sendNote(recipientFolder: String, message: String, cost: Int) = deliverNote(recipientFolder, message, cost, anonymous = false)
+
+    fun sendAnonymousNote(recipientFolder: String, message: String, cost: Int) = deliverNote(recipientFolder, message, cost, anonymous = true)
+
+    /**
+     * Writes the note first and charges only when it was delivered (it used to charge, then silently
+     * keep the coins if the write failed). Coins change on the main thread, like every other profile
+     * change, so this can't overwrite coins a timecard save just added.
+     */
+    private fun deliverNote(recipientFolder: String, message: String, cost: Int, anonymous: Boolean) {
         val vm = profileViewModel ?: return
         val repo = repository ?: return
+        if (vm.loadedProfileFor != vm.employeeName || vm.profile.coins < cost) return
         val myName = vm.employeeName
         val myDisplayName = vm.profile.displayName ?: vm.employeeDisplayName
-        val gson = Gson()
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (vm.spendCoins(cost)) {
-                    val noteId = UUID.randomUUID().toString()
-                    val newNote = Alert(
-                        id = noteId,
-                        message = message,
-                        sentAt = Instant.now().toString(),
-                        sentBy = myDisplayName,
-                        senderDisplayName = myDisplayName,
-                        senderFolder = myName,
-                        isAnonymous = false
-                    )
-                    val result = repo.saveInDir(recipientFolder, "notes", "$noteId.json", gson.toJson(newNote))
-                    Log.d("ShopVM", "Note saved to $recipientFolder/notes/$noteId.json: $result")
-                }
+        val sender = if (anonymous) "Anonymous" else myDisplayName
+        viewModelScope.launch {
+            val noteId = UUID.randomUUID().toString()
+            val newNote = Alert(
+                id = noteId,
+                message = message,
+                sentAt = Instant.now().toString(),
+                sentBy = sender,
+                senderDisplayName = sender,
+                senderFolder = myName,
+                isAnonymous = anonymous
+            )
+            val result = try {
+                withContext(Dispatchers.IO) { repo.saveInDir(recipientFolder, "notes", "$noteId.json", Gson().toJson(newNote)) }
             } catch (e: Exception) {
                 Log.e("ShopVM", "Error sending note", e)
+                "ERROR"
             }
-        }
-    }
-
-    fun sendAnonymousNote(recipientFolder: String, message: String, cost: Int) {
-        val vm = profileViewModel ?: return
-        val repo = repository ?: return
-        val myName = vm.employeeName
-        val gson = Gson()
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                if (vm.spendCoins(cost)) {
-                    val noteId = UUID.randomUUID().toString()
-                    val newNote = Alert(
-                        id = noteId,
-                        message = message,
-                        sentAt = Instant.now().toString(),
-                        sentBy = "Anonymous",
-                        senderDisplayName = "Anonymous",
-                        senderFolder = myName,
-                        isAnonymous = true
-                    )
-                    val result = repo.saveInDir(recipientFolder, "notes", "$noteId.json", gson.toJson(newNote))
-                    Log.d("ShopVM", "Anonymous note saved to $recipientFolder/notes/$noteId.json: $result")
-                }
-            } catch (e: Exception) {
-                Log.e("ShopVM", "Error sending anonymous note", e)
+            Log.d("ShopVM", "Note to $recipientFolder/notes/$noteId.json: $result")
+            if (result == "SUCCESS" && vm.employeeName == myName) {
+                vm.spendCoins(cost)
+                limitedClaimResult = "✅ Note sent." // shown (and auto-hidden) by every shop layout
+            } else {
+                limitedClaimResult = "❌ Couldn't send the note. No KK was taken; try again."
             }
         }
     }
 }
+
+/** True when [claim] was made by the logged-in employee and their profile has loaded. */
+internal fun claimBelongsToCurrentUser(claim: LimitedPurchaseClaim, currentEmployee: String, loadedProfileFor: String?): Boolean =
+    currentEmployee.isNotEmpty() && claim.employeeName == currentEmployee && loadedProfileFor == currentEmployee

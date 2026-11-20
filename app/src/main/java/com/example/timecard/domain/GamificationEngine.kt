@@ -24,6 +24,39 @@ data class GamificationResult(
 
 object GamificationEngine {
 
+    /**
+     * Folds this save of [weekKey] into the running stats. The week's own contribution is recorded,
+     * so every later save adds only the difference (stats used to freeze at the week's first save,
+     * undercounting Shop King and Saturday Warrior). Weeks counted before contributions were
+     * recorded keep their old shop / Saturday count; delivery jobs are added on every save.
+     */
+    internal fun updateRunningStats(stats: com.example.timecard.data.model.RunningStats, weekKey: String, shopHoursThisWeek: Double, hasSaturdayHours: Boolean, weekData: TimecardData): com.example.timecard.data.model.RunningStats {
+        val deliveryJobsThisWeek = weekData.rows.filter { JobValidator.isDeliveryJob(it.job) }.map { it.job.uppercase() }
+        val legacyWeek = weekKey in stats.processedWeeks && weekKey !in stats.weekShopHours
+        val previousShop = stats.weekShopHours[weekKey] ?: 0.0
+        val shopDelta = if (legacyWeek) 0.0 else shopHoursThisWeek - previousShop
+        val countedSaturday = weekKey in stats.saturdayWeeks
+        val saturdayDelta = when {
+            legacyWeek -> 0
+            hasSaturdayHours && !countedSaturday -> 1
+            !hasSaturdayHours && countedSaturday -> -1
+            else -> 0
+        }
+        return stats.copy(
+            totalShopHours = (stats.totalShopHours + shopDelta).coerceAtLeast(0.0),
+            weekShopHours = if (legacyWeek) stats.weekShopHours else stats.weekShopHours + (weekKey to shopHoursThisWeek),
+            deliveryJobsSeen = (stats.deliveryJobsSeen + deliveryJobsThisWeek).distinct(),
+            saturdayWeeksCount = (stats.saturdayWeeksCount + saturdayDelta).coerceAtLeast(0),
+            saturdayWeeks = when {
+                legacyWeek -> stats.saturdayWeeks
+                hasSaturdayHours && !countedSaturday -> stats.saturdayWeeks + weekKey
+                !hasSaturdayHours && countedSaturday -> stats.saturdayWeeks - weekKey
+                else -> stats.saturdayWeeks
+            },
+            processedWeeks = if (weekKey in stats.processedWeeks) stats.processedWeeks else stats.processedWeeks + weekKey
+        )
+    }
+
     fun processTimecardSave(
         current: PlayerProfile,
         employeeName: String,
@@ -160,23 +193,8 @@ object GamificationEngine {
             }
         }
 
-        // --- 2. Running stats (avoid double-counting per week) ---
-        val isNewWeek = weekKey !in current.runningStats.processedWeeks
-
-        var newStats = current.runningStats
-        if (isNewWeek) {
-            val deliveryJobsThisWeek = weekData.rows
-                .filter { JobValidator.isDeliveryJob(it.job) }
-                .map { it.job.uppercase() }
-                .toSet()
-
-            newStats = current.runningStats.copy(
-                totalShopHours = current.runningStats.totalShopHours + shopHoursThisWeek,
-                deliveryJobsSeen = (current.runningStats.deliveryJobsSeen + deliveryJobsThisWeek).distinct(),
-                saturdayWeeksCount = current.runningStats.saturdayWeeksCount + (if (hasSaturdayHours) 1 else 0),
-                processedWeeks = current.runningStats.processedWeeks + weekKey
-            )
-        }
+        // --- 2. Running stats (each week counted once, kept up to date on every save) ---
+        val newStats = updateRunningStats(current.runningStats, weekKey, shopHoursThisWeek, hasSaturdayHours, weekData)
 
         // --- 3. Records ---
         val busiestDay = DAYS.maxOfOrNull { day -> dailyTotals[day] ?: 0.0 } ?: 0.0
