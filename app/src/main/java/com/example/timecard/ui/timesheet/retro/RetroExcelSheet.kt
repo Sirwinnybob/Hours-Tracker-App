@@ -1,5 +1,6 @@
 package com.example.timecard.ui.timesheet.retro
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -151,7 +152,8 @@ internal fun RetroExcelTimesheet(
                     // The chart fills whatever the grid leaves (at least 300dp); the whole sheet scrolls.
                     val gridHeight = 24.dp + XL_ROW_H * rows.size
                     val chartHeight = (maxHeight - gridHeight).coerceAtLeast(300.dp)
-                    Column(Modifier.fillMaxSize().background(Xl.White).verticalScroll(rememberScrollState())) {
+                    // imePadding: the sheet ends at the keyboard, so a focused cell scrolls into view.
+                    Column(Modifier.fillMaxSize().background(Xl.White).imePadding().verticalScroll(rememberScrollState())) {
                         XlGrid(
                             uiState = uiState, rows = rows, days = days, activeJobs = activeJobs, actions = actions,
                             selected = selected, lookupRow = lookupRow, flashRow = flashRow,

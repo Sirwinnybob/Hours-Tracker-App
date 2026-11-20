@@ -1,5 +1,6 @@
 package com.example.timecard.ui.login
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
@@ -343,11 +344,13 @@ fun NameCard(
             }
         }
 
-        // The card — always contains the text field, never swaps content
+        // The card — always contains the text field, never swaps content.
+        // imePadding: the card (and its suggestion list) re-centers above the on-screen keyboard.
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .padding(horizontal = (24f * p).dp) // padding shrinks to 0 when collapsed
                 .zIndex(10f)
         ) {

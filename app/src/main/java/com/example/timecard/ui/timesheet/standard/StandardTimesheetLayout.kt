@@ -1,5 +1,6 @@
 package com.example.timecard.ui.timesheet.standard
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,7 +63,8 @@ internal fun StandardTimesheetBody(
     val shares = jobShares(uiState, activeJobs)
 
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
+        // imePadding: the list ends at the keyboard, so a focused hour cell on a low row scrolls into view.
+        modifier = modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally

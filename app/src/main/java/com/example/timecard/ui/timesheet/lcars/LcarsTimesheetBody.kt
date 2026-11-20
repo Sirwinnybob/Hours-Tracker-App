@@ -1,5 +1,6 @@
 package com.example.timecard.ui.timesheet.lcars
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,7 +58,8 @@ internal fun LcarsTimesheetBody(
     val weekStart = weekStartOf(uiState.activeWeekDate)
     val today = if (uiState.isViewingPrevious) null else todayIndexIn(weekStart, LocalDate.now())
     val days = summarizeDays((0 until 6).map { uiState.getDayTotal(it) }, weekStart, today)
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    // imePadding: the table ends at the keyboard, so a focused hour cell on a low row scrolls into view.
+    Column(modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())) {
         LcarsTextBar("WEEK OUTPUT", LcarsClassic.Sienna, LcarsClassic.Butter)
         Spacer(Modifier.height(14.dp))
         LcarsWeekOutput(days, uiState.getGrandTotal(), weekKey = uiState.activeWeekDate, animate = animate)

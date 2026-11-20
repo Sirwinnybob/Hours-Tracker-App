@@ -1,5 +1,6 @@
 package com.example.timecard.ui.retro95
 
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -251,7 +252,8 @@ fun Win95Rule(modifier: Modifier = Modifier) {
 @Composable
 fun BoxScope.Win95Modal(visible: Boolean, onDismiss: () -> Unit, content: @Composable BoxScope.() -> Unit) {
     AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.matchParentSize()) {
-        Box(Modifier.fillMaxSize()) {
+        // imePadding: the window re-centers above the on-screen keyboard (Find Job, Edit Profile...).
+        Box(Modifier.fillMaxSize().imePadding()) {
             Box(
                 Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)

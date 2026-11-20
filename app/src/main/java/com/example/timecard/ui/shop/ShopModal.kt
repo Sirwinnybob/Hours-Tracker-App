@@ -1119,6 +1119,19 @@ fun SendNoteDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        content()
+        // Centered in the space above the keyboard (safeDrawing includes it), like the other dialogs,
+        // so the message box isn't hidden while typing. Tapping the dim area still closes it.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onDismiss)
+                .safeDrawingPadding()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(Modifier.clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}) {
+                content()
+            }
+        }
     }
 }

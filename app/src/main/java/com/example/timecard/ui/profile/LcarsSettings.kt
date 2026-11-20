@@ -1,5 +1,6 @@
 package com.example.timecard.ui.profile
 
+import androidx.compose.foundation.layout.imePadding
 import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -118,7 +119,7 @@ internal fun LcarsSettingsModal(
                 Locked()
                 return@Column
             }
-            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.weight(1f).imePadding().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (profileViewModel.isBackfilling) Backfilling()
                 ReadoutGrid(
                     lcarsProfileReadouts(
