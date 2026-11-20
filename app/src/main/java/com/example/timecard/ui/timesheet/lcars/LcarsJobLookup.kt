@@ -81,7 +81,8 @@ internal fun LcarsJobLookup(
     val choose: (String) -> Unit = { onPick(resolveJobPick(it, delivery, jobsOnCard)) }
     val numbered = bare.isNotEmpty() && bare.all { it in '0'..'9' }
 
-    Popup(offset = IntOffset(0, anchorHeightPx), onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+    // Under the pill, but moved above the keyboard when it would cover the lookup (ADD JOB on a low row).
+    Popup(popupPositionProvider = com.example.timecard.ui.common.rememberImeAwarePopupPosition(), onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
         Column(
             Modifier.width(470.dp).padding(top = 6.dp).background(Color.Black).border(2.dp, LcarsClassic.Orange, RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 24.dp)).padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)

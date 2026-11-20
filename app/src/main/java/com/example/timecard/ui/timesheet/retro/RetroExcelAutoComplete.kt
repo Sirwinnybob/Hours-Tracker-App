@@ -92,7 +92,8 @@ internal fun XlAutoComplete(
         0f, if (motion) 16f else 0f, infiniteRepeatable(tween(500, easing = LinearEasing), RepeatMode.Restart), label = "antsPhase"
     )
 
-    Popup(offset = IntOffset(0, 0), onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+    // On top of the cell, slid up above the keyboard when it would cover the list.
+    Popup(popupPositionProvider = com.example.timecard.ui.common.rememberImeAwarePopupPosition(overlayAnchor = true), onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
         Column(Modifier.width(360.dp)) {
             // In-cell edit with the marching-ants border
             Box(

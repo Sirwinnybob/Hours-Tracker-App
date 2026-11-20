@@ -99,8 +99,9 @@ internal fun JobPickerPopup(
         onPick(resolveJobPick(entry, delivery, jobsOnCard))
     }
 
+    // Under the job cell, but moved above the keyboard when it would cover the picker.
     Popup(
-        offset = IntOffset(0, anchorHeightPx),
+        popupPositionProvider = com.example.timecard.ui.common.rememberImeAwarePopupPosition(),
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true)
     ) {
