@@ -11,12 +11,15 @@ class WeekNavigationWiringTest {
     fun `all three layouts offer week navigation even without a saved previous card`() {
         val source = SourceFiles.mainSource("com/example/timecard/ui/timesheet/TimesheetScreen.kt").readText()
         assertFalse(source.contains("if (uiState.hasPreviousWeek)"))
-        // Standard 1 + LCARS 2 (01-THIS WEEK / 02-LAST WEEK side panels) + Retro 1.
+        // Standard 1 + LCARS 2 (01-THIS WEEK / 02-LAST WEEK side panels) + Retro 1 (Excel sheet tabs).
         assertEquals(4, Regex("timesheetViewModel\\.togglePrevWeek\\(\\)").findAll(source).count())
         assertTrue(source.contains("LcarsPanel(\"01-THIS WEEK\""))
         assertTrue(source.contains("LcarsPanel(\"02-LAST WEEK\""))
         assertTrue(source.contains("if (!uiState.isViewingPrevious && canSwitchWeek) timesheetViewModel.togglePrevWeek()"))
-        assertTrue(source.contains("PREV WEEK"))
+        assertFalse(source.contains("PREV WEEK"))
+        assertTrue(source.contains("if (wantPrevious != uiState.isViewingPrevious && retroCanSwitchWeek) timesheetViewModel.togglePrevWeek()"))
+        val sheet = SourceFiles.mainSource("com/example/timecard/ui/timesheet/retro/RetroExcelSheet.kt").readText()
+        assertTrue(sheet.contains("ThisWeek(\"This Week\"), LastWeek(\"Last Week\"), Chart(\"Chart1\")"))
         // Standard layout: This week / Last week segmented switch, gated only on load/save state.
         assertTrue(source.contains("onToggleWeek = { timesheetViewModel.togglePrevWeek() }"))
         assertTrue(source.contains("canSwitchWeek = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch"))

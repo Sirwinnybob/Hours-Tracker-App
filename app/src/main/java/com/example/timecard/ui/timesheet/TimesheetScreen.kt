@@ -443,21 +443,7 @@ fun TimesheetScreen(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        run {
-                            val btnText = if (uiState.isViewingPrevious) "CURRENT WEEK ▶" else "◀ PREV WEEK"
-                            RetroButton(
-                                onClick = {
-                                    activeRetroTab = "timesheet"
-                                    timesheetViewModel.togglePrevWeek()
-                                },
-                                label = btnText,
-                                enabled = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch,
-                                backgroundColor = if (uiState.isViewingPrevious) RetroAccentTeal else RetroSurface,
-                                textColor = if (uiState.isViewingPrevious) Color.Black else RetroTextPrimary,
-                                modifier = Modifier.height(26.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                        }
+                        // This Week / Last Week are the Excel sheet tabs now (ui/timesheet/retro/).
 
                         if (launchedByKkc) {
                             RetroButton(
@@ -736,15 +722,50 @@ fun TimesheetScreen(
                                                     )
                                                 }
                                             }
-                                        } else if (isLandscape) {
-                                            Row(modifier = Modifier.fillMaxSize()) {
-                                                TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(), chartsContent = null, modifier = Modifier.weight(0.66f))
-                                                ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = true, onToggle = {}, showToggle = false, modifier = Modifier.weight(0.34f))
-                                            }
                                         } else {
-                                            TimesheetGrid(uiState = uiState, onJobChange = timesheetViewModel::setJob, onHoursChange = timesheetViewModel::setHours, onFillShopHours = timesheetViewModel::fillShopHours, onSnapHours = timesheetViewModel::snapHours, onAddRow = timesheetViewModel::addRow, onDeliveryTag = timesheetViewModel::toggleDeliveryTag, onToggleNoLunch = timesheetViewModel::toggleNoLunch, onUndo = timesheetViewModel::undo, onRedo = timesheetViewModel::redo, canUndo = timesheetViewModel.canUndo(), canRedo = timesheetViewModel.canRedo(),
-                                                chartsContent = { ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = showCharts, onToggle = { showCharts = !showCharts }) },
-                                                modifier = Modifier.fillMaxSize())
+                                            // Excel 95 window (Retro A mockup, 2026-11-19).
+                                            val retroActiveJobs = rememberActiveJobs(repository)
+                                            val retroCanSwitchWeek = uiState.isDataLoaded && uiState.saveStatus == SaveStatus.SAVED && !uiState.isAnimatingWeekSwitch
+                                            com.example.timecard.ui.timesheet.retro.RetroExcelTimesheet(
+                                                uiState = uiState,
+                                                activeJobs = retroActiveJobs,
+                                                canUndo = timesheetViewModel.canUndo(),
+                                                canRedo = timesheetViewModel.canRedo(),
+                                                actions = GridActions(
+                                                    onJobChange = timesheetViewModel::setJob,
+                                                    onHoursChange = timesheetViewModel::setHours,
+                                                    onSnapHours = timesheetViewModel::snapHours,
+                                                    onFillShop = timesheetViewModel::fillShopHours,
+                                                    onToggleNoLunch = timesheetViewModel::toggleNoLunch,
+                                                    onAddRow = {
+                                                        val index = timesheetViewModel.uiState.value.numRows
+                                                        timesheetViewModel.addRow()
+                                                        index
+                                                    },
+                                                    onUndo = timesheetViewModel::undo,
+                                                    onRedo = timesheetViewModel::redo
+                                                ),
+                                                sheet = when {
+                                                    showCharts -> com.example.timecard.ui.timesheet.retro.XlSheet.Chart
+                                                    uiState.isViewingPrevious -> com.example.timecard.ui.timesheet.retro.XlSheet.LastWeek
+                                                    else -> com.example.timecard.ui.timesheet.retro.XlSheet.ThisWeek
+                                                },
+                                                canSwitchWeek = retroCanSwitchWeek,
+                                                onSelectSheet = { picked ->
+                                                    when (picked) {
+                                                        com.example.timecard.ui.timesheet.retro.XlSheet.Chart -> showCharts = true
+                                                        else -> {
+                                                            showCharts = false
+                                                            val wantPrevious = picked == com.example.timecard.ui.timesheet.retro.XlSheet.LastWeek
+                                                            if (wantPrevious != uiState.isViewingPrevious && retroCanSwitchWeek) timesheetViewModel.togglePrevWeek()
+                                                        }
+                                                    }
+                                                },
+                                                onSave = { timesheetViewModel.saveData() },
+                                                chartSheet = {
+                                                    ChartsSection(currentData = timesheetViewModel.collectTimecardData(), previousData = uiState.previousWeekData, expanded = true, onToggle = {}, showToggle = false, modifier = Modifier.fillMaxSize())
+                                                }
+                                            )
                                         }
                                     }
                                 }
