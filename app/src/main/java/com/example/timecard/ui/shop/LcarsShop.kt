@@ -153,9 +153,10 @@ internal fun LcarsShopModal(onDismiss: () -> Unit, shopViewModel: ShopViewModel,
             }
         }
 
+        val latestPurchase = com.example.timecard.ui.common.rememberLatestNonNull(pendingPurchase)
         AnimatedVisibility(pendingPurchase != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
             // Keep showing the item while the panel fades out after pendingPurchase is cleared.
-            val shown = remember { pendingPurchase } ?: return@AnimatedVisibility
+            val shown = latestPurchase ?: return@AnimatedVisibility
             Box(Modifier.fillMaxSize()) {
                 ConfirmPanel(
                     item = shown,

@@ -151,8 +151,9 @@ internal fun LcarsSettingsModal(
             }
         }
 
+        val latestBadge = com.example.timecard.ui.common.rememberLatestNonNull(selectedBadge)
         AnimatedVisibility(selectedBadge != null, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
-            val shown = remember { selectedBadge } ?: return@AnimatedVisibility
+            val shown = latestBadge ?: return@AnimatedVisibility
             Box(Modifier.fillMaxSize()) {
                 Box(
                     Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.7f))

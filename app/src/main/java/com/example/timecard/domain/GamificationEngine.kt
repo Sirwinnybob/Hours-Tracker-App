@@ -128,8 +128,11 @@ object GamificationEngine {
 
                 // Only act if there's a meaningful change (either up, or down).
                 if (kotlin.math.abs(delta) > 0.24) {
-                    var baseCoin = (delta * baseMultiplier).toInt()
-                    var totalCoin = (delta * totalMultiplier).toInt()
+                    // Coins follow the TOTAL paid hours, not each change on its own: truncating every
+                    // delta separately lost the fractions on the way up but not on the way down, so
+                    // entering 2.5 h, then 3.0 h, then clearing the day cost a coin (+2, +0, -3).
+                    var baseCoin = (cappedNewHours * baseMultiplier).toInt() - (previouslyPaid * baseMultiplier).toInt()
+                    var totalCoin = (cappedNewHours * totalMultiplier).toInt() - (previouslyPaid * totalMultiplier).toInt()
                     var finalPaidHours = cappedNewHours
 
                     // SECURE: Prevent negative coins while avoiding duplication loop.

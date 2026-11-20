@@ -175,8 +175,9 @@ internal fun RetroMessenger(
             }
         }
 
+        val latestInfo = com.example.timecard.ui.common.rememberLatestNonNull(info)
         Win95Modal(info != null, { info = null }) {
-            val e = remember { info } ?: return@Win95Modal
+            val e = latestInfo ?: return@Win95Modal
             BuddyInfo(e) { info = null }
         }
     }

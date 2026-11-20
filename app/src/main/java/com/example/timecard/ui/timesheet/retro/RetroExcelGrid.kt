@@ -286,7 +286,9 @@ private fun RowScope.HoursCell(value: String, selected: Boolean, fill: Color, de
             cursorBrush = SolidColor(Xl.Black),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
             keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = description }
+            // The whole cell is the tap target, not just the one text line in its middle.
+            decorationBox = { inner -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterEnd) { inner() } },
+            modifier = Modifier.fillMaxSize().semantics { contentDescription = description }
                 .onFocusChanged { if (it.isFocused != focused) { focused = it.isFocused; onFocus(it.isFocused) } }
         )
     }

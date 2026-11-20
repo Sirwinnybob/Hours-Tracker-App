@@ -371,9 +371,6 @@ private fun SheetTabs(sheet: XlSheet, canSwitchWeek: Boolean, onSelect: (XlSheet
 private fun StatusBar(saveStatus: SaveStatus, editing: Boolean, total: Double, motion: Boolean, onRetry: () -> Unit) {
     val saving = saveStatus == SaveStatus.SYNCING
     val error = saveStatus == SaveStatus.ERROR
-    val fill by rememberInfiniteTransition(label = "saveBlocks").animateFloat(
-        0f, if (motion) 1f else 1f, infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart), label = "saveFill"
-    )
     Row(Modifier.fillMaxWidth().height(30.dp).padding(2.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         Row(
             Modifier.weight(1f).fillMaxHeight().xlBevel(inset = true).clickable(enabled = error, role = Role.Button, onClickLabel = "Retry save", onClick = onRetry).padding(horizontal = 6.dp),
@@ -381,15 +378,22 @@ private fun StatusBar(saveStatus: SaveStatus, editing: Boolean, total: Double, m
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(xlStatusText(saving, error, editing), style = xlText(14.sp, if (error) Xl.Error else Xl.Black))
-            if (saving) {
-                val lit = if (motion) (fill * 12).toInt() else 12
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    repeat(12) { Box(Modifier.size(width = 8.dp, height = 14.dp).background(if (it < lit) Xl.Navy else Color.Transparent)) }
-                }
-            }
+            if (saving) SaveBlocks(motion)
         }
         StatusCell(Modifier.width(130.dp), "Sum=${formatHours(total)}")
         StatusCell(Modifier.width(52.dp), "NUM")
+    }
+}
+
+/** Save progress blocks; composed (and animating) only while a save runs. */
+@Composable
+private fun SaveBlocks(motion: Boolean) {
+    val fill by rememberInfiniteTransition(label = "saveBlocks").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart), label = "saveFill"
+    )
+    val lit = if (motion) (fill * 12).toInt() else 12
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(12) { Box(Modifier.size(width = 8.dp, height = 14.dp).background(if (it < lit) Xl.Navy else Color.Transparent)) }
     }
 }
 

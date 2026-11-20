@@ -180,8 +180,9 @@ internal fun RetroKkMart(onDismiss: () -> Unit, shopViewModel: ShopViewModel, pr
                         Text("🔒 SECURE SITE  |  Shipping info  |  Return policy  |  © 1997 Kustom Kash Mart", style = w95Text(13.sp, Color(0xFF404040)), modifier = Modifier.align(Alignment.CenterHorizontally))
                     }
                 }
+                val latestPending = com.example.timecard.ui.common.rememberLatestNonNull(pending)
                 Win95Modal(pending != null, { pending = null }) {
-                    val item = remember { pending } ?: return@Win95Modal
+                    val item = latestPending ?: return@Win95Modal
                     val limited = item.quantity != null
                     Win95MessageBox("[JavaScript Application]", "?", message = {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

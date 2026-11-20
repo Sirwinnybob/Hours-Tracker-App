@@ -76,6 +76,26 @@ class GamificationCheatTest {
     }
 
     @Test
+    fun `adding hours in steps then removing them nets zero day coins`() {
+        // 2026-11-20 tablet test: 2.5 h, then 3.0 h, then cleared lost a coin because each step
+        // was truncated on its own (+2, +0, -3). Coins now follow the total paid hours.
+        fun save(profile: PlayerProfile, mon: String) = createTimecard(testWeekStarting, listOf(createRow("Job A", mon = mon))).let { tc ->
+            GamificationEngine.processTimecardSave(
+                current = profile, weekData = tc, monthWeeks = listOf(tc), recentWeeks = listOf(tc), employeeName = "Test Player",
+                isMonday = true, isBefore930 = true
+            )
+        }
+        val start = getBaseProfile().copy(coins = 100)
+        val stepped = save(save(start, "2.5").profile, "3.0")
+        val direct = save(start, "3.0")
+        assertEquals("2.5 then 3.0 pays the same as 3.0 at once", direct.profile.coins, stepped.profile.coins)
+        val clearedStepped = save(stepped.profile, "")
+        val clearedDirect = save(direct.profile, "")
+        assertEquals("Clearing refunds exactly what was paid", clearedDirect.profile.coins, clearedStepped.profile.coins)
+        assertEquals(0.0, clearedStepped.profile.coinLog.values.sumOf { it.paidHours }, 0.001)
+    }
+
+    @Test
     fun `cheat - job hopping to trick base coins`() {
         val initialProfile = getBaseProfile()
 

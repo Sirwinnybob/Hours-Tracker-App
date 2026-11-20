@@ -132,4 +132,15 @@ class RetroAppsTest {
         assertTrue(mart.contains("completePurchase(") && mart.contains("ShopOpenEffects(shopViewModel)"))
         assertTrue(SourceFiles.mainSource("com/example/timecard/ui/profile/RetroKkcSpace.kt").readText().contains("rememberAvatarPicker(profileViewModel)"))
     }
+
+    @Test
+    fun `fading confirms act on the latest item, not the first one shown`() {
+        // remember { x } inside a fading dialog kept the first value: reopening a BUY confirm
+        // during the fade-out could show and buy the previous item.
+        listOf("ui/shop/LcarsShop.kt", "ui/shop/RetroKkMart.kt", "ui/profile/LcarsSettings.kt", "ui/profile/RetroMessenger.kt").forEach { path ->
+            val src = SourceFiles.mainSource("com/example/timecard/$path").readText()
+            assertTrue(path, src.contains("rememberLatestNonNull("))
+            assertFalse(path, Regex("""remember \{ (pendingPurchase|pending|selectedBadge|info) \}""").containsMatchIn(src))
+        }
+    }
 }
