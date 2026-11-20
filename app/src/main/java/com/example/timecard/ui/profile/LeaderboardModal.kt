@@ -81,6 +81,11 @@ fun LeaderboardModal(
     onFeedTabSelected: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "KKC Messenger" buddy list (RetroMessenger.kt, 2026-11-20 mockup).
+        RetroMessenger(viewModel, myId, myDisplayName, feedEmployeeNames, onFeedTabSelected, onDismiss)
+        return
+    }
     val colors = LocalTimecardColors.current
     var tab by remember { mutableIntStateOf(0) } // 0=Week, 1=Month, 2=Streak, 3=Coins, 4=Feed
     var feedLoaded by remember { mutableStateOf(false) }

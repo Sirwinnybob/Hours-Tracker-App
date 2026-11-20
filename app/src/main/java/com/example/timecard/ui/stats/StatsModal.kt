@@ -68,6 +68,11 @@ fun StatsModal(
     viewModel: StatsViewModel,
     onDismiss: () -> Unit
 ) {
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "Hours Monitor" app (RetroHoursMonitor.kt, 2026-11-20 mockup).
+        RetroHoursMonitor(viewModel, onDismiss)
+        return
+    }
     val colors = LocalTimecardColors.current
     val stats = viewModel.stats
     

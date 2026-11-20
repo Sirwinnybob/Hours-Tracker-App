@@ -1,8 +1,6 @@
 package com.example.timecard.ui.timesheet.retro
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -11,6 +9,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import com.example.timecard.ui.retro95.win95Bevel
 import com.example.timecard.ui.timesheet.standard.DaySummary
 import com.example.timecard.ui.timesheet.standard.formatHours
 
@@ -52,24 +51,8 @@ object Xl {
 internal fun xlText(size: TextUnit, color: Color = Xl.Black, weight: FontWeight = FontWeight.Normal, italic: Boolean = false) =
     TextStyle(fontFamily = FontFamily.SansSerif, fontSize = size, color = color, fontWeight = weight, fontStyle = if (italic) FontStyle.Italic else FontStyle.Normal)
 
-/** Classic two-line Win95 bevel (white/black outside, light/dark gray inside); [inset] for sunken fields. */
-internal fun Modifier.xlBevel(inset: Boolean = false, line: Dp = 1.dp): Modifier = drawBehind {
-    val s = line.toPx()
-    val w = size.width
-    val h = size.height
-    val outerTL = if (inset) Xl.Shadow else Xl.White
-    val outerBR = if (inset) Xl.White else Xl.Black
-    val innerTL = if (inset) Xl.Black else Xl.Light
-    val innerBR = if (inset) Xl.Light else Xl.Shadow
-    fun frame(i: Float, tl: Color, br: Color) {
-        drawLine(tl, Offset(i, i + s / 2), Offset(w - i, i + s / 2), s)
-        drawLine(tl, Offset(i + s / 2, i), Offset(i + s / 2, h - i), s)
-        drawLine(br, Offset(i, h - i - s / 2), Offset(w - i, h - i - s / 2), s)
-        drawLine(br, Offset(w - i - s / 2, i), Offset(w - i - s / 2, h - i), s)
-    }
-    frame(0f, outerTL, outerBR)
-    frame(s, innerTL, innerBR)
-}
+/** Classic two-line Win95 bevel; shared with the other Retro apps (ui/retro95/Win95.kt). */
+internal fun Modifier.xlBevel(inset: Boolean = false, line: Dp = 1.dp): Modifier = win95Bevel(inset, line)
 
 /** One sheet row. Spreadsheet row numbers are the list position + 1. */
 internal sealed interface XlRow {

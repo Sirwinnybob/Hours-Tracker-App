@@ -63,8 +63,13 @@ fun ShopModal(
         return
     }
     if (LocalTimecardColors.current.isLcars) {
-        // LCARS Classic shop (LcarsShop.kt, 2026-11-19 mockup). Retro keeps the layout below.
+        // LCARS Classic shop (LcarsShop.kt, 2026-11-19 mockup).
         LcarsShopModal(onDismiss, shopViewModel, profileViewModel)
+        return
+    }
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "Kustom Kash Mart" web store (RetroKkMart.kt, 2026-11-20 mockup).
+        RetroKkMart(onDismiss, shopViewModel, profileViewModel)
         return
     }
     val items = shopViewModel.items

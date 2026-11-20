@@ -690,12 +690,20 @@ fun TimesheetScreen(
                                     }
                                     "settings" -> {
                                         if (profileViewModel != null) {
+                                            // KKCspace's Top 8 comes from this week's leaderboard.
+                                            LaunchedEffect(Unit) {
+                                                if (leaderboardViewModel != null && leaderboardViewModel.entries.isEmpty()) {
+                                                    leaderboardViewModel.load(employees.filter { !it.excluded }, uiState.activeWeekDate, repository)
+                                                }
+                                            }
                                             com.example.timecard.ui.profile.SettingsModal(
                                                 profileViewModel = profileViewModel,
                                                 actualName = employeeDisplayName,
                                                 onDismiss = { activeRetroTab = "timesheet" },
                                                 onNavigateToAlerts = { activeRetroTab = "alerts" },
-                                                onOpenShop = { activeRetroTab = "shop" }
+                                                onOpenShop = { activeRetroTab = "shop" },
+                                                friends = leaderboardViewModel?.entries ?: emptyList(),
+                                                myId = employeeId
                                             )
                                         }
                                     }

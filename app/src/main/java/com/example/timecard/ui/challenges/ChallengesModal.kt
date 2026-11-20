@@ -40,6 +40,11 @@ fun ChallengesModal(
     onLoad: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "Weekly Challenges Setup" wizard (RetroChallengesSetup.kt, 2026-11-20 mockup).
+        RetroChallengesSetup(viewModel, onLoad, onDismiss)
+        return
+    }
     val colors = LocalTimecardColors.current
 
     LaunchedEffect(Unit) { onLoad() }

@@ -73,7 +73,10 @@ fun SettingsModal(
     onDismiss: () -> Unit,
     onNavigateToAlerts: () -> Unit,
     onOpenShop: () -> Unit,
-    themeState: com.example.timecard.ui.theme.ThemeState? = null
+    themeState: com.example.timecard.ui.theme.ThemeState? = null,
+    /** Coworkers for the Retro profile's Top 8 (this week's leaderboard entries). */
+    friends: List<LeaderboardEntry> = emptyList(),
+    myId: String? = null
 ) {
     if (com.example.timecard.ui.timesheet.standard.isStandardLook()) {
         // Standard theme: KKC-look settings (StandardSettings.kt). LCARS and Retro keep the layout below.
@@ -83,6 +86,11 @@ fun SettingsModal(
     if (LocalTimecardColors.current.isLcars) {
         // LCARS Classic profile (LcarsSettings.kt, 2026-11-19 mockup). Retro keeps the layout below.
         LcarsSettingsModal(profileViewModel, actualName, onDismiss, onNavigateToAlerts, onOpenShop)
+        return
+    }
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "KKCspace" profile page (RetroKkcSpace.kt, 2026-11-20 mockup).
+        RetroKkcSpace(profileViewModel, actualName, friends, myId, onDismiss, onNavigateToAlerts, onOpenShop)
         return
     }
     val colors = LocalTimecardColors.current

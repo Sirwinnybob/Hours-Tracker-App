@@ -45,6 +45,11 @@ fun PastAlertsModal(
     viewModel: AlertsViewModel,
     onDismiss: () -> Unit
 ) {
+    if (LocalTimecardColors.current.isRetro) {
+        // Retro: "KKC Mail" (RetroMail.kt, 2026-11-20 mockup).
+        RetroMail(viewModel, onDismiss)
+        return
+    }
     val colors = LocalTimecardColors.current
 
     LaunchedEffect(Unit) {
