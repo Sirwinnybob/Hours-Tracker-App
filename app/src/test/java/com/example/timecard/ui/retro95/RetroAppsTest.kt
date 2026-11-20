@@ -67,6 +67,8 @@ class RetroAppsTest {
         assertEquals("900 KK", buddyValue(list[1], BuddyTab.Coins))
         assertFalse(buddyOnline(list[1]))
         assertEquals("earned the badge Speed Logger", feedLine(ActivityEvent("badge_earned", "x", "X", "Speed Logger", "", "")))
+        assertEquals("hit a 5-day streak", feedLine(ActivityEvent("streak_milestone", "x", "X", "5 days", "", "")))
+        assertEquals("hit a 1-day streak", feedLine(ActivityEvent("streak_milestone", "x", "X", "1 day", "", "")))
         // KKCspace Top 8: this week's hours, not me, nobody with zero.
         assertEquals(listOf("c"), kkcSpaceTop8(list, myId = "a").map { it.id })
     }

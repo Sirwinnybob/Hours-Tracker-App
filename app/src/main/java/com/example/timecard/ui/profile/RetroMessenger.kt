@@ -81,7 +81,7 @@ internal fun buddyOnline(e: LeaderboardEntry): Boolean = e.weekHours > 0.0
 /** Chat-room line for a feed event: "Name: earned the badge X". */
 internal fun feedLine(e: ActivityEvent): String = when (e.type) {
     "badge_earned" -> "earned the badge ${e.detail}"
-    "streak_milestone" -> "hit a ${e.detail}"
+    "streak_milestone" -> "hit a ${e.detail.trim().replace(Regex("""(\d+)\s*days?"""), "$1-day")} streak"
     "record_broken" -> "set a new record: ${e.detail}"
     "coins_earned" -> "earned ${e.detail}"
     else -> e.detail
